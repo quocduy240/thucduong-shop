@@ -47,8 +47,13 @@ export function Price({ p, big = false }: { p: Pick<Product, "price" | "sale_pri
 export function ProductCard({ p }: { p: Product }) {
   return (
     <div className="group flex flex-col overflow-hidden rounded-lg border bg-white transition hover:shadow-md">
-      <Link href={url.product(p)}>
+      <Link href={url.product(p)} className="relative">
         <Thumb label={p.name} seed={p.id} image={p.image} className="transition group-hover:scale-[1.02]" />
+        {p.stock <= 0 && (
+          <span className="absolute right-2 top-2 rounded bg-gray-900/80 px-2 py-0.5 text-xs font-medium text-white">
+            Hết hàng
+          </span>
+        )}
       </Link>
       <div className="flex flex-1 flex-col gap-2 p-3">
         <Link href={url.product(p)} className="line-clamp-2 text-sm font-medium hover:text-brand">{p.name}</Link>

@@ -38,7 +38,7 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
           <label className={label}>Đường dẫn (slug)</label>
           <input name="slug" defaultValue={p?.slug} placeholder="Để trống để tự tạo từ tên" className={input} />
         </div>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-4">
           <div>
             <label className={label}>Danh mục *</label>
             <select name="category_id" required defaultValue={p?.category_id} className={input}>
@@ -53,6 +53,11 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
           <div>
             <label className={label}>Giá khuyến mãi</label>
             <input name="sale_price" type="number" min={1} defaultValue={p?.sale_price ?? ""} className={input} />
+          </div>
+          <div>
+            <label className={label}>Tồn kho (số lượng) *</label>
+            <input name="stock" type="number" min={0} required defaultValue={p?.stock ?? 100} className={input} />
+            <p className="mt-1 text-xs text-gray-500">Nhập 0 là Hết hàng.</p>
           </div>
         </div>
         <div>

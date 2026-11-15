@@ -8,6 +8,7 @@ export type Product = {
   name: string;
   price: number;
   sale_price: number | null;
+  stock: number;
   summary: string;
   description: string;
   image: string | null;
@@ -31,7 +32,7 @@ export type Post = {
 };
 export type Page = { grp: string; slug: string; title: string; content: string };
 
-const PRODUCT_COLS = `p.id, p.slug, p.name, p.price, p.sale_price, p.summary, p.description, p.image,
+const PRODUCT_COLS = `p.id, p.slug, p.name, p.price, p.sale_price, p.stock, p.summary, p.description, p.image,
   p.category_id, c.slug AS category_slug, c.name AS category_name`;
 const POST_COLS = `po.id, po.slug, po.title, po.excerpt, po.content, po.created_at, po.cover,
   pc.slug AS category_slug, pc.name AS category_name, pc.section_slug`;

@@ -38,11 +38,19 @@ export default async function ProductPage({ params }: PageProps<"/san-pham/[cate
           <div>
             <h1 className="text-2xl font-bold">{p.name}</h1>
             <div className="my-4"><Price p={p} big /></div>
+            <div className="mb-3 text-sm">
+              <span className="text-gray-500">Tình trạng: </span>
+              {p.stock > 0 ? (
+                <span className="font-medium text-brand">Còn hàng ({p.stock})</span>
+              ) : (
+                <span className="font-semibold text-red-600">Hết hàng</span>
+              )}
+            </div>
             <p className="text-gray-600">{p.summary}</p>
             {p.price > 0 ? (
-              <AddToCart productId={p.id} />
+              <AddToCart productId={p.id} stock={p.stock} />
             ) : (
-              <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Vui lòng liên hệ cửa hàng để biết giá và đặt mua.</p>
+              <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Vui lòng liên hệ cửa hàng để biết giá và đặt mua.</p>
             )}
             <ul className="mt-6 space-y-1 rounded-lg bg-green-50 p-4 text-sm">
               <li>✔ Giao hàng toàn quốc</li>

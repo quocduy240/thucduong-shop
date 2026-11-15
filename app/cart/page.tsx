@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { cartLines, readCart, writeCart } from "@/lib/cart";
 import { url } from "@/lib/data";
+import { one } from "@/lib/db";
 import { vnd } from "@/lib/site";
 import { Breadcrumb, Thumb } from "@/components/ui";
 
@@ -12,7 +13,9 @@ async function updateQty(formData: FormData) {
   const id = String(formData.get("id"));
   const qty = Math.floor(Number(formData.get("qty")));
   const cart = await readCart();
-  if (qty > 0) cart[id] = Math.min(qty, 999);
+  const prod = one<{ stock: number }>("SELECT stock FROM products WHERE id = ?", Number(id));
+  const max = Math.min(prod?.stock ?? 0, 999);
+  if (qty > 0 && max > 0) cart[id] = Math.min(qty, max);
   else delete cart[id];
   await writeCart(cart);
   revalidatePath("/cart");
@@ -49,11 +52,15 @@ export default async function CartPage() {
                   </Link>
                   <div className="flex-1">
                     <Link href={url.product(p)} className="font-medium hover:text-brand">{p.name}</Link>
-                    <div className="text-sm text-gray-500">{vnd(unit)}</div>
+                    <div className="text-sm text-gray-500">
+                      {vnd(unit)}
+                      {p.stock <= 5 && p.stock > 0 && <span className="ml-2 text-xs text-amber-700">(Còn {p.stock})</span>}
+                      {p.stock <= 0 && <span className="ml-2 text-xs font-semibold text-red-600">(Hết hàng)</span>}
+                    </div>
                   </div>
                   <form action={updateQty} className="flex items-center gap-2">
                     <input type="hidden" name="id" value={p.id} />
-                    <input name="qty" type="number" min={0} defaultValue={qty} className="w-16 rounded border px-2 py-1 text-center" />
+                    <input name="qty" type="number" min={0} max={Math.max(1, p.stock)} defaultValue={qty} className="w-16 rounded border px-2 py-1 text-center" />
                     <button className="text-sm text-brand hover:underline">Cập nhật</button>
                   </form>
                   <div className="w-28 text-right font-semibold">{vnd(subtotal)}</div>

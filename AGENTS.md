@@ -85,7 +85,7 @@ data/shop.db                 SQLite DB (git-ignored, shipped in the zip)
   + `orders/export` (CSV), `comments/`, `pages/` + `pages/[key]` (key = `<grp or ->__<slug>`), `categories/`, `settings/`.
   Shared admin UI: `components/admin/ui.tsx`; admin queries: `lib/admin-data.ts`; brand settings editable in DB: `lib/settings.ts`
   (`getSite()` replaces importing `site` from `lib/site.ts` in server components).
-- Orders have a `status` column (`new|confirmed|shipping|done|cancelled`, see `ORDER_STATUS`). Price `0` on a product means "Liên hệ" (no add-to-cart).
+- Orders have a `status` column (`new|confirmed|shipping|done|cancelled`, see `ORDER_STATUS`). Price `0` on a product means "Liên hệ" (no add-to-cart). Products have a `stock` column (default `100`; `0` means out of stock); placing an order deducts stock and cancelling an order restores it. New orders trigger an email notification (`lib/mail.ts`, SMTP config in `/admin/settings/`, default recipient `agvinh@gmail.com`).
 - `npm run import:products [-- --replace|--limit N|<url>]` scrapes real products (sitemap + homepage + category pages) into the DB and
   `public/uploads/products/`. `--replace` deletes the placeholder sample products. Run inside Docker: `docker compose exec web npm run import:products`.
 - Images are saved to `public/uploads/{products,posts}/` by `lib/uploads.ts`; `/admin/upload` is the route handler used by the
@@ -103,4 +103,4 @@ data/shop.db                 SQLite DB (git-ignored, shipped in the zip)
 ## Not implemented yet
 
 Admin for user accounts, affiliate, comment captcha, online payment, full province/ward dataset,
-mobile drawer menu, email notifications, WYSIWYG editor, media library, bulk post import.
+mobile drawer menu, WYSIWYG editor, media library, bulk post import.

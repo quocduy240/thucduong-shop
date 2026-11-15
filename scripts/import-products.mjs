@@ -58,6 +58,7 @@ db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
 const pcols = db.prepare("PRAGMA table_info(products)").all().map((c) => c.name);
 if (!pcols.includes("image")) db.exec("ALTER TABLE products ADD COLUMN image TEXT");
 if (!pcols.includes("source_url")) db.exec("ALTER TABLE products ADD COLUMN source_url TEXT");
+if (!pcols.includes("stock")) db.exec("ALTER TABLE products ADD COLUMN stock INTEGER NOT NULL DEFAULT 100");
 
 // ---- which products ----
 let urls;

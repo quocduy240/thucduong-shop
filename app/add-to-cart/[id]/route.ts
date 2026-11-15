@@ -5,6 +5,9 @@ import { one } from "@/lib/db";
 // GET /add-to-cart/{id} — no-JS fallback link: add one item, then go to the cart.
 export async function GET(_req: Request, ctx: RouteContext<"/add-to-cart/[id]">) {
   const id = Number((await ctx.params).id);
-  if (Number.isInteger(id) && one("SELECT 1 FROM products WHERE id = ?", id)) await addToCart(id, 1);
+  const prod = Number.isInteger(id)
+    ? one<{ stock: number; price: number }>("SELECT stock, price FROM products WHERE id = ?", id)
+    : undefined;
+  if (prod && prod.stock > 0 && prod.price > 0) await addToCart(id, 1, prod.stock);
   redirect("/cart");
 }

@@ -4,20 +4,39 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 /** "Thêm giỏ hàng" / "Mua ngay" — POST /api/v2/add-to-cart/{id} like the reference site. */
-export default function AddToCart({ productId }: { productId: number }) {
+export default function AddToCart({ productId, stock }: { productId: number; stock: number }) {
   const router = useRouter();
   const [qty, setQty] = useState(1);
   const [msg, setMsg] = useState("");
+  const [isErr, setIsErr] = useState(false);
   const [pending, start] = useTransition();
+
+  if (stock <= 0) {
+    return (
+      <div className="mt-6">
+        <p className="rounded-lg bg-red-50 p-3 text-sm font-medium text-red-700">
+          Sản phẩm hiện đang tạm hết hàng. Vui lòng quay lại sau hoặc liên hệ cửa hàng.
+        </p>
+      </div>
+    );
+  }
+
+  const maxQty = Math.min(stock, 999);
 
   const add = (buyNow: boolean) =>
     start(async () => {
+      setMsg("");
+      setIsErr(false);
       const res = await fetch(`/api/v2/add-to-cart/${productId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ qty }),
       });
-      if (!res.ok) return setMsg("Không thêm được sản phẩm.");
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setIsErr(true);
+        return setMsg(data.error ?? "Không thêm được sản phẩm.");
+      }
       if (buyNow) return router.push("/cart");
       setMsg("Đã thêm vào giỏ hàng!");
       router.refresh(); // updates header cart badge
@@ -32,11 +51,12 @@ export default function AddToCart({ productId }: { productId: number }) {
           <input
             type="number"
             min={1}
+            max={maxQty}
             value={qty}
-            onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
+            onChange={(e) => setQty(Math.min(maxQty, Math.max(1, Number(e.target.value) || 1)))}
             className="w-14 border-x py-1 text-center outline-none"
           />
-          <button type="button" className="px-3 py-1" onClick={() => setQty((q) => q + 1)}>+</button>
+          <button type="button" className="px-3 py-1" onClick={() => setQty((q) => Math.min(maxQty, q + 1))}>+</button>
         </div>
       </div>
       <div className="mt-4 flex gap-3">
@@ -55,7 +75,7 @@ export default function AddToCart({ productId }: { productId: number }) {
           Mua ngay
         </button>
       </div>
-      {msg && <p className="mt-2 text-sm text-brand">{msg}</p>}
+      {msg && <p className={`mt-2 text-sm ${isErr ? "text-red-600" : "text-brand"}`}>{msg}</p>}
     </div>
   );
 }

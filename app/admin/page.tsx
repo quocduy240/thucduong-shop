@@ -61,6 +61,7 @@ export default async function AdminHome({ searchParams }: PageProps<"/admin">) {
         <Stat label="Tổng doanh thu" value={vnd(s.revenue)} />
         <Stat label="Tổng số đơn" value={s.ordersTotal} href="/admin/orders/" />
         <Stat label="Sản phẩm" value={s.products} href="/admin/products/" />
+        <Stat label="Sắp hết / Hết hàng" value={`${s.lowStock} / ${s.outOfStock}`} href="/admin/products/?stock=out" tone={s.outOfStock ? "text-red-600" : s.lowStock ? "text-amber-600" : ""} />
         <Stat label="Bài viết" value={s.posts} href="/admin/posts/" />
         <Stat label="Bình luận" value={s.comments} href="/admin/comments/" />
       </div>

@@ -8,7 +8,8 @@ import {
 } from "@/lib/auth";
 import { isOrderStatus } from "@/lib/admin-data";
 import { db, one, run } from "@/lib/db";
-import { saveSite, SETTING_KEYS } from "@/lib/settings";
+import { sendEmail } from "@/lib/mail";
+import { getSite, MAIL_KEYS, saveMailSettings, saveSite, SETTING_KEYS } from "@/lib/settings";
 import { saveImage, slugify } from "@/lib/uploads";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
@@ -62,6 +63,7 @@ export async function saveProductAction(formData: FormData) {
   if (price < 0) back(here, "Giá không hợp lệ.");
   const salePrice = str(formData, "sale_price") ? num(formData, "sale_price") : null;
   if (salePrice !== null && (salePrice <= 0 || salePrice >= price)) back(here, "Giá khuyến mãi phải nhỏ hơn giá gốc.");
+  const stock = str(formData, "stock") !== "" ? Math.max(0, num(formData, "stock")) : 100;
   const categoryId = num(formData, "category_id");
   if (!one("SELECT 1 AS x FROM product_categories WHERE id = ?", categoryId)) back(here, "Chọn danh mục.");
 
@@ -80,14 +82,14 @@ export async function saveProductAction(formData: FormData) {
   try {
     if (id) {
       run(
-        `UPDATE products SET name=?, slug=?, category_id=?, price=?, sale_price=?, summary=?, description=?, image=?, featured=? WHERE id=?`,
-        name, slug, categoryId, price, salePrice, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured, id,
+        `UPDATE products SET name=?, slug=?, category_id=?, price=?, sale_price=?, stock=?, summary=?, description=?, image=?, featured=? WHERE id=?`,
+        name, slug, categoryId, price, salePrice, stock, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured, id,
       );
     } else {
       run(
-        `INSERT INTO products (name, slug, category_id, price, sale_price, summary, description, image, featured)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        name, slug, categoryId, price, salePrice, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured,
+        `INSERT INTO products (name, slug, category_id, price, sale_price, stock, summary, description, image, featured)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        name, slug, categoryId, price, salePrice, stock, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured,
       );
     }
   } catch (e) {
@@ -96,6 +98,16 @@ export async function saveProductAction(formData: FormData) {
   }
   refresh();
   redirect("/admin/products/?saved=1");
+}
+
+export async function updateProductStockAction(formData: FormData) {
+  await requireAdmin();
+  const id = num(formData, "id");
+  const stock = Math.max(0, num(formData, "stock"));
+  run("UPDATE products SET stock = ? WHERE id = ?", stock, id);
+  refresh();
+  const returnTo = str(formData, "return_to");
+  redirect(returnTo && returnTo.startsWith("/admin/products") ? returnTo : "/admin/products/?saved=1");
 }
 
 export async function deleteProductAction(formData: FormData) {
@@ -173,7 +185,34 @@ export async function updateOrderStatusAction(formData: FormData) {
   const id = num(formData, "id");
   const status = str(formData, "status");
   if (!isOrderStatus(status)) back(`/admin/orders/${id}/`, "Trạng thái không hợp lệ.");
-  run("UPDATE orders SET status = ? WHERE id = ?", status, id);
+  const current = one<{ status: string }>("SELECT status FROM orders WHERE id = ?", id);
+  if (!current) return back("/admin/orders/", "Đơn hàng không tồn tại.");
+
+  const conn = db();
+  conn.exec("BEGIN");
+  try {
+    if (current.status !== status) {
+      const items = conn.prepare("SELECT product_id, qty FROM order_items WHERE order_id = ?").all(id) as {
+        product_id: number;
+        qty: number;
+      }[];
+      if (current.status !== "cancelled" && status === "cancelled") {
+        // Restore stock when cancelling an active order
+        const restore = conn.prepare("UPDATE products SET stock = stock + ? WHERE id = ?");
+        for (const it of items) restore.run(it.qty, it.product_id);
+      } else if (current.status === "cancelled" && status !== "cancelled") {
+        // Deduct stock again when un-cancelling an order
+        const deduct = conn.prepare("UPDATE products SET stock = MAX(0, stock - ?) WHERE id = ?");
+        for (const it of items) deduct.run(it.qty, it.product_id);
+      }
+    }
+    run("UPDATE orders SET status = ? WHERE id = ?", status, id);
+    conn.exec("COMMIT");
+  } catch (e) {
+    conn.exec("ROLLBACK");
+    throw e;
+  }
+  refresh();
   redirect(`/admin/orders/${id}/?saved=1`);
 }
 
@@ -266,6 +305,42 @@ export async function saveSettingsAction(formData: FormData) {
   saveSite(values);
   refresh();
   redirect("/admin/settings/?saved=1");
+}
+
+export async function saveMailSettingsAction(formData: FormData) {
+  await requireAdmin();
+  const values: Record<string, string> = {};
+  for (const k of MAIL_KEYS) values[k] = str(formData, k);
+  if (!values.order_notify_email) {
+    back("/admin/settings/", "Vui lòng nhập email nhận thông báo đơn hàng.");
+  }
+  const invalid = values.order_notify_email
+    .split(/[,;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .find((s) => !/^\S+@\S+\.\S+$/.test(s));
+  if (invalid) back("/admin/settings/", `Email nhận đơn không hợp lệ: ${invalid}`);
+  saveMailSettings(values);
+  redirect("/admin/settings/?saved=1");
+}
+
+export async function testMailAction(formData: FormData) {
+  await requireAdmin();
+  const values: Record<string, string> = {};
+  for (const k of MAIL_KEYS) values[k] = str(formData, k);
+  if (values.order_notify_email) saveMailSettings(values);
+  const site = getSite();
+  try {
+    const res = await sendEmail({
+      to: values.order_notify_email || undefined,
+      subject: `[${site.name}] Email kiểm tra kết nối thông báo đơn hàng`,
+      html: `<p>Xin chào,</p><p>Đây là email kiểm tra từ trang quản trị <strong>${site.name}</strong>.</p><p>Cấu hình gửi email thông báo đơn hàng mới tới <strong>${values.order_notify_email || "agvinh@gmail.com"}</strong> đã hoạt động tốt!</p>`,
+    });
+    if (!res.sent) back("/admin/settings/", res.error ?? "Không gửi được email thử.");
+  } catch (e) {
+    back("/admin/settings/", `Lỗi gửi email: ${(e as Error).message}`);
+  }
+  redirect("/admin/settings/?mail_sent=1");
 }
 
 export async function changePasswordAction(formData: FormData) {

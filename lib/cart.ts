@@ -52,10 +52,13 @@ export function cartLines(cart: CartMap): { lines: CartLine[]; total: number; co
   };
 }
 
-export async function addToCart(productId: number, qty = 1) {
+export async function addToCart(productId: number, qty = 1, maxStock = 999) {
   const cart = await readCart();
   const key = String(productId);
-  cart[key] = Math.min((cart[key] ?? 0) + Math.max(1, Math.floor(qty)), 999);
-  await writeCart(cart);
+  const limit = Math.min(Math.max(0, maxStock), 999);
+  if (limit > 0) {
+    cart[key] = Math.min((cart[key] ?? 0) + Math.max(1, Math.floor(qty)), limit);
+    await writeCart(cart);
+  }
   return cartLines(cart);
 }

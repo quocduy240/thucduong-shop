@@ -20,6 +20,8 @@ export function getStats() {
   const n = (sql: string) => one<{ n: number }>(sql)?.n ?? 0;
   return {
     products: n("SELECT COUNT(*) AS n FROM products"),
+    outOfStock: n("SELECT COUNT(*) AS n FROM products WHERE stock <= 0"),
+    lowStock: n("SELECT COUNT(*) AS n FROM products WHERE stock > 0 AND stock <= 5"),
     posts: n("SELECT COUNT(*) AS n FROM posts"),
     comments: n("SELECT COUNT(*) AS n FROM comments"),
     ordersNew: n("SELECT COUNT(*) AS n FROM orders WHERE status = 'new'"),
@@ -34,17 +36,20 @@ export function getStats() {
 // ---- products ----
 export type AdminProductRow = {
   id: number; name: string; slug: string; price: number; sale_price: number | null;
-  image: string | null; featured: number; category_name: string; category_slug: string;
+  stock: number; image: string | null; featured: number; category_name: string; category_slug: string;
 };
-export function listProducts(opts: { q?: string; category?: number; page: number }) {
+export function listProducts(opts: { q?: string; category?: number; stock?: string; page: number }) {
   const where: string[] = [];
   const params: (string | number)[] = [];
   if (opts.q) (where.push("p.name LIKE ?"), params.push(like(opts.q)));
   if (opts.category) (where.push("p.category_id = ?"), params.push(opts.category));
+  if (opts.stock === "out") where.push("p.stock <= 0");
+  else if (opts.stock === "low") where.push("p.stock > 0 AND p.stock <= 5");
+  else if (opts.stock === "in") where.push("p.stock > 0");
   const w = where.length ? "WHERE " + where.join(" AND ") : "";
   const total = one<{ n: number }>(`SELECT COUNT(*) AS n FROM products p ${w}`, ...params)?.n ?? 0;
   const rows = all<AdminProductRow>(
-    `SELECT p.id, p.name, p.slug, p.price, p.sale_price, p.image, p.featured, c.name AS category_name, c.slug AS category_slug
+    `SELECT p.id, p.name, p.slug, p.price, p.sale_price, p.stock, p.image, p.featured, c.name AS category_name, c.slug AS category_slug
      FROM products p JOIN product_categories c ON c.id = p.category_id ${w}
      ORDER BY p.id DESC LIMIT ? OFFSET ?`,
     ...params, PAGE_SIZE, offset(opts.page),

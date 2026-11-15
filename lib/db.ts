@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS products (
   name TEXT NOT NULL,
   price INTEGER NOT NULL,
   sale_price INTEGER,
+  stock INTEGER NOT NULL DEFAULT 100,
   summary TEXT NOT NULL DEFAULT '',
   description TEXT NOT NULL DEFAULT '',
   featured INTEGER NOT NULL DEFAULT 0
@@ -114,6 +115,7 @@ export function migrate(db: DatabaseSync) {
   const pcols = (db.prepare("PRAGMA table_info(products)").all() as { name: string }[]).map((c) => c.name);
   if (!pcols.includes("image")) db.exec("ALTER TABLE products ADD COLUMN image TEXT");
   if (!pcols.includes("source_url")) db.exec("ALTER TABLE products ADD COLUMN source_url TEXT");
+  if (!pcols.includes("stock")) db.exec("ALTER TABLE products ADD COLUMN stock INTEGER NOT NULL DEFAULT 100");
   const ocols = (db.prepare("PRAGMA table_info(orders)").all() as { name: string }[]).map((c) => c.name);
   if (!ocols.includes("status")) db.exec("ALTER TABLE orders ADD COLUMN status TEXT NOT NULL DEFAULT 'new'");
 }
