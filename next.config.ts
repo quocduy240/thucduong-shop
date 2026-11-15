@@ -1,0 +1,24 @@
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  // Match the reference site's URL style: category URLs end with "/",
+  // detail pages end with ".html" (file-like URLs never get a slash appended).
+  trailingSlash: true,
+  // ...but don't force-redirect: /cart, /checkout and the JSON endpoints
+  // (/api/v2/..., /search/post/autocomplete) are served without a slash, as on the reference site.
+  skipTrailingSlashRedirect: true,
+  // Admin forms upload images through Server Actions (default limit is 1MB).
+  experimental: {
+    serverActions: { bodySizeLimit: "12mb" },
+  },
+  turbopack: {
+    rules: {
+      "*.css": {
+        loaders: ["@tailwindcss/turbopack"],
+        as: "*.css",
+      },
+    },
+  },
+};
+
+export default nextConfig;

@@ -1,0 +1,19 @@
+services:
+  web:
+    image: node:24
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --hostname 0.0.0.0"
+    ports:
+      - "3000:3000"
+    environment:
+      - WATCHPACK_POLLING=true
+    volumes:
+      - .:/app
+      # giữ node_modules/.next trong Docker, không trộn với máy Mac
+      - node_modules:/app/node_modules
+      - next_cache:/app/.next
+
+volumes:
+  node_modules:
+  next_cache:
+
