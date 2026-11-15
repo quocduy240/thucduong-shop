@@ -43,3 +43,5 @@ next-env.d.ts
 # local SQLite database
 /data/
 note_shop_thucduongphuctho
+*.zip
+*.zip
