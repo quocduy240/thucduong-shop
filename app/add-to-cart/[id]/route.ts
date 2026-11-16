@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { addToCart } from "@/lib/cart";
 import { one } from "@/lib/db";
 
-// GET /add-to-cart/{id} — no-JS fallback link: add one item, then go to the cart.
+// GET /add-to-cart/{id} - no-JS fallback link: add one item, then go to the cart.
 export async function GET(_req: Request, ctx: RouteContext<"/add-to-cart/[id]">) {
   const id = Number((await ctx.params).id);
   const prod = Number.isInteger(id)

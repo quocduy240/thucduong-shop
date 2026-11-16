@@ -17,7 +17,7 @@ export default async function ThankYou({ searchParams }: PageProps<"/checkout/th
       <h1 className="mt-4 text-2xl font-bold text-brand">Đặt hàng thành công!</h1>
       {order ? (
         <p className="mt-3 text-gray-600">
-          Cảm ơn {order.name}. Mã đơn hàng: <b>{order.code}</b> — Tổng: <b>{vnd(order.total)}</b>
+          Cảm ơn {order.name}. Mã đơn hàng: <b>{order.code}</b> - Tổng: <b>{vnd(order.total)}</b>
           {order.payment === "bank" && <><br />Vui lòng chuyển khoản theo hướng dẫn chúng tôi gửi qua điện thoại.</>}
         </p>
       ) : (

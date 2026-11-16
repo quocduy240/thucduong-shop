@@ -1,7 +1,7 @@
 import { currentAdmin } from "@/lib/auth";
 import { saveImage } from "@/lib/uploads";
 
-// POST /admin/upload — used by the "Chèn ảnh" button in the post editor. Returns { url }.
+// POST /admin/upload - used by the "Chèn ảnh" button in the post editor. Returns { url }.
 export async function POST(req: Request) {
   if (!(await currentAdmin())) return Response.json({ error: "Chưa đăng nhập." }, { status: 401 });
   const file = (await req.formData().catch(() => null))?.get("file");

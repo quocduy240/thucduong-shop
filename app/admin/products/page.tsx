@@ -68,7 +68,7 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={p.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
                   ) : (
-                    <span className="grid h-12 w-12 place-items-center rounded-lg bg-gray-100 text-xs text-gray-400">—</span>
+                    <span className="grid h-12 w-12 place-items-center rounded-lg bg-gray-100 text-xs text-gray-400">-</span>
                   )}
                 </td>
                 <td className={`${ui.td} max-w-md`}>

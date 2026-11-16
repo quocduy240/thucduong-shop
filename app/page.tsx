@@ -15,7 +15,7 @@ export default function Home() {
         <div className="flex min-h-64 flex-col justify-center rounded-xl bg-gradient-to-r from-brand to-green-600 p-8 text-white">
           <p className="text-sm uppercase tracking-widest opacity-80">{site.tagline}</p>
           <h1 className="mt-2 text-3xl font-bold md:text-4xl">{site.name}</h1>
-          <p className="mt-3 max-w-md opacity-90">Banner chính — thay bằng ảnh/slider của bạn.</p>
+          <p className="mt-3 max-w-md opacity-90">Banner chính - thay bằng ảnh/slider của bạn.</p>
           <Link href="/san-pham/" className="mt-6 w-fit rounded-full bg-white px-5 py-2 text-sm font-semibold text-brand">
             Xem sản phẩm
           </Link>

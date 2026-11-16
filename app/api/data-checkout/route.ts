@@ -2,7 +2,7 @@ import { cartLines, readCart, writeCart } from "@/lib/cart";
 import { db, one } from "@/lib/db";
 import { sendNewOrderEmail } from "@/lib/mail";
 
-// POST /api/data-checkout — create an order from the cookie cart.
+// POST /api/data-checkout - create an order from the cookie cart.
 export async function POST(req: Request) {
   const b = (await req.json().catch(() => ({}))) as Record<string, string>;
   const name = (b.name ?? "").trim();

@@ -1,4 +1,4 @@
-// Brand settings — replace with your own.
+// Brand settings - replace with your own.
 export const site = {
   name: "Thực Dưỡng Shop",
   tagline: "Ăn đúng - Sống khỏe",

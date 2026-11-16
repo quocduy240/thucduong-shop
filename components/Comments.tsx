@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 type Comment = { id: number; name: string; content: string; created_at: string };
 
-/** Product comments — GET /load-comment, POST /submit-comment (reference site paths). */
+/** Product comments - GET /load-comment, POST /submit-comment (reference site paths). */
 export default function Comments({ productId }: { productId: number }) {
   const [items, setItems] = useState<Comment[]>([]);
   const [name, setName] = useState("");

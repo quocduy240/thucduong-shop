@@ -208,7 +208,7 @@ async function worker() {
     const url = queue.shift();
     try {
       const r = await importOne(url);
-      console.log(`[${++done}/${urls.length}] ${r.name} — ${r.price}${r.sale ? ` (KM ${r.sale})` : ""}${r.image ? "" : " (không có ảnh)"}`);
+      console.log(`[${++done}/${urls.length}] ${r.name} - ${r.price}${r.sale ? ` (KM ${r.sale})` : ""}${r.image ? "" : " (không có ảnh)"}`);
     } catch (e) {
       failed.push(url);
       console.error(`[lỗi] ${url}: ${e.message}`);
