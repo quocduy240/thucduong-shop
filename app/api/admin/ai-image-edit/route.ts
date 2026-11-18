@@ -147,7 +147,13 @@ export async function POST(req: Request) {
         );
 
         if (!res.ok) {
-          lastError = `Model ${model} lỗi (${res.status}): ${(await res.text().catch(() => "")).slice(0, 180)}`;
+          const errRaw = await res.text().catch(() => "");
+          if (res.status === 429) {
+            lastError =
+              "API Key hiện đang bị giới hạn hạn mức (HTTP 429) cho model tạo ảnh Gemini Image. Theo chính sách Google AI Studio, tính năng tạo/sửa ảnh (gemini-3.1-flash-image) yêu cầu bật Billing (Pay-as-you-go) trên Google AI Studio / Google Cloud.";
+          } else {
+            lastError = `Model ${model} lỗi (${res.status}): ${errRaw.slice(0, 180)}`;
+          }
           continue;
         }
 
