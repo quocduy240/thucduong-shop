@@ -1,7 +1,7 @@
 import "server-only";
 import crypto from "node:crypto";
 import { all, one, run } from "./db";
-import { escapeHtml, sanitizeAiHtml } from "./security";
+import { escapeHtml, guardUserPromptInput, sanitizeAiHtml } from "./security";
 import {
   getDocuments,
   getProductCategories,
@@ -580,7 +580,7 @@ Hãy đóng vai **Hội đồng Chuyên gia Y khoa Hiện đại – Thực dư�
 - Tình trạng sức khoẻ: ${input.conditions.join(", ") || "Không ghi nhận đặc biệt"}
 - Thói quen ăn uống: ${input.habits.join(", ") || "Chưa ghi nhận"}
 ${hasDietRecall ? `- Khẩu phần ăn thực tế 24h gần nhất:\n  + Bữa sáng: ${dr.breakfast || "Chưa ghi"}\n  + Bữa trưa: ${dr.lunch || "Chưa ghi"}\n  + Bữa tối: ${dr.dinner || "Chưa ghi"}\n  + Bữa phụ / Đồ uống: ${dr.snacks || "Không có"}` : ""}
-- Ghi chú thêm: ${input.customNote || "Không có"}
+- Ghi chú thêm: ${guardUserPromptInput(input.customNote, 800) || "Không có"}
 
 Danh sách tài nguyên thực tế của cửa hàng để lồng ghép khéo léo vào lời khuyên (chỉ nhắc đúng tên nếu phù hợp, không bịa tên khác):
 Sản phẩm theo nhóm:

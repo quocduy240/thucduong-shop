@@ -77,3 +77,17 @@ export function safeEqualSecret(a: string, b: string): boolean {
   if (bufA.length !== bufB.length) return false;
   return crypto.timingSafeEqual(bufA, bufB);
 }
+
+/**
+ * Neutralizes common LLM prompt-injection patterns in untrusted user text
+ * before embedding into Gemini prompts.
+ */
+export function guardUserPromptInput(raw: string, maxLen = 1500): string {
+  return String(raw ?? "")
+    .slice(0, maxLen)
+    .replace(
+      /(?:ignore\s+(?:all\s+)?previous\s+instructions|disregard\s+system\s+prompt|reveal\s+(?:your\s+)?(?:system\s+prompt|api\s*key)|you\s+are\s+now\s+in\s+developer\s+mode|bỏ\s+qua\s+(?:mọi\s+)?chỉ\s+dẫn\s+trước)/gi,
+      "[filtered]",
+    )
+    .trim();
+}
