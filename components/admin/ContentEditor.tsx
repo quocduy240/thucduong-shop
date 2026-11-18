@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import { vnd } from "@/lib/site";
 import AiImageRegenerateModal from "./AiImageRegenerateModal";
 
@@ -177,7 +178,8 @@ export default function ContentEditor({
       if (detail?.html) {
         setHtml((prev) => {
           const next = `${detail.html}\n${prev}`;
-          if (visualRef.current) visualRef.current.innerHTML = next;
+          // nosemgrep: typescript.react.security.audit.react-unsanitized-property.react-unsanitized-property
+          if (visualRef.current) visualRef.current.innerHTML = sanitizeHtml(next);
           return next;
         });
       }
@@ -397,7 +399,8 @@ export default function ContentEditor({
       const end = ta.selectionEnd ?? html.length;
       const next = html.slice(0, start) + toInsert + html.slice(end);
       setHtml(next);
-      if (visualRef.current) visualRef.current.innerHTML = next;
+      // nosemgrep: typescript.react.security.audit.react-unsanitized-property.react-unsanitized-property
+      if (visualRef.current) visualRef.current.innerHTML = sanitizeHtml(next);
       requestAnimationFrame(() => {
         ta.focus();
         const pos = start + toInsert.length;
@@ -1990,7 +1993,8 @@ export default function ContentEditor({
                 value={html}
                 onChange={(e) => {
                   setHtml(e.target.value);
-                  if (visualRef.current) visualRef.current.innerHTML = e.target.value;
+                  // nosemgrep: typescript.react.security.audit.react-unsanitized-property.react-unsanitized-property
+                  if (visualRef.current) visualRef.current.innerHTML = sanitizeHtml(e.target.value);
                 }}
                 className="w-full bg-transparent font-mono text-xs leading-relaxed text-green-300 outline-none"
                 placeholder="Mã HTML của bài viết..."

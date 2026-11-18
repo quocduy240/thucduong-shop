@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 
 export default function RichTextEditor({
   name,
@@ -299,7 +300,8 @@ export default function RichTextEditor({
                 value={html}
                 onChange={(e) => {
                   setHtml(e.target.value);
-                  if (visualRef.current) visualRef.current.innerHTML = e.target.value;
+                  // nosemgrep: typescript.react.security.audit.react-unsanitized-property.react-unsanitized-property
+                  if (visualRef.current) visualRef.current.innerHTML = sanitizeHtml(e.target.value);
                 }}
                 placeholder="Nhập mã HTML bài review chi tiết..."
                 className="w-full bg-transparent font-mono text-xs leading-relaxed text-green-300 outline-none"

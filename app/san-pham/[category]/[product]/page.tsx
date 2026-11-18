@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { expandNestedBlocks, getQrBadgesForPosition } from "@/lib/blocks";
 import QrCornerBadge from "@/components/QrCornerBadge";
 import { getProduct, getRelatedProducts, url } from "@/lib/data";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import { getProductFlashSale } from "@/lib/flash-sale";
 import { getSite } from "@/lib/settings";
 import { vnd } from "@/lib/site";
@@ -276,7 +277,8 @@ export default async function ProductPage({ params }: PageProps<"/san-pham/[cate
             <BlockZone position="product_top" productId={p.id} className="mb-4" />
             <div
               className="prose-content rounded-3xl border border-gray-200/90 bg-white p-6 text-[15.5px] leading-[1.82] shadow-sm md:p-9"
-              dangerouslySetInnerHTML={{ __html: expandedDescription }}
+              // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(expandedDescription) }}
             />
             <BlockZone position="product_bottom" productId={p.id} className="mt-4" />
             <p className="mt-3 text-xs italic text-gray-500">
