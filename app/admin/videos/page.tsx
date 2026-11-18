@@ -1,8 +1,14 @@
 import Link from "next/link";
 import ConfirmButton from "@/components/admin/ConfirmButton";
+import YoutubeSyncPanel from "@/components/admin/YoutubeSyncPanel";
 import { Flash, PageHeader, Pagination, pageParam, strParam, ui } from "@/components/admin/ui";
 import { listVideos } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/auth";
+import {
+  getYoutubeSyncConfig,
+  listPendingYoutubeVideos,
+  triggerDueYoutubeSyncInBackground,
+} from "@/lib/youtube-sync";
 import { addVideoAction, deleteVideoAction, updateVideoAction } from "../actions";
 
 export const metadata = { title: "Video bài giảng | Quản trị" };
@@ -43,7 +49,12 @@ export default async function VideosAdminPage({
   const q = strParam(sp.q);
   const topic = strParam(sp.topic);
   const page = pageParam(sp.page);
-  const { rows, total, topics } = await listVideos({ q, topic, page });
+  await triggerDueYoutubeSyncInBackground();
+  const [{ rows, total, topics }, syncConfig, pendingVideos] = await Promise.all([
+    listVideos({ q, topic, page }),
+    getYoutubeSyncConfig(),
+    listPendingYoutubeVideos(),
+  ]);
 
   const allTopicNames = Array.from(new Set([...DEFAULT_TOPICS, ...topics.map((t) => t.topic)]));
 
@@ -55,6 +66,8 @@ export default async function VideosAdminPage({
         </Link>
       </PageHeader>
       <Flash saved={sp.saved} error={sp.error} />
+
+      <YoutubeSyncPanel initialConfig={syncConfig} initialPending={pendingVideos} />
 
       {/* Quick Add Video Box — only requires pasting YouTube URL */}
       <form action={addVideoAction} className={`${ui.card} mb-6 p-5 border-green-200 bg-green-50/30`}>

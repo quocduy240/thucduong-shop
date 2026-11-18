@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getPage, getPost, getPostCategory, getPostSection } from "@/lib/data";
+import { triggerDueYoutubeSyncInBackground } from "@/lib/youtube-sync";
 import { PostDetail, PostList, StaticPage } from "@/components/PostViews";
 
 /**
@@ -34,6 +35,9 @@ export async function generateMetadata({ params }: PageProps<"/[section]/[slug]"
 
 export default async function Page({ params }: PageProps<"/[section]/[slug]">) {
   const { section, slug } = await params;
+  if (slug === "bai-giang-thuc-duong") {
+    await triggerDueYoutubeSyncInBackground();
+  }
   const r = await resolve(section, slug);
   if (!r) notFound();
   if (r.kind === "page") return <StaticPage page={r.page} />;
