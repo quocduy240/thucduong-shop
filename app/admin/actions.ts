@@ -1026,3 +1026,21 @@ export async function autoGenerateFlashSaleAction(formData: FormData) {
   refresh();
   redirect("/admin/flash-sale/?saved=1");
 }
+
+export async function saveGeminiKeyAction(formData: FormData) {
+  await requireAdmin();
+  const key = str(formData, "gemini_api_key");
+  if (!key) {
+    await run("DELETE FROM settings WHERE key = 'gemini_api_key'");
+    refresh();
+    redirect("/admin/settings/?saved=1");
+  }
+  if (!key.startsWith("AIza") || key.length < 30 || /\s/.test(key)) {
+    redirect(
+      `/admin/settings/?error=${encodeURIComponent("Gemini API Key không hợp lệ (Key Google AI Studio phải bắt đầu bằng 'AIza...' và dài ~39 ký tự).")}`,
+    );
+  }
+  await run("INSERT OR REPLACE INTO settings (key, value) VALUES ('gemini_api_key', ?)", key);
+  refresh();
+  redirect("/admin/settings/?saved=1");
+}

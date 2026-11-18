@@ -2,13 +2,15 @@ import { Flash, PageHeader, ui } from "@/components/admin/ui";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import { listAdmins } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/auth";
-import { all, run } from "@/lib/db";
+import { all, one, run } from "@/lib/db";
+import { isLikelyValidGeminiKey } from "@/lib/gemini-key";
 import { getMailSettings, getSite, getWidgetSettings } from "@/lib/settings";
 import {
   addAdminAction,
   changePasswordAction,
   deleteAdminAction,
   deleteConsultationAction,
+  saveGeminiKeyAction,
   saveMailSettingsAction,
   saveSettingsAction,
   saveWidgetSettingsAction,
@@ -31,7 +33,7 @@ export default async function SettingsAdmin({ searchParams }: PageProps<"/admin/
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`);
 
-  const [site, mail, widget, admins, consultations] = await Promise.all([
+  const [site, mail, widget, admins, consultations, geminiRow] = await Promise.all([
     getSite(),
     getMailSettings(),
     getWidgetSettings(),
@@ -45,7 +47,10 @@ export default async function SettingsAdmin({ searchParams }: PageProps<"/admin/
       status: string;
       created_at: string;
     }>("SELECT id, name, phone, question, page_url, status, created_at FROM consultation_requests ORDER BY id DESC LIMIT 30"),
+    one<{ value: string }>("SELECT value FROM settings WHERE key = 'gemini_api_key'"),
   ]);
+  const savedGemini = (geminiRow?.value ?? "").trim() || (process.env.GEMINI_API_KEY ?? "").trim();
+  const hasValidGemini = isLikelyValidGeminiKey(savedGemini);
 
   const field = (name: keyof typeof site, label: string, hint?: string) => (
     <div>
@@ -64,6 +69,40 @@ export default async function SettingsAdmin({ searchParams }: PageProps<"/admin/
           Đã lưu cấu hình và gửi email thử thành công tới <strong>{mail.order_notify_email}</strong>!
         </p>
       )}
+
+      <form action={saveGeminiKeyAction} className={`${ui.card} space-y-3 border-emerald-200 p-6`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="font-semibold text-gray-900">🤖 Cấu hình Gemini AI API Key (Dùng chung toàn hệ thống)</h2>
+            <p className="text-xs text-gray-500">
+              Dùng cho: Tạo lại ảnh AI Image, Viết lại đoạn văn bản, Phân tích Xét nghiệm AI và Tư vấn nhanh Chuyên gia.
+            </p>
+          </div>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-bold ${
+              hasValidGemini ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+            }`}
+          >
+            {hasValidGemini ? `✓ Đã cấu hình (${savedGemini.slice(0, 8)}...)` : "⚠️ Chưa cấu hình Key hợp lệ"}
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <input
+            type="password"
+            name="gemini_api_key"
+            placeholder="Dán Gemini API Key từ Google AI Studio (bắt đầu bằng AIza...)"
+            className={`${ui.input} flex-1 min-w-[260px]`}
+          />
+          <button className={ui.primary}>Lưu API Key</button>
+        </div>
+        <p className="text-xs text-gray-500">
+          Lấy API Key miễn phí tại{" "}
+          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-brand underline">
+            aistudio.google.com/apikey
+          </a>
+          . Để trống và bấm Lưu nếu muốn xoá Key đã lưu trong D1.
+        </p>
+      </form>
 
       <form action={saveMailSettingsAction} className={`${ui.card} space-y-4 p-6`}>
         <div>
