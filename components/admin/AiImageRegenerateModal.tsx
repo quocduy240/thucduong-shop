@@ -1,6 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+function suggestSeoImageName(contextTitle: string, originalUrl: string): string {
+  let source = contextTitle.trim();
+  if (!source && originalUrl) {
+    try {
+      const pathname = originalUrl.startsWith("http")
+        ? new URL(originalUrl).pathname
+        : originalUrl.split("?")[0];
+      const base = pathname.split("/").pop() || "";
+      source = decodeURIComponent(base).replace(/\.[a-z0-9]+$/i, "");
+    } catch {
+      source = "";
+    }
+  }
+  const slug = source
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 52);
+
+  if (!slug) return "thuc-duong-phuc-tho-ai";
+  return slug.endsWith("-moi") ? slug : `${slug}-moi`;
+}
 
 const IMAGE_PRESETS = [
   {
@@ -43,13 +69,21 @@ export default function AiImageRegenerateModal({
     IMAGE_PRESETS[2].prompt,
   ]);
   const [customPrompt, setCustomPrompt] = useState("");
-  const [newName, setNewName] = useState(contextTitle);
+  const [newName, setNewName] = useState(() => suggestSeoImageName(contextTitle, originalUrl));
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [replaceEverywhere, setReplaceEverywhere] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [generatedUrl, setGeneratedUrl] = useState("");
   const [syncedRows, setSyncedRows] = useState(0);
+
+  useEffect(() => {
+    if (open) {
+      setNewName(suggestSeoImageName(contextTitle, originalUrl));
+      setGeneratedUrl("");
+      setErr("");
+    }
+  }, [open, contextTitle, originalUrl]);
 
   if (!open || !originalUrl) return null;
 
@@ -187,14 +221,23 @@ export default function AiImageRegenerateModal({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-gray-700">
-                3. Tên tệp ảnh mới (chuẩn SEO):
-              </label>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="text-xs font-bold text-gray-700">
+                  3. Tên tệp ảnh mới (chuẩn SEO):
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setNewName(suggestSeoImageName(contextTitle, originalUrl))}
+                  className="text-[11px] font-semibold text-brand hover:underline cursor-pointer"
+                >
+                  ✨ Gợi ý tên SEO
+                </button>
+              </div>
               <input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="VD: canh-duong-sinh-king-kung-moi"
-                className="w-full rounded-xl border px-3 py-2 text-xs"
+                className="w-full rounded-xl border px-3 py-2 font-mono text-xs"
               />
             </div>
           </div>
