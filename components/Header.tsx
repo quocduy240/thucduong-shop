@@ -7,7 +7,11 @@ import { getThemeSettings } from "@/lib/theme-settings";
 import SearchBox from "./SearchBox";
 import ThemeSwitcher from "./ThemeSwitcher";
 
-type MenuItem = { label: string; href: string; children?: { label: string; href: string }[] };
+type MenuItem = {
+  label: string;
+  href: string;
+  children?: { label: string; href: string; featured?: boolean }[];
+};
 
 export default async function Header() {
   const [site, cart, member, sections, postCats, productCats, policyPages, themeConfig] = await Promise.all([
@@ -24,12 +28,14 @@ export default async function Header() {
 
   const menu: MenuItem[] = [
     { label: "Trang chủ", href: "/" },
-    { label: "Canh Dưỡng Sinh", href: "/canh-duong-sinh/" },
     { label: "Giới thiệu", href: url.page({ grp: "", slug: "gioi-thieu" }) },
     {
       label: "Sản phẩm",
       href: "/san-pham/",
-      children: productCats.map((c) => ({ label: c.name, href: url.productCategory(c) })),
+      children: [
+        { label: "🌿 Canh Dưỡng Sinh King Kung", href: "/canh-duong-sinh/", featured: true },
+        ...productCats.map((c) => ({ label: c.name, href: url.productCategory(c) })),
+      ],
     },
     ...sections.map((s) => ({
       label: s.name,
@@ -100,8 +106,20 @@ export default async function Header() {
                 <ul className="invisible absolute left-0 top-full z-50 min-w-60 bg-white py-1 text-gray-800 opacity-0 shadow-lg transition group-hover:visible group-hover:opacity-100">
                   {m.children.map((c) => (
                     <li key={c.href}>
-                      <Link href={c.href} className="block px-4 py-2 hover:bg-green-50 hover:text-brand">
-                        {c.label}
+                      <Link
+                        href={c.href}
+                        className={
+                          c.featured
+                            ? "flex items-center justify-between gap-2 border-b border-emerald-200 bg-gradient-to-r from-emerald-50 via-green-50 to-amber-50 px-4 py-2.5 font-bold text-brand hover:from-emerald-100 hover:to-amber-100"
+                            : "block px-4 py-2 hover:bg-green-50 hover:text-brand"
+                        }
+                      >
+                        <span>{c.label}</span>
+                        {c.featured && (
+                          <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-extrabold uppercase text-white shadow-2xs">
+                            Nổi bật
+                          </span>
+                        )}
                       </Link>
                     </li>
                   ))}

@@ -73,6 +73,54 @@ function formatVnd(n: number) {
   return `${new Intl.NumberFormat("vi-VN").format(n)}đ`;
 }
 
+function ZoomableProductImage({
+  src,
+  alt,
+  className = "",
+  wrapperClassName = "",
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  wrapperClassName?: string;
+}) {
+  const [zooming, setZooming] = useState(false);
+  const [pos, setPos] = useState({ x: 50, y: 50 });
+
+  function handleMove(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.min(100, Math.max(0, ((e.clientY - rect.top) / rect.height) * 100));
+    setPos({ x, y });
+  }
+
+  return (
+    <div
+      onMouseEnter={() => setZooming(true)}
+      onMouseMove={handleMove}
+      onMouseLeave={() => setZooming(false)}
+      className={`relative overflow-hidden cursor-zoom-in ${wrapperClassName}`}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        className={`transition-transform duration-150 ease-out ${className}`}
+        style={
+          zooming
+            ? { transform: "scale(2.3)", transformOrigin: `${pos.x}% ${pos.y}%` }
+            : { transform: "scale(1)", transformOrigin: "center center" }
+        }
+      />
+      {!zooming && (
+        <span className="pointer-events-none absolute bottom-2.5 right-2.5 rounded-full bg-black/55 px-2.5 py-1 text-[11px] text-white backdrop-blur-sm">
+          🔍 Rê chuột để soi chi tiết
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function CanhDuongSinhLanding({
   instantProd,
   teaBagProd,
@@ -141,14 +189,12 @@ export default function CanhDuongSinhLanding({
           </div>
 
           <div className="md:col-span-6">
-            <div className="group relative overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-amber-50 p-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/uploads/cds/cds-products.png"
-                alt="Canh Dưỡng Sinh King Kung Hòa Tan & Túi Lọc"
-                className="mx-auto max-h-80 w-full object-contain transition-transform duration-300 group-hover:scale-105"
-              />
-            </div>
+            <ZoomableProductImage
+              src="/uploads/cds/cds-products.png"
+              alt="Canh Dưỡng Sinh King Kung Hòa Tan & Túi Lọc"
+              wrapperClassName="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-amber-50 p-4"
+              className="mx-auto max-h-80 w-full object-contain"
+            />
           </div>
         </div>
       </section>
@@ -187,14 +233,12 @@ export default function CanhDuongSinhLanding({
                 )}
               </div>
 
-              <div className="group overflow-hidden rounded-xl border bg-gray-50 p-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={instantProd?.image || "/uploads/products/phuctho/chiet-xuat-rau-cu-hon-hop-vegetable-drink-canh-duong-sinh-hoa-tan-h-60-goi.jpg"}
-                  alt="Canh dưỡng sinh hòa tan hộp 60 gói"
-                  className="mx-auto h-56 w-full object-contain transition-transform duration-300 group-hover:scale-110"
-                />
-              </div>
+              <ZoomableProductImage
+                src={instantProd?.image || "/uploads/products/phuctho/chiet-xuat-rau-cu-hon-hop-vegetable-drink-canh-duong-sinh-hoa-tan-h-60-goi.jpg"}
+                alt="Canh dưỡng sinh hòa tan hộp 60 gói"
+                wrapperClassName="rounded-xl border bg-gray-50 p-3"
+                className="mx-auto h-56 w-full object-contain"
+              />
 
               <div className="grid grid-cols-2 gap-2 rounded-xl bg-emerald-50/60 p-3 text-xs">
                 <div>
@@ -277,14 +321,12 @@ export default function CanhDuongSinhLanding({
                 )}
               </div>
 
-              <div className="group overflow-hidden rounded-xl border bg-gray-50 p-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={teaBagProd?.image || "/uploads/products/phuctho/tra-rau-cu-tui-loc-canh-duong-sinh-tui-loc.jpg"}
-                  alt="Canh dưỡng sinh túi lọc hộp 90 gói"
-                  className="mx-auto h-56 w-full object-contain transition-transform duration-300 group-hover:scale-110"
-                />
-              </div>
+              <ZoomableProductImage
+                src={teaBagProd?.image || "/uploads/products/phuctho/tra-rau-cu-tui-loc-canh-duong-sinh-tui-loc.jpg"}
+                alt="Canh dưỡng sinh túi lọc hộp 90 gói"
+                wrapperClassName="rounded-xl border bg-gray-50 p-3"
+                className="mx-auto h-56 w-full object-contain"
+              />
 
               <div className="grid grid-cols-2 gap-2 rounded-xl bg-emerald-50/60 p-3 text-xs">
                 <div>
