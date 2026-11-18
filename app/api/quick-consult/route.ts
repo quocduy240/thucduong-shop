@@ -6,6 +6,8 @@ export async function POST(req: Request) {
       customerName?: string;
       phone?: string;
       ageSex?: string;
+      heightCm?: number | string;
+      weightKg?: number | string;
       needs?: string[];
       conditions?: string[];
       habits?: string[];
@@ -29,6 +31,8 @@ export async function POST(req: Request) {
       customerName: String(body.customerName ?? "").trim(),
       phone: String(body.phone ?? "").trim(),
       ageSex: String(body.ageSex ?? "").trim(),
+      heightCm: Number(body.heightCm ?? 0) || 0,
+      weightKg: Number(body.weightKg ?? 0) || 0,
       needs,
       conditions,
       habits,

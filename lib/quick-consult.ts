@@ -16,11 +16,32 @@ export type QuickConsultInput = {
   customerName: string;
   phone: string;
   ageSex: string;
+  heightCm?: number;
+  weightKg?: number;
   needs: string[];
   conditions: string[];
   habits: string[];
   motifId: string;
   customNote: string;
+};
+
+export type ExpertProfileConfig = {
+  expertName: string;
+  expertTitle: string;
+  schoolOfThought: string;
+  focusAreas: string;
+  customDirective: string;
+};
+
+export const DEFAULT_EXPERT_CONFIG: ExpertProfileConfig = {
+  expertName: "Chuyên gia Thực dưỡng Phúc Thọ",
+  expertTitle: "Cố vấn Dinh dưỡng Thực dưỡng & Chăm sóc Sức khoẻ Tự nhiên",
+  schoolOfThought:
+    "Thực dưỡng Quân bình Âm – Dương (Ohsawa) kết hợp Dinh dưỡng Y học Hiện đại (Evidence-Based Nutrition)",
+  focusAreas:
+    "Đánh giá chỉ số BMI, chuyển hoá đường-mỡ, hệ tiêu hoá, giấc ngủ và phối hợp Thức ăn – Trợ phương – Dược thảo",
+  customDirective:
+    "Luôn phân tích sát với chiều cao, cân nặng, chỉ số BMI, độ tuổi và bệnh lý nền; đưa ra thực đơn sáng/trưa/tối cụ thể, thói quen sinh hoạt theo giờ và liệt kê rõ từng sản phẩm cần bổ sung.",
 };
 
 export type MatchedProductCard = {
@@ -65,6 +86,8 @@ export type QuickConsultRow = {
   customer_name: string;
   phone: string;
   age_sex: string;
+  height_cm: number;
+  weight_kg: number;
   needs_json: string;
   conditions_json: string;
   habits_json: string;
@@ -74,6 +97,10 @@ export type QuickConsultRow = {
   followup_choice: string;
   followup_email: string;
   followup_note: string;
+  share_token: string;
+  expert_report_html: string;
+  expert_config_json: string;
+  expert_analyzed_at: string | null;
   created_at: string;
 };
 
@@ -87,6 +114,8 @@ export async function ensureQuickConsultTable(): Promise<void> {
       customer_name TEXT NOT NULL DEFAULT '',
       phone TEXT NOT NULL DEFAULT '',
       age_sex TEXT NOT NULL DEFAULT '',
+      height_cm REAL NOT NULL DEFAULT 0,
+      weight_kg REAL NOT NULL DEFAULT 0,
       needs_json TEXT NOT NULL DEFAULT '[]',
       conditions_json TEXT NOT NULL DEFAULT '[]',
       habits_json TEXT NOT NULL DEFAULT '[]',
@@ -96,10 +125,72 @@ export async function ensureQuickConsultTable(): Promise<void> {
       followup_choice TEXT NOT NULL DEFAULT '',
       followup_email TEXT NOT NULL DEFAULT '',
       followup_note TEXT NOT NULL DEFAULT '',
+      share_token TEXT NOT NULL DEFAULT '',
+      expert_report_html TEXT NOT NULL DEFAULT '',
+      expert_config_json TEXT NOT NULL DEFAULT '{}',
+      expert_analyzed_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
+
+  // Additive column migration for existing databases
+  const cols = await all<{ name: string }>(`PRAGMA table_info(quick_consultations)`);
+  const existing = new Set(cols.map((c) => c.name));
+  const migrations: [string, string][] = [
+    ["height_cm", "ALTER TABLE quick_consultations ADD COLUMN height_cm REAL NOT NULL DEFAULT 0"],
+    ["weight_kg", "ALTER TABLE quick_consultations ADD COLUMN weight_kg REAL NOT NULL DEFAULT 0"],
+    ["share_token", "ALTER TABLE quick_consultations ADD COLUMN share_token TEXT NOT NULL DEFAULT ''"],
+    ["expert_report_html", "ALTER TABLE quick_consultations ADD COLUMN expert_report_html TEXT NOT NULL DEFAULT ''"],
+    ["expert_config_json", "ALTER TABLE quick_consultations ADD COLUMN expert_config_json TEXT NOT NULL DEFAULT '{}'"],
+    ["expert_analyzed_at", "ALTER TABLE quick_consultations ADD COLUMN expert_analyzed_at TEXT"],
+  ];
+  for (const [col, sql] of migrations) {
+    if (!existing.has(col)) {
+      await run(sql);
+    }
+  }
   tableReady = true;
+}
+
+export function computeBmi(heightCm: number, weightKg: number): { bmi: number | null; label: string } {
+  if (!heightCm || heightCm <= 0 || !weightKg || weightKg <= 0) {
+    return { bmi: null, label: "Chưa đủ dữ liệu" };
+  }
+  const hM = heightCm / 100;
+  const bmi = Math.round((weightKg / (hM * hM)) * 10) / 10;
+  let label = "Bình thường";
+  if (bmi < 18.5) label = "Thiếu cân";
+  else if (bmi >= 25) label = "Thừa cân / Béo phì (chuẩn châu Á)";
+  else if (bmi >= 23) label = "Tiền thừa cân (chuẩn châu Á)";
+  return { bmi, label };
+}
+
+export async function getQuickConsultById(id: number): Promise<QuickConsultRow | undefined> {
+  await ensureQuickConsultTable();
+  return one<QuickConsultRow>(`SELECT * FROM quick_consultations WHERE id = ?`, id);
+}
+
+export async function getQuickConsultByToken(token: string): Promise<QuickConsultRow | undefined> {
+  await ensureQuickConsultTable();
+  if (!token.trim()) return undefined;
+  return one<QuickConsultRow>(`SELECT * FROM quick_consultations WHERE share_token = ?`, token.trim());
+}
+
+export async function getExpertProfileConfig(): Promise<ExpertProfileConfig> {
+  const row = await one<{ value: string }>(`SELECT value FROM settings WHERE key = 'expert_consult_config'`);
+  if (!row?.value) return DEFAULT_EXPERT_CONFIG;
+  try {
+    return { ...DEFAULT_EXPERT_CONFIG, ...(JSON.parse(row.value) as Partial<ExpertProfileConfig>) };
+  } catch {
+    return DEFAULT_EXPERT_CONFIG;
+  }
+}
+
+export async function saveExpertProfileConfig(cfg: ExpertProfileConfig): Promise<void> {
+  await run(
+    `INSERT OR REPLACE INTO settings (key, value) VALUES ('expert_consult_config', ?)`,
+    JSON.stringify(cfg),
+  );
 }
 
 export async function listQuickConsultations(limit = 50): Promise<QuickConsultRow[]> {
@@ -403,11 +494,14 @@ async function callGeminiExpertConsult(
   const videoText = videos.map((v) => `- ${v.title}`).join("\n");
   const docText = documents.map((d) => `- ${d.title}`).join("\n");
 
+  const { bmi, label: bmiLabel } = computeBmi(Number(input.heightCm) || 0, Number(input.weightKg) || 0);
+
   const prompt = `${motif.systemTone}
 
 Hãy viết một **Bài viết Tư vấn Thực dưỡng Cá nhân hoá** bằng tiếng Việt dành riêng cho khách hàng có thông tin sau:
 - Họ tên: ${input.customerName || "Quý khách"}
 - Tuổi / Giới tính: ${input.ageSex || "Chưa cung cấp"}
+- Chiều cao: ${input.heightCm ? `${input.heightCm} cm` : "Chưa nhập"} | Cân nặng: ${input.weightKg ? `${input.weightKg} kg` : "Chưa nhập"} ${bmi ? `(BMI: ${bmi} - ${bmiLabel})` : ""}
 - Nhu cầu chính: ${input.needs.join(", ") || "Cải thiện sức khoẻ tổng thể"}
 - Tình trạng sức khoẻ: ${input.conditions.join(", ") || "Không ghi nhận đặc biệt"}
 - Thói quen ăn uống: ${input.habits.join(", ") || "Chưa ghi nhận"}
@@ -473,13 +567,15 @@ export async function generateQuickConsultReport(input: QuickConsultInput): Prom
 
   const res = await run(
     `INSERT INTO quick_consultations (
-      customer_name, phone, age_sex,
+      customer_name, phone, age_sex, height_cm, weight_kg,
       needs_json, conditions_json, habits_json,
       motif_id, custom_note, article_html
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     input.customerName.trim(),
     input.phone.trim(),
     input.ageSex.trim(),
+    Number(input.heightCm) || 0,
+    Number(input.weightKg) || 0,
     JSON.stringify(input.needs),
     JSON.stringify(input.conditions),
     JSON.stringify(input.habits),
@@ -487,6 +583,9 @@ export async function generateQuickConsultReport(input: QuickConsultInput): Prom
     input.customNote.trim(),
     articleHtml,
   );
+
+  const shareToken = `hs-${res.lastInsertRowid}-${Math.random().toString(36).slice(2, 8)}`;
+  await run(`UPDATE quick_consultations SET share_token = ? WHERE id = ?`, shareToken, res.lastInsertRowid);
 
   return {
     id: res.lastInsertRowid,
@@ -496,4 +595,193 @@ export async function generateQuickConsultReport(input: QuickConsultInput): Prom
     videos,
     documents,
   };
+}
+
+function parseJsonArray(raw: string): string[] {
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+function buildBackendExpertFallback(
+  row: QuickConsultRow,
+  cfg: ExpertProfileConfig,
+  groups: MatchedProductGroup[],
+): string {
+  const { bmi, label } = computeBmi(row.height_cm, row.weight_kg);
+  const needs = parseJsonArray(row.needs_json);
+  const conditions = parseJsonArray(row.conditions_json);
+  const habits = parseJsonArray(row.habits_json);
+
+  const prodRows = groups
+    .map(
+      (g) =>
+        `<li><strong>${g.groupTitle}:</strong> ${g.items
+          .slice(0, 3)
+          .map((it) => `${it.name} (${new Intl.NumberFormat("vi-VN").format(it.sale_price ?? it.price)}đ)`)
+          .join(" · ")}</li>`,
+    )
+    .join("");
+
+  return `
+<div class="expert-pdf-report">
+  <h3>1. Tóm tắt Tình trạng Sức khoẻ &amp; Chỉ số Cơ thể</h3>
+  <ul>
+    <li><strong>Họ tên:</strong> ${row.customer_name || "Quý khách"} ${row.age_sex ? `(${row.age_sex})` : ""}</li>
+    <li><strong>Chiều cao / Cân nặng:</strong> ${row.height_cm ? `${row.height_cm} cm` : "Chưa nhập"} · ${row.weight_kg ? `${row.weight_kg} kg` : "Chưa nhập"} ${bmi ? `— <strong>BMI: ${bmi} (${label})</strong>` : ""}</li>
+    <li><strong>Nhu cầu ưu tiên:</strong> ${needs.join("; ") || "Cân bằng sức khoẻ"}</li>
+    <li><strong>Tình trạng sức khoẻ:</strong> ${conditions.join("; ") || "Chưa ghi nhận triệu chứng đặc biệt"}</li>
+    <li><strong>Thói quen hiện tại:</strong> ${habits.join("; ") || "Đang tìm hiểu thực dưỡng"}</li>
+    ${row.custom_note ? `<li><strong>Ghi chú bệnh nhân:</strong> ${row.custom_note}</li>` : ""}
+  </ul>
+
+  <h3>2. Hướng Ăn Uống Thực Dưỡng Cá Nhân Hoá</h3>
+  <ul>
+    <li><strong>Nguyên tắc nền tảng:</strong> Áp dụng theo trường phái <em>${cfg.schoolOfThought}</em>. Ưu tiên ngũ cốc nguyên cám (gạo lứt, hạt kê, yến mạch), nhai kỹ 25–30 lần/miếng để hỗ trợ men tiêu hoá và ổn định đường huyết.</li>
+    <li><strong>Thực đơn mẫu trong ngày:</strong>
+      <ul>
+        <li><em>Sáng (6h30–7h30):</em> Cháo gạo lứt đậu đỏ hoặc súp Miso rau củ ấm.</li>
+        <li><em>Trưa (11h30–12h30):</em> 50% cơm gạo lứt muối mè, 30% rau củ theo mùa hấp/luộc, 20% đạm thực vật (đậu hũ, tương Tamari lâu năm).</li>
+        <li><em>Tối (trước 19h00):</em> Ăn nhẹ bằng bún/phở lứt hoặc canh dưỡng sinh rau củ, hạn chế trái cây lạnh và đường tinh luyện buổi tối.</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h3>3. Lối Sống, Vận Động &amp; Điều Chỉnh Thói Quen</h3>
+  <ul>
+    <li>Ngủ trước 22h30, giữ ấm vùng bụng và bàn chân, tránh tắm đêm muộn.</li>
+    <li>Đi bộ nhẹ hoặc tập hít thở sâu 20–30 phút mỗi sáng để kích thích tuần hoàn và trao đổi chất.</li>
+    <li>Uống nước ấm từng ngụm nhỏ thay vì uống nhiều nước đá trong bữa ăn.</li>
+  </ul>
+
+  <h3>4. Sản Phẩm Cần Bổ Sung (Thức Ăn – Trợ Phương – Dược Thảo)</h3>
+  <ul>
+    ${prodRows || "<li>Kết hợp gạo lứt hữu cơ, tương Tamari/Miso và trà thảo mộc phù hợp thể trạng.</li>"}
+  </ul>
+
+  <blockquote>
+    <strong>Lời dặn của ${cfg.expertName}:</strong> ${cfg.customDirective}
+  </blockquote>
+</div>`;
+}
+
+export async function runBackendExpertAnalysis(
+  id: number,
+  overrideConfig?: Partial<ExpertProfileConfig>,
+): Promise<QuickConsultRow> {
+  const row = await getQuickConsultById(id);
+  if (!row) throw new Error("Không tìm thấy hồ sơ bệnh nhân.");
+
+  const baseCfg = await getExpertProfileConfig();
+  const cfg: ExpertProfileConfig = { ...baseCfg, ...overrideConfig };
+  const needs = parseJsonArray(row.needs_json);
+  const conditions = parseJsonArray(row.conditions_json);
+  const habits = parseJsonArray(row.habits_json);
+  const { bmi, label } = computeBmi(row.height_cm, row.weight_kg);
+
+  const { productGroups } = await matchResources({
+    customerName: row.customer_name,
+    phone: row.phone,
+    ageSex: row.age_sex,
+    heightCm: row.height_cm,
+    weightKg: row.weight_kg,
+    needs,
+    conditions,
+    habits,
+    motifId: row.motif_id,
+    customNote: row.custom_note,
+  });
+
+  const apiRow = await one<{ value: string }>(`SELECT value FROM settings WHERE key = 'gemini_api_key'`);
+  const apiKey = apiRow?.value?.trim() || process.env.GEMINI_API_KEY?.trim() || "";
+
+  let reportHtml = "";
+  if (apiKey) {
+    const prodList = productGroups
+      .map(
+        (g) =>
+          `${g.groupTitle}: ${g.items
+            .map((i) => `${i.name} (${new Intl.NumberFormat("vi-VN").format(i.sale_price ?? i.price)}đ)`)
+            .join(", ")}`,
+      )
+      .join("\n");
+
+    const prompt = `Bạn là ${cfg.expertName} (${cfg.expertTitle}).
+Trường phái & phương pháp: ${cfg.schoolOfThought}.
+Trọng tâm phân tích: ${cfg.focusAreas}.
+Chỉ dẫn chuyên môn riêng: ${cfg.customDirective}.
+
+Hãy phân tích hồ sơ bệnh nhân dưới đây và lập **Bản Hồ Sơ Tư Vấn Sức Khoẻ Cá Nhân Hoá (dùng để xuất PDF gửi bệnh nhân)**:
+- Họ tên: ${row.customer_name || "Quý khách"}
+- SĐT: ${row.phone || "Chưa cung cấp"}
+- Tuổi / Giới tính: ${row.age_sex || "Chưa cung cấp"}
+- Chiều cao: ${row.height_cm ? `${row.height_cm} cm` : "Chưa nhập"} | Cân nặng: ${row.weight_kg ? `${row.weight_kg} kg` : "Chưa nhập"} | BMI: ${bmi ? `${bmi} (${label})` : "Chưa tính được"}
+- Nhu cầu: ${needs.join(", ") || "Không ghi nhận"}
+- Tình trạng sức khoẻ: ${conditions.join(", ") || "Không ghi nhận"}
+- Thói quen: ${habits.join(", ") || "Không ghi nhận"}
+- Ghi chú thêm của bệnh nhân: ${row.custom_note || "Không có"}
+- Ghi chú tư vấn nâng cao: ${row.followup_note || "Không có"}
+
+Danh sách sản phẩm hiện có trong cửa hàng để chỉ định bổ sung (chọn đúng tên phù hợp nhất):
+${prodList || "(Chưa có)"}
+
+Yêu cầu đầu ra:
+- Trả về **HTML sạch** (chỉ dùng thẻ h3, p, ul, li, strong, em, table, tr, th, td, blockquote; KHÔNG bọc markdown fence).
+- Bắt buộc có đúng 4 phần rõ ràng:
+  1. <h3>1. Tóm tắt Tình trạng Sức khoẻ &amp; Chỉ số Cơ thể (BMI)</h3>
+  2. <h3>2. Hướng Ăn Uống Thực Dưỡng Cá Nhân Hoá</h3> (gồm nguyên tắc + gợi ý thực đơn Sáng/Trưa/Tối)
+  3. <h3>3. Lối Sống, Vận Động &amp; Điều Chỉnh Thói Quen</h3>
+  4. <h3>4. Sản Phẩm Cần Bổ Sung (Thức Ăn – Trợ Phương – Dược Thảo)</h3> (nêu rõ công dụng và cách dùng gợi ý từng món).
+- Kết thúc bằng 1 đoạn lưu ý an toàn y khoa (không thay thế chẩn đoán bác sĩ điều trị).`;
+
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.35 },
+          }),
+        },
+      );
+      if (res.ok) {
+        const data = (await res.json()) as {
+          candidates?: { content?: { parts?: { text?: string }[] } }[];
+        };
+        const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        if (raw.trim()) {
+          reportHtml = raw.replace(/^```(?:html)?\s*/i, "").replace(/\s*```$/i, "").trim();
+        }
+      }
+    } catch {
+      /* fallback below */
+    }
+  }
+
+  if (!reportHtml) {
+    reportHtml = buildBackendExpertFallback(row, cfg, productGroups);
+  }
+
+  const shareToken =
+    row.share_token || `hs-${row.id}-${Math.random().toString(36).slice(2, 8)}`;
+
+  await run(
+    `UPDATE quick_consultations
+     SET expert_report_html = ?,
+         expert_config_json = ?,
+         share_token = ?,
+         expert_analyzed_at = datetime('now')
+     WHERE id = ?`,
+    reportHtml,
+    JSON.stringify(cfg),
+    shareToken,
+    row.id,
+  );
+
+  return (await getQuickConsultById(row.id))!;
 }

@@ -37,6 +37,8 @@ export default function QuickConsultClient({
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [ageSex, setAgeSex] = useState("");
+  const [heightCm, setHeightCm] = useState("");
+  const [weightKg, setWeightKg] = useState("");
   const [needs, setNeeds] = useState<string[]>([CONSULT_GOALS[0]]);
   const [conditions, setConditions] = useState<string[]>([]);
   const [habits, setHabits] = useState<string[]>([]);
@@ -75,6 +77,8 @@ export default function QuickConsultClient({
           customerName,
           phone,
           ageSex,
+          heightCm: Number(heightCm) || 0,
+          weightKg: Number(weightKg) || 0,
           needs,
           conditions,
           habits,
@@ -143,7 +147,7 @@ export default function QuickConsultClient({
     <div className="space-y-8">
       {/* Step 1: Intake Form */}
       <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm md:p-7 space-y-6">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <label className="mb-1 block text-xs font-bold text-gray-700">Họ tên / Danh xưng</label>
             <input
@@ -168,6 +172,31 @@ export default function QuickConsultClient({
               value={ageSex}
               onChange={(e) => setAgeSex(e.target.value)}
               placeholder="VD: 45 tuổi, Nữ"
+              className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-bold text-gray-700">Chiều cao (cm)</label>
+            <input
+              type="number"
+              min={50}
+              max={250}
+              value={heightCm}
+              onChange={(e) => setHeightCm(e.target.value)}
+              placeholder="VD: 162"
+              className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-bold text-gray-700">Cân nặng (kg)</label>
+            <input
+              type="number"
+              min={15}
+              max={250}
+              step="0.5"
+              value={weightKg}
+              onChange={(e) => setWeightKg(e.target.value)}
+              placeholder="VD: 56"
               className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
             />
           </div>
