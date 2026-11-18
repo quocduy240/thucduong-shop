@@ -72,16 +72,18 @@ export const getProductCategories = () =>
 export const getProductCategory = (slug: string) =>
   one<ProductCategory>("SELECT id, slug, name FROM product_categories WHERE slug = ?", slug);
 
+const CDS_FIRST = "CASE WHEN LOWER(p.name) LIKE '%canh dưỡng sinh%' OR LOWER(p.name) LIKE '%canh duong sinh%' THEN 0 ELSE 1 END";
+
 export const getProducts = (limit = 1000) =>
   all<Product>(
-    `SELECT ${PRODUCT_COLS} FROM products p JOIN product_categories c ON c.id = p.category_id ORDER BY c.sort, p.id LIMIT ?`,
+    `SELECT ${PRODUCT_COLS} FROM products p JOIN product_categories c ON c.id = p.category_id ORDER BY ${CDS_FIRST}, p.featured DESC, c.sort, p.id DESC LIMIT ?`,
     limit,
   );
 
 export const getProductsByCategory = (categoryId: number, limit = 1000) =>
   all<Product>(
     `SELECT ${PRODUCT_COLS} FROM products p JOIN product_categories c ON c.id = p.category_id
-     WHERE p.category_id = ? ORDER BY p.featured DESC, p.id LIMIT ?`,
+     WHERE p.category_id = ? ORDER BY ${CDS_FIRST}, p.featured DESC, p.id DESC LIMIT ?`,
     categoryId,
     limit,
   );
@@ -161,7 +163,7 @@ export async function filterProducts(opts: ProductFilterOptions = {}): Promise<P
     where.push(`${effPrice} > 500000`);
   }
 
-  let orderBy = "p.featured DESC, p.id DESC";
+  let orderBy = `${CDS_FIRST}, p.featured DESC, p.id DESC`;
   if (opts.sort === "newest") orderBy = "p.id DESC";
   else if (opts.sort === "price-asc") orderBy = `CASE WHEN ${effPrice} = 0 THEN 1 ELSE 0 END, ${effPrice} ASC, p.id DESC`;
   else if (opts.sort === "price-desc") orderBy = `${effPrice} DESC, p.id DESC`;

@@ -24,6 +24,7 @@ export default async function Header() {
 
   const menu: MenuItem[] = [
     { label: "Trang chủ", href: "/" },
+    { label: "Canh Dưỡng Sinh", href: "/canh-duong-sinh/" },
     { label: "Giới thiệu", href: url.page({ grp: "", slug: "gioi-thieu" }) },
     {
       label: "Sản phẩm",
