@@ -5,7 +5,7 @@ import QuickAddButton from "./QuickAddButton";
 
 const palette = ["#e8f5e9", "#fff3e0", "#e3f2fd", "#fce4ec", "#f3e5f5", "#e0f7fa"];
 
-/** Placeholder image — swap for <Image> once you have real product photos. */
+/** Placeholder image - swap for <Image> once you have real product photos. */
 export function Thumb({
   label,
   seed,

@@ -46,7 +46,7 @@ export default async function PostsAdmin({ searchParams }: PageProps<"/admin/pos
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={p.cover} alt="" className="h-12 w-12 rounded-lg object-cover" />
                   ) : (
-                    <span className="grid h-12 w-12 place-items-center rounded-lg bg-gray-100 text-xs text-gray-400">—</span>
+                    <span className="grid h-12 w-12 place-items-center rounded-lg bg-gray-100 text-xs text-gray-400">-</span>
                   )}
                 </td>
                 <td className={`${ui.td} max-w-md`}><Link href={`/admin/posts/${p.id}/`} className="font-medium hover:text-brand">{p.title}</Link></td>

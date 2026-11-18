@@ -1,4 +1,4 @@
-# Thực Dưỡng Shop — bản dựng thử (prototype)
+# Thực Dưỡng Shop - bản dựng thử (prototype)
 
 Bản dựng lại site **thucduongthienan.com** (đang chạy trên nền tảng LoveItop) bằng **Next.js 16 + SQLite**.
 Mục đích là **đánh giá có nên chuyển công nghệ hay không**, nên đây chỉ là bản chạy local, không dùng để public.

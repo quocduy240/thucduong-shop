@@ -3,7 +3,7 @@ import { batch, one, run } from "@/lib/db";
 import { sendNewOrderEmail } from "@/lib/mail";
 import { currentMember, evaluateCoupon } from "@/lib/member-auth";
 
-// POST /api/data-checkout — create an order from the cookie cart.
+// POST /api/data-checkout - create an order from the cookie cart.
 export async function POST(req: Request) {
   const b = (await req.json().catch(() => ({}))) as Record<string, string>;
   const name = (b.name ?? "").trim();

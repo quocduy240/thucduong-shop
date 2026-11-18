@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-/** "Thêm giỏ hàng" / "Mua ngay" — POST /api/v2/add-to-cart/{id} like the reference site. */
+/** "Thêm giỏ hàng" / "Mua ngay" - POST /api/v2/add-to-cart/{id} like the reference site. */
 export default function AddToCart({ productId, stock }: { productId: number; stock: number }) {
   const router = useRouter();
   const [qty, setQty] = useState(1);

@@ -8,7 +8,7 @@ const cell = (v: unknown) => {
   return `"${s.replace(/"/g, '""')}"`;
 };
 
-// GET /admin/orders/export — all orders as CSV (UTF-8 with BOM so Excel shows Vietnamese correctly).
+// GET /admin/orders/export - all orders as CSV (UTF-8 with BOM so Excel shows Vietnamese correctly).
 export async function GET() {
   if (!(await currentAdmin())) return new Response("Unauthorized", { status: 401 });
   const head = ["Mã đơn", "Ngày đặt", "Khách hàng", "Điện thoại", "Email", "Địa chỉ", "Ghi chú", "Thanh toán", "Trạng thái", "Tổng tiền", "Sản phẩm"];

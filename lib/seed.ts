@@ -4,7 +4,7 @@ import { DUYVO_VIDEOS } from "./duyvo-videos";
 /**
  * Placeholder seed data. Structure mirrors the reference site (category
  * groups, post sections, policy pages); every name and text here is generic
- * sample content — replace it with your own catalogue.
+ * sample content - replace it with your own catalogue.
  */
 
 const productCategories: [string, string, string[]][] = [
@@ -264,7 +264,7 @@ export const seedPages: [string, string, string, string][] = [
   ],
 ];
 
-// Sample only — import the full province/ward dataset for production.
+// Sample only - import the full province/ward dataset for production.
 const provinces: [string, string, [string, string][]][] = [
   ["01", "Thành phố Hà Nội", [["00001", "Phường Ba Đình"], ["00002", "Phường Hoàn Kiếm"], ["00003", "Phường Đống Đa"]]],
   ["79", "Thành phố Hồ Chí Minh", [["26734", "Phường Sài Gòn"], ["26735", "Phường Bến Thành"], ["26736", "Phường Tân Định"]]],
@@ -392,7 +392,7 @@ export function seed(db: DatabaseSync) {
         for (let k = 1; k <= 3; k++) {
           n++;
           const title = `${cname}: bài viết mẫu số ${k}`;
-          insPost.run(slugify(title), cid, title, "Tóm tắt bài viết mẫu — thay bằng nội dung của bạn.", lorem, `-${n} days`);
+          insPost.run(slugify(title), cid, title, "Tóm tắt bài viết mẫu - thay bằng nội dung của bạn.", lorem, `-${n} days`);
         }
       }
     });
