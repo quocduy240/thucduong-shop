@@ -639,6 +639,7 @@ export default function ContentEditor({
           tone: selTone,
           customInstruction: selCustomPrompt,
           contextTitle: titleInput?.value?.trim() || "",
+          geminiApiKey: aiApiKey,
         }),
       });
       const data = (await res.json()) as { ok?: boolean; rewrittenHtml?: string; error?: string; note?: string };
@@ -1773,7 +1774,7 @@ export default function ContentEditor({
 
             {selAiOpen && (
               <div className="rounded-xl border border-indigo-200 bg-white p-3.5 shadow-sm space-y-3 text-xs">
-                <div className="grid gap-2.5 sm:grid-cols-2">
+                <div className="grid gap-2.5 sm:grid-cols-3">
                   <div>
                     <label className="mb-1 block font-bold text-gray-700">Chọn văn phong mới:</label>
                     <select
@@ -1798,6 +1799,29 @@ export default function ContentEditor({
                       className="w-full rounded-lg border px-2.5 py-1.5 text-xs"
                     />
                   </div>
+                  <div>
+                    <label className="mb-1 block font-bold text-gray-700">🔑 Gemini API Key (AIza...):</label>
+                    <input
+                      type="password"
+                      value={aiApiKey}
+                      onChange={(e) => setAiApiKey(e.target.value)}
+                      placeholder="Để trống nếu đã lưu trên server"
+                      className="w-full rounded-lg border px-2.5 py-1.5 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block font-bold text-emerald-800">
+                    Đoạn văn bản viết mới (AI tạo ra hoặc bạn tự chỉnh sửa trực tiếp):
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={selPreviewHtml || selectedText}
+                    onChange={(e) => setSelPreviewHtml(e.target.value)}
+                    className="w-full rounded-lg border border-emerald-200 bg-emerald-50/30 p-2.5 text-xs leading-relaxed focus:border-brand focus:outline-none"
+                    placeholder="Bấm 'Tạo bản viết lại bằng AI' hoặc nhập trực tiếp nội dung mới..."
+                  />
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -1807,31 +1831,33 @@ export default function ContentEditor({
                     onClick={runSelectionAiRewrite}
                     className="rounded-lg bg-brand px-4 py-1.5 font-bold text-white hover:bg-brand-dark disabled:opacity-50 cursor-pointer"
                   >
-                    {selBusy ? "⏳ AI đang viết lại..." : "⚡ Tạo bản viết lại"}
+                    {selBusy ? "⏳ AI đang viết lại..." : "⚡ Tạo bản viết lại bằng AI"}
                   </button>
-                  {selPreviewHtml && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => applySelectionRewrite("replace")}
-                        className="rounded-lg bg-emerald-600 px-3 py-1.5 font-bold text-white hover:bg-emerald-700 cursor-pointer"
-                      >
-                        ✓ Thay thế đoạn đã chọn
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => applySelectionRewrite("append")}
-                        className="rounded-lg border border-emerald-600 bg-emerald-50 px-3 py-1.5 font-bold text-emerald-800 hover:bg-emerald-100 cursor-pointer"
-                      >
-                        ➕ Chèn bên dưới
-                      </button>
-                    </>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!selPreviewHtml) setSelPreviewHtml(`<p>${selectedText}</p>`);
+                      setTimeout(() => applySelectionRewrite("replace"), 0);
+                    }}
+                    className="rounded-lg bg-emerald-600 px-3.5 py-1.5 font-bold text-white shadow-xs hover:bg-emerald-700 cursor-pointer"
+                  >
+                    ✓ Thay thế đoạn cũ bằng đoạn văn bản viết mới
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!selPreviewHtml) setSelPreviewHtml(`<p>${selectedText}</p>`);
+                      setTimeout(() => applySelectionRewrite("append"), 0);
+                    }}
+                    className="rounded-lg border border-emerald-600 bg-emerald-50 px-3 py-1.5 font-bold text-emerald-800 hover:bg-emerald-100 cursor-pointer"
+                  >
+                    ➕ Chèn bên dưới đoạn cũ
+                  </button>
                 </div>
 
                 {selPreviewHtml && (
                   <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-3">
-                    <div className="mb-1 text-[10px] font-bold uppercase text-emerald-700">Bản xem trước từ AI:</div>
+                    <div className="mb-1 text-[10px] font-bold uppercase text-emerald-700">Xem trước hiển thị HTML:</div>
                     <div className="prose-content max-w-none text-xs" dangerouslySetInnerHTML={{ __html: selPreviewHtml }} />
                   </div>
                 )}

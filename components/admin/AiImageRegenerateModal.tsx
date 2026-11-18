@@ -44,6 +44,7 @@ export default function AiImageRegenerateModal({
   ]);
   const [customPrompt, setCustomPrompt] = useState("");
   const [newName, setNewName] = useState(contextTitle);
+  const [geminiApiKey, setGeminiApiKey] = useState("");
   const [replaceEverywhere, setReplaceEverywhere] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -73,6 +74,7 @@ export default function AiImageRegenerateModal({
           newName: newName.trim() || contextTitle,
           contextTitle,
           replaceEverywhere,
+          geminiApiKey,
         }),
       });
       const data = (await res.json()) as {
@@ -195,6 +197,19 @@ export default function AiImageRegenerateModal({
                 className="w-full rounded-xl border px-3 py-2 text-xs"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-bold text-gray-700">
+              🔑 Gemini API Key (AIza... — tuỳ chọn nếu chưa lưu hoặc cần đổi key mới):
+            </label>
+            <input
+              type="password"
+              value={geminiApiKey}
+              onChange={(e) => setGeminiApiKey(e.target.value)}
+              placeholder="Dán API Key từ Google AI Studio (bắt đầu bằng AIza...) để tự động lưu"
+              className="w-full rounded-xl border px-3 py-2 text-xs"
+            />
           </div>
 
           <label className="flex items-center gap-2 text-xs text-gray-700">

@@ -1,5 +1,5 @@
 import { currentAdmin } from "@/lib/auth";
-import { one } from "@/lib/db";
+import { resolveGeminiApiKey } from "@/lib/gemini-key";
 
 const TONE_PROMPTS: Record<string, string> = {
   chuyen_gia_thuc_duong:
@@ -25,6 +25,7 @@ export async function POST(req: Request) {
       tone?: string;
       customInstruction?: string;
       contextTitle?: string;
+      geminiApiKey?: string;
     };
 
     const selectedText = String(body.selectedText ?? "").trim();
@@ -37,8 +38,7 @@ export async function POST(req: Request) {
     const customInstruction = String(body.customInstruction ?? "").trim();
     const contextTitle = String(body.contextTitle ?? "").trim();
 
-    const row = await one<{ value: string }>("SELECT value FROM settings WHERE key = 'gemini_api_key'");
-    const apiKey = row?.value?.trim() || process.env.GEMINI_API_KEY?.trim() || "";
+    const apiKey = await resolveGeminiApiKey(body.geminiApiKey);
 
     if (!apiKey) {
       // Clean fallback when Gemini API key is not configured

@@ -1,5 +1,6 @@
 import { currentAdmin } from "@/lib/auth";
-import { one, run } from "@/lib/db";
+import { run } from "@/lib/db";
+import { resolveGeminiApiKey } from "@/lib/gemini-key";
 import { saveMediaAsset } from "@/lib/media-assets";
 
 function slugifyName(raw: string): string {
@@ -84,6 +85,7 @@ export async function POST(req: Request) {
       newName?: string;
       contextTitle?: string;
       replaceEverywhere?: boolean;
+      geminiApiKey?: string;
     };
 
     const originalUrl = String(body.originalUrl ?? "").trim();
@@ -91,11 +93,10 @@ export async function POST(req: Request) {
       return Response.json({ error: "Thiếu đường dẫn ảnh gốc." }, { status: 400 });
     }
 
-    const apiRow = await one<{ value: string }>(`SELECT value FROM settings WHERE key = 'gemini_api_key'`);
-    const apiKey = apiRow?.value?.trim() || process.env.GEMINI_API_KEY?.trim() || "";
+    const apiKey = await resolveGeminiApiKey(body.geminiApiKey);
     if (!apiKey) {
       return Response.json(
-        { error: "Chưa cấu hình GEMINI_API_KEY. Vui lòng nhập API Key trong phần AI Gemini." },
+        { error: "Chưa cấu hình Gemini API Key hợp lệ (bắt đầu bằng AIza...). Vui lòng nhập Key vào ô bên dưới." },
         { status: 400 },
       );
     }
