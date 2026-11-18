@@ -5,7 +5,6 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FloatingConsultWidget from "@/components/FloatingConsultWidget";
 import MobileBottomBar from "@/components/MobileBottomBar";
-import { cartLines, readCart } from "@/lib/cart";
 import { getSite, getWidgetSettings } from "@/lib/settings";
 import { getThemeSettings } from "@/lib/theme-settings";
 
@@ -21,8 +20,6 @@ const beVietnam = Be_Vietnam_Pro({
   weight: ["400", "500", "600", "700"],
 });
 
-export const dynamic = "force-dynamic";
-
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getSite();
   return {
@@ -32,12 +29,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [widgetCfg, themeCfg, cart] = await Promise.all([
+  const [widgetCfg, themeCfg] = await Promise.all([
     getWidgetSettings(),
     getThemeSettings(),
-    readCart(),
   ]);
-  const { count } = await cartLines(cart);
   const themeBootScript = `(function(){try{var c=${JSON.stringify(themeCfg)};var s=localStorage.getItem('td_theme_id');if(!s){var m=document.cookie.match(/(?:^|;\\s*)td_theme_id=([^;]+)/);s=m?decodeURIComponent(m[1]):'';}var p=c.presets.find(function(x){return x.id===s;})||c.presets.find(function(x){return x.id===c.defaultThemeId;})||c.presets[0];if(p){var r=document.documentElement;r.style.setProperty('--background',p.background);r.style.setProperty('--foreground',p.foreground);r.style.setProperty('--brand',p.brand);r.style.setProperty('--brand-dark',p.brandDark);r.style.setProperty('--accent',p.accent);r.style.fontSize=p.fontSizePx+'px';r.dataset.themeId=p.id;}}catch(e){}})();`;
 
   return (
@@ -48,7 +43,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <main className="flex-1 pb-16 md:pb-0">{children}</main>
         <Footer />
         <FloatingConsultWidget config={widgetCfg} />
-        <MobileBottomBar cartCount={count} />
+        <MobileBottomBar />
       </body>
     </html>
   );

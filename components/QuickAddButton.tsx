@@ -40,6 +40,7 @@ export default function QuickAddButton({
     try {
       await fetch(`/api/v2/add-to-cart/${productId}?quantity=1`, { method: "POST" });
       setAdded(true);
+      window.dispatchEvent(new Event("td:cart-updated"));
       router.refresh();
       setTimeout(() => setAdded(false), 1800);
     } finally {

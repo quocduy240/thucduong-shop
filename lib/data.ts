@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { all, one } from "./db";
 
 export type ProductCategory = { id: number; slug: string; name: string };
@@ -66,35 +67,64 @@ export const url = {
 };
 
 // ---- Products ----
-export const getProductCategories = () =>
-  all<ProductCategory>("SELECT id, slug, name FROM product_categories ORDER BY sort");
+export const getProductCategories = cache(() =>
+  all<ProductCategory>("SELECT id, slug, name FROM product_categories ORDER BY sort"),
+);
 
-export const getProductCategory = (slug: string) =>
-  one<ProductCategory>("SELECT id, slug, name FROM product_categories WHERE slug = ?", slug);
+export const getProductCategory = cache((slug: string) =>
+  one<ProductCategory>("SELECT id, slug, name FROM product_categories WHERE slug = ?", slug),
+);
 
 const CDS_FIRST = "CASE WHEN LOWER(p.name) LIKE '%canh dưỡng sinh%' OR LOWER(p.name) LIKE '%canh duong sinh%' THEN 0 ELSE 1 END";
 
-export const getProducts = (limit = 1000) =>
+export const getProducts = cache((limit = 1000) =>
   all<Product>(
     `SELECT ${PRODUCT_COLS} FROM products p JOIN product_categories c ON c.id = p.category_id ORDER BY ${CDS_FIRST}, p.featured DESC, c.sort, p.id DESC LIMIT ?`,
     limit,
-  );
+  ),
+);
 
-export const getProductsByCategory = (categoryId: number, limit = 1000) =>
+export const getProductsByCategory = cache((categoryId: number, limit = 1000) =>
   all<Product>(
     `SELECT ${PRODUCT_COLS} FROM products p JOIN product_categories c ON c.id = p.category_id
      WHERE p.category_id = ? ORDER BY ${CDS_FIRST}, p.featured DESC, p.id DESC LIMIT ?`,
     categoryId,
     limit,
-  );
+  ),
+);
 
-export const getProduct = (categorySlug: string, slug: string) =>
+/** Fetch top N products for every category in a single D1 query (eliminates N+1 on home page). */
+export const getHomeCategoryProducts = cache(async (limitPerCategory = 4): Promise<Map<number, Product[]>> => {
+  const rows = await all<Product & { rn: number }>(
+    `SELECT * FROM (
+       SELECT ${PRODUCT_COLS},
+         ROW_NUMBER() OVER (
+           PARTITION BY p.category_id
+           ORDER BY ${CDS_FIRST}, p.featured DESC, p.id DESC
+         ) AS rn
+       FROM products p
+       JOIN product_categories c ON c.id = p.category_id
+     ) WHERE rn <= ?
+     ORDER BY category_id, rn`,
+    limitPerCategory,
+  );
+  const map = new Map<number, Product[]>();
+  for (const r of rows) {
+    const list = map.get(r.category_id) ?? [];
+    list.push(r);
+    map.set(r.category_id, list);
+  }
+  return map;
+});
+
+export const getProduct = cache((categorySlug: string, slug: string) =>
   one<Product>(
     `SELECT ${PRODUCT_COLS} FROM products p JOIN product_categories c ON c.id = p.category_id
      WHERE c.slug = ? AND p.slug = ?`,
     categorySlug,
     slug,
-  );
+  ),
+);
 
 export const getProductsByIds = async (ids: number[]): Promise<Product[]> =>
   ids.length
@@ -198,19 +228,22 @@ export async function getProductFilterFacets(categoryId?: number) {
 }
 
 // ---- Posts ----
-export const getPostSections = () => all<PostSection>("SELECT slug, name FROM post_sections ORDER BY sort");
-export const getPostSection = (slug: string) =>
-  one<PostSection>("SELECT slug, name FROM post_sections WHERE slug = ?", slug);
-export const getPostCategories = (section?: string) =>
+export const getPostSections = cache(() => all<PostSection>("SELECT slug, name FROM post_sections ORDER BY sort"));
+export const getPostSection = cache((slug: string) =>
+  one<PostSection>("SELECT slug, name FROM post_sections WHERE slug = ?", slug),
+);
+export const getPostCategories = cache((section?: string) =>
   section
     ? all<PostCategory>("SELECT id, slug, name, section_slug FROM post_categories WHERE section_slug = ? ORDER BY id", section)
-    : all<PostCategory>("SELECT id, slug, name, section_slug FROM post_categories ORDER BY id");
-export const getPostCategory = (section: string, slug: string) =>
+    : all<PostCategory>("SELECT id, slug, name, section_slug FROM post_categories ORDER BY id"),
+);
+export const getPostCategory = cache((section: string, slug: string) =>
   one<PostCategory>(
     "SELECT id, slug, name, section_slug FROM post_categories WHERE section_slug = ? AND slug = ?",
     section,
     slug,
-  );
+  ),
+);
 
 export const getPosts = (opts: { section?: string; categoryId?: number; limit?: number } = {}) => {
   const where: string[] = [];
@@ -225,13 +258,14 @@ export const getPosts = (opts: { section?: string; categoryId?: number; limit?: 
   );
 };
 
-export const getPost = (categorySlug: string, slug: string) =>
+export const getPost = cache((categorySlug: string, slug: string) =>
   one<Post>(
     `SELECT ${POST_COLS} FROM posts po JOIN post_categories pc ON pc.id = po.category_id
      WHERE pc.slug = ? AND po.slug = ?`,
     categorySlug,
     slug,
-  );
+  ),
+);
 
 export async function getPostComboProducts(post: Post): Promise<Product[]> {
   const ids = (post.related_product_ids || "")
@@ -275,10 +309,12 @@ export function getCrossSellProducts(excludeIds: number[] = [], limit = 4): Prom
 }
 
 // ---- Static pages ----
-export const getPage = (grp: string, slug: string) =>
-  one<Page>("SELECT grp, slug, title, content FROM pages WHERE grp = ? AND slug = ?", grp, slug);
-export const getPages = (grp: string) =>
-  all<Page>("SELECT grp, slug, title, content FROM pages WHERE grp = ? ORDER BY rowid", grp);
+export const getPage = cache((grp: string, slug: string) =>
+  one<Page>("SELECT grp, slug, title, content FROM pages WHERE grp = ? AND slug = ?", grp, slug),
+);
+export const getPages = cache((grp: string) =>
+  all<Page>("SELECT grp, slug, title, content FROM pages WHERE grp = ? ORDER BY rowid", grp),
+);
 
 // ---- Search ----
 export async function search(q: string, limit = 8) {

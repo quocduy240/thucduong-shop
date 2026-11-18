@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSessionSummary } from "./HeaderAccountCart";
 
-export default function MobileBottomBar({ cartCount }: { cartCount: number }) {
+export default function MobileBottomBar() {
   const path = usePathname();
+  const { cartCount } = useSessionSummary();
   if (path.startsWith("/admin")) return null;
 
   const tabs = [

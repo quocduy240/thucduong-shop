@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { getPages, getPostCategories, getPostSections, getProductCategories, url } from "@/lib/data";
-import { cartLines, readCart } from "@/lib/cart";
-import { currentMember } from "@/lib/member-auth";
 import { getSite } from "@/lib/settings";
 import { getThemeSettings } from "@/lib/theme-settings";
+import HeaderAccountCart from "./HeaderAccountCart";
 import MobileNavDrawer from "./MobileNavDrawer";
 import SearchBox from "./SearchBox";
 import ThemeSwitcher from "./ThemeSwitcher";
@@ -15,17 +14,14 @@ type MenuItem = {
 };
 
 export default async function Header() {
-  const [site, cart, member, sections, postCats, productCats, policyPages, themeConfig] = await Promise.all([
+  const [site, sections, postCats, productCats, policyPages, themeConfig] = await Promise.all([
     getSite(),
-    readCart(),
-    currentMember(),
     getPostSections(),
     getPostCategories(),
     getProductCategories(),
     getPages("chinh-sach"),
     getThemeSettings(),
   ]);
-  const { count } = await cartLines(cart);
 
   const menu: MenuItem[] = [
     { label: "Trang chủ", href: "/" },
@@ -80,24 +76,7 @@ export default async function Header() {
 
         <div className="flex items-center gap-2 shrink-0">
           <ThemeSwitcher config={themeConfig} />
-          <Link
-            href="/thanh-vien/"
-            className={`flex items-center gap-1.5 rounded-full border px-2.5 py-2 text-xs font-semibold transition sm:px-3 ${
-              member
-                ? "border-green-300 bg-green-50 text-brand hover:bg-green-100"
-                : "border-gray-200 text-gray-700 hover:border-brand hover:text-brand"
-            }`}
-          >
-            <span aria-hidden>{member ? "👑" : "👤"}</span>
-            <span className="hidden sm:inline">{member ? member.name : "Thành viên"}</span>
-          </Link>
-          <Link href="/cart" className="relative flex items-center gap-2 rounded-full border px-2.5 py-2 text-sm hover:border-brand sm:px-3">
-            <span aria-hidden>🛒</span>
-            <span className="hidden sm:inline">Giỏ hàng</span>
-            <span className="absolute -right-2 -top-2 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-xs font-semibold text-white">
-              {count}
-            </span>
-          </Link>
+          <HeaderAccountCart />
         </div>
       </div>
 

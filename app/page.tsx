@@ -1,21 +1,25 @@
 import Link from "next/link";
-import { getPosts, getProductCategories, getProductsByCategory, url } from "@/lib/data";
+import { getHomeCategoryProducts, getPosts, getProductCategories, url } from "@/lib/data";
 import { getFlashSaleDashboard } from "@/lib/flash-sale";
 import BlockZone from "@/components/BlockZone";
 import { FlashSaleShowcase } from "@/components/FlashSaleShowcase";
 import { PostCard, ProductGrid, SectionTitle } from "@/components/ui";
 import { getSite } from "@/lib/settings";
 
+export const revalidate = 60;
+
 export default async function Home() {
-  const [site, categories, posts, flashSale] = await Promise.all([
+  const [site, categories, posts, flashSale, categoryProductsMap] = await Promise.all([
     getSite(),
     getProductCategories(),
     getPosts({ limit: 6 }),
     getFlashSaleDashboard(),
+    getHomeCategoryProducts(4),
   ]);
-  const categoryProducts = await Promise.all(
-    categories.map(async (c) => ({ c, products: await getProductsByCategory(c.id, 4) })),
-  );
+  const categoryProducts = categories.map((c) => ({
+    c,
+    products: categoryProductsMap.get(c.id) ?? [],
+  }));
 
   return (
     <div className="mx-auto max-w-6xl px-4">

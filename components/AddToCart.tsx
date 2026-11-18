@@ -40,6 +40,7 @@ export default function AddToCart({ productId, stock }: { productId: number; sto
       }
       if (buyNow) return router.push("/cart");
       setMsg("Đã thêm vào giỏ hàng!");
+      window.dispatchEvent(new Event("td:cart-updated"));
       router.refresh(); // updates header cart badge
     });
 

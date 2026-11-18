@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { all, run } from "./db";
 import { site as defaults } from "./site";
 
@@ -28,15 +29,20 @@ export const widgetDefaults = {
 export type WidgetSettings = typeof widgetDefaults;
 export const WIDGET_KEYS = Object.keys(widgetDefaults) as (keyof WidgetSettings)[];
 
+/** Request-scoped cache: load all settings rows once per request. */
+const loadSettingsRows = cache(async () => {
+  return all<{ key: string; value: string }>("SELECT key, value FROM settings");
+});
+
 /** Brand settings: defaults from lib/site.ts overridden by rows in the `settings` table (edited in /admin/settings/). */
-export async function getSite(): Promise<SiteSettings> {
+export const getSite = cache(async (): Promise<SiteSettings> => {
   const out: SiteSettings = { ...defaults };
-  const rows = await all<{ key: string; value: string }>("SELECT key, value FROM settings");
+  const rows = await loadSettingsRows();
   for (const r of rows) {
     if (r.key in out) (out as Record<string, string>)[r.key] = r.value;
   }
   return out;
-}
+});
 
 export async function saveSite(values: Partial<SiteSettings>) {
   for (const k of SETTING_KEYS) {
@@ -51,15 +57,15 @@ export async function saveSite(values: Partial<SiteSettings>) {
   }
 }
 
-export async function getMailSettings(): Promise<MailSettings> {
+export const getMailSettings = cache(async (): Promise<MailSettings> => {
   const out: MailSettings = { ...mailDefaults };
-  const rows = await all<{ key: string; value: string }>("SELECT key, value FROM settings");
+  const rows = await loadSettingsRows();
   for (const r of rows) {
     if (r.key in out) (out as Record<string, string>)[r.key] = r.value;
   }
   if (!out.order_notify_email.trim()) out.order_notify_email = mailDefaults.order_notify_email;
   return out;
-}
+});
 
 export async function saveMailSettings(values: Partial<MailSettings>) {
   for (const k of MAIL_KEYS) {
@@ -74,16 +80,14 @@ export async function saveMailSettings(values: Partial<MailSettings>) {
   }
 }
 
-export async function getWidgetSettings(): Promise<WidgetSettings> {
+export const getWidgetSettings = cache(async (): Promise<WidgetSettings> => {
   const out: WidgetSettings = { ...widgetDefaults };
-  const rows = await all<{ key: string; value: string }>(
-    "SELECT key, value FROM settings WHERE key LIKE 'widget_%'",
-  );
+  const rows = await loadSettingsRows();
   for (const r of rows) {
     if (r.key in out) (out as Record<string, string>)[r.key] = r.value;
   }
   return out;
-}
+});
 
 export async function saveWidgetSettings(values: Partial<WidgetSettings>) {
   for (const k of WIDGET_KEYS) {

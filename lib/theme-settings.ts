@@ -1,10 +1,11 @@
 import "server-only";
+import { cache } from "react";
 import { one, run } from "./db";
 import { DEFAULT_THEME_CONFIG, type ThemePreset, type ThemeSettingsConfig } from "./themes";
 
 const SETTINGS_KEY = "ui_themes_config";
 
-export async function getThemeSettings(): Promise<ThemeSettingsConfig> {
+export const getThemeSettings = cache(async (): Promise<ThemeSettingsConfig> => {
   try {
     const row = await one<{ value: string }>(`SELECT value FROM settings WHERE key = ?`, SETTINGS_KEY);
     if (!row?.value) return DEFAULT_THEME_CONFIG;
@@ -23,7 +24,7 @@ export async function getThemeSettings(): Promise<ThemeSettingsConfig> {
   } catch {
     return DEFAULT_THEME_CONFIG;
   }
-}
+});
 
 export async function saveThemeSettings(cfg: ThemeSettingsConfig): Promise<ThemeSettingsConfig> {
   const cleanPresets: ThemePreset[] = cfg.presets.map((p) => ({
