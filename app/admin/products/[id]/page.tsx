@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import ContentEditor from "@/components/admin/ContentEditor";
 import CoverImageStudio from "@/components/admin/CoverImageStudio";
+import ProductGalleryStudio from "@/components/admin/ProductGalleryStudio";
 import { getProductById, getProductCategories, getProducts, url } from "@/lib/data";
 import { deleteProductAction, saveProductAction } from "../../actions";
 
@@ -102,25 +103,10 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
           defaultPreset="800x800"
           label="🖼️ Ảnh đại diện sản phẩm & Tuỳ biến kích thước (Đa nguồn)"
         />
-        <div>
-          <label className={label}>Bộ sưu tập ảnh phụ (Gallery)</label>
-          {p?.gallery && (
-            <div className="mb-2 flex flex-wrap gap-2">
-              {p.gallery.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean).map((imgUrl, idx) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={idx} src={imgUrl} alt="" className="h-14 w-14 rounded border object-cover" />
-              ))}
-            </div>
-          )}
-          <input name="gallery_files" type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif" className="mb-2 text-sm" />
-          <textarea
-            name="gallery"
-            rows={2}
-            defaultValue={p?.gallery ?? ""}
-            placeholder="Hoặc dán mỗi dòng 1 URL ảnh phụ (xoá dòng để gỡ ảnh phụ)..."
-            className={`${input} text-xs`}
-          />
-        </div>
+        <ProductGalleryStudio
+          defaultGallery={p?.gallery ?? ""}
+          productName={p?.name ?? ""}
+        />
         <div>
           <label className={label}>Video giới thiệu (Link YouTube)</label>
           <input
