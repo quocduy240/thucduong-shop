@@ -3,12 +3,14 @@ import { getPages, getPostCategories, getPostSections, getProductCategories, url
 import { cartLines, readCart } from "@/lib/cart";
 import { currentMember } from "@/lib/member-auth";
 import { getSite } from "@/lib/settings";
+import { getThemeSettings } from "@/lib/theme-settings";
 import SearchBox from "./SearchBox";
+import ThemeSwitcher from "./ThemeSwitcher";
 
 type MenuItem = { label: string; href: string; children?: { label: string; href: string }[] };
 
 export default async function Header() {
-  const [site, cart, member, sections, postCats, productCats, policyPages] = await Promise.all([
+  const [site, cart, member, sections, postCats, productCats, policyPages, themeConfig] = await Promise.all([
     getSite(),
     readCart(),
     currentMember(),
@@ -16,6 +18,7 @@ export default async function Header() {
     getPostCategories(),
     getProductCategories(),
     getPages("chinh-sach"),
+    getThemeSettings(),
   ]);
   const { count } = await cartLines(cart);
 
@@ -62,6 +65,7 @@ export default async function Header() {
         <div className="flex-1">
           <SearchBox />
         </div>
+        <ThemeSwitcher config={themeConfig} />
         <Link
           href="/thanh-vien/"
           className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition ${

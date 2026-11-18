@@ -19,6 +19,7 @@ const ITEMS = [
   { href: "/admin/comments/", label: "Bình luận", icon: "💬" },
   { href: "/admin/pages/", label: "Trang tĩnh", icon: "📄" },
   { href: "/admin/categories/", label: "Danh mục", icon: "🗂️" },
+  { href: "/admin/themes/", label: "Giao diện & Cỡ chữ", icon: "🎨" },
   { href: "/admin/settings/", label: "Cài đặt", icon: "⚙️" },
 ];
 
