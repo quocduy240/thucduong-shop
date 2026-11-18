@@ -3,13 +3,13 @@ import { one, run } from "./db";
 
 export function isLikelyValidGeminiKey(key: string): boolean {
   const k = key.trim();
-  return k.startsWith("AIza") && k.length >= 30 && !/\s/.test(k);
+  return (k.startsWith("AIza") || k.startsWith("AQ.")) && k.length >= 25 && !/\s/.test(k);
 }
 
 /**
  * Resolves a valid Gemini API key in priority order:
  * 1. Explicit valid `overrideKey` from request (and persists it to `settings`).
- * 2. Stored `settings.gemini_api_key` if it matches `AIza...`.
+ * 2. Stored `settings.gemini_api_key` if it matches `AIza...` or `AQ....`.
  * 3. `process.env.GEMINI_API_KEY`.
  */
 export async function resolveGeminiApiKey(overrideKey?: string): Promise<string> {
@@ -17,7 +17,7 @@ export async function resolveGeminiApiKey(overrideKey?: string): Promise<string>
   if (trimmedOverride) {
     if (!isLikelyValidGeminiKey(trimmedOverride)) {
       throw new Error(
-        "Gemini API Key không đúng định dạng (Key hợp lệ của Google AI Studio luôn bắt đầu bằng 'AIza...' và dài khoảng 39 ký tự).",
+        "Gemini API Key không đúng định dạng (Key hợp lệ của Google AI Studio bắt đầu bằng 'AIza...' hoặc 'AQ....').",
       );
     }
     await run("INSERT OR REPLACE INTO settings (key, value) VALUES ('gemini_api_key', ?)", trimmedOverride);
@@ -36,4 +36,30 @@ export async function resolveGeminiApiKey(overrideKey?: string): Promise<string>
   }
 
   return "";
+}
+
+/**
+ * Calls Gemini text generation with automatic model fallback (`gemini-3.8-flash` -> `gemini-flash-latest` -> `gemini-2.5-flash`).
+ */
+export async function callGeminiGenerateContent(
+  apiKey: string,
+  body: Record<string, unknown>,
+  models = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-2.5-flash"],
+): Promise<Response> {
+  let lastRes: Response | null = null;
+  for (const model of models) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
+    if (res.ok) return res;
+    lastRes = res;
+    // Only retry next model on 404/model-not-available
+    if (res.status !== 404 && res.status !== 400) break;
+  }
+  return lastRes!;
 }

@@ -1035,9 +1035,9 @@ export async function saveGeminiKeyAction(formData: FormData) {
     refresh();
     redirect("/admin/settings/?saved=1");
   }
-  if (!key.startsWith("AIza") || key.length < 30 || /\s/.test(key)) {
+  if (!(key.startsWith("AIza") || key.startsWith("AQ.")) || key.length < 25 || /\s/.test(key)) {
     redirect(
-      `/admin/settings/?error=${encodeURIComponent("Gemini API Key không hợp lệ (Key Google AI Studio phải bắt đầu bằng 'AIza...' và dài ~39 ký tự).")}`,
+      `/admin/settings/?error=${encodeURIComponent("Gemini API Key không hợp lệ (Key Google AI Studio phải bắt đầu bằng 'AIza...' hoặc 'AQ....').")}`,
     );
   }
   await run("INSERT OR REPLACE INTO settings (key, value) VALUES ('gemini_api_key', ?)", key);

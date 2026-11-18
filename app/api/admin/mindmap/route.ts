@@ -213,7 +213,7 @@ Yêu cầu cấu trúc báo cáo bằng định dạng Markdown:
 - Trong mỗi mục dùng các gạch đầu dòng (-) trình bày súc tích, giàu thông tin định lượng và dễ hiểu.`;
 
         const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(savedKey)}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(savedKey)}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -286,7 +286,7 @@ Hãy trả về JSON thuần túy (không bọc markdown) theo đúng cấu trú
 (Tạo từ 4 đến 6 nhánh chính, mỗi nhánh từ 3 đến 4 ý chính để bao quát hết nội dung báo cáo).`;
 
         const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(savedKey)}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(savedKey)}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },

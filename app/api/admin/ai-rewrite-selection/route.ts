@@ -1,5 +1,5 @@
 import { currentAdmin } from "@/lib/auth";
-import { resolveGeminiApiKey } from "@/lib/gemini-key";
+import { callGeminiGenerateContent, resolveGeminiApiKey } from "@/lib/gemini-key";
 
 const TONE_PROMPTS: Record<string, string> = {
   chuyen_gia_thuc_duong:
@@ -64,17 +64,10 @@ Quy tắc đầu ra:
 - Chỉ trả về đoạn HTML sạch đã viết lại bằng tiếng Việt (chỉ dùng thẻ p, strong, em, ul, li, h3 nếu phù hợp; KHÔNG bọc markdown \`\`\`html, KHÔNG giải thích thừa).
 - Giữ nguyên sự trung thực về số liệu/tên sản phẩm nếu có trong đoạn gốc.`;
 
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.55 },
-        }),
-      },
-    );
+    const res = await callGeminiGenerateContent(apiKey, {
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.55 },
+    });
 
     if (!res.ok) {
       const errTxt = await res.text().catch(() => "");

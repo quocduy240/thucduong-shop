@@ -596,7 +596,7 @@ Hãy trả về kết quả dưới dạng JSON thuần túy (không bọc markd
 (Tạo từ 4 đến 5 sections).`;
 
       const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(savedKey)}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(savedKey)}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

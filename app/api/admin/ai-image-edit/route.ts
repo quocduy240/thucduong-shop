@@ -117,7 +117,7 @@ export async function POST(req: Request) {
       .filter(Boolean)
       .join("\n\n");
 
-    const models = ["gemini-2.5-flash-image", "gemini-2.0-flash-exp-image-generation"];
+    const models = ["gemini-3.1-flash-image", "gemini-3-pro-image", "gemini-2.5-flash-image"];
     let outBase64 = "";
     let outMime = "image/png";
     let lastError = "";
