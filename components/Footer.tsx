@@ -61,7 +61,7 @@ export default async function Footer() {
           <p className="text-xs leading-relaxed text-emerald-100/80">
             Cung cấp sản phẩm Thực dưỡng – Thảo dược – Ngũ cốc – Gia vị sạch hữu cơ chuẩn mực. Sống khoẻ Phúc Thọ, Tâm An mỗi ngày.
           </p>
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             <a
               href={`tel:${primaryPhone}`}
               className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-brand-dark shadow-xs transition hover:bg-emerald-50"
@@ -75,6 +75,22 @@ export default async function Footer() {
               className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300/40 bg-white/10 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-white/20"
             >
               💬 Chat Zalo
+            </a>
+          </div>
+          <div className="pt-2">
+            <a
+              href="http://online.gov.vn/Home/WebDetails/138932"
+              target="_blank"
+              rel="nofollow noreferrer"
+              aria-label="Đã thông báo Bộ Công Thương"
+              className="inline-block rounded-lg bg-white/95 p-1.5 shadow-xs transition hover:opacity-90"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/uploads/logo-bo-cong-thuong.png"
+                alt="Đã thông báo Bộ Công Thương"
+                className="h-12 w-auto object-contain"
+              />
             </a>
           </div>
         </div>
