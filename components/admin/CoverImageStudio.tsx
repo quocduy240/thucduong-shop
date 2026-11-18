@@ -12,13 +12,19 @@ const SIZE_PRESETS = [
 
 export default function CoverImageStudio({
   defaultCover = "",
+  inputName = "cover",
+  defaultPreset = "1200x675",
+  label = "🖼️ Ảnh đại diện bài viết & Tuỳ biến kích thước (Đa nguồn)",
 }: {
   defaultCover?: string;
+  inputName?: string;
+  defaultPreset?: string;
+  label?: string;
 }) {
   const [coverUrl, setCoverUrl] = useState(defaultCover);
   const [sourceTab, setSourceTab] = useState<"upload" | "url" | "ai">("upload");
   const [externalUrl, setExternalUrl] = useState("");
-  const [preset, setPreset] = useState("1200x675");
+  const [preset, setPreset] = useState(defaultPreset);
   const [customW, setCustomW] = useState(1200);
   const [customH, setCustomH] = useState(675);
   const [fitMode, setFitMode] = useState<"cover" | "contain">("cover");
@@ -196,10 +202,10 @@ export default function CoverImageStudio({
     try {
       const form = fileInputRef.current?.closest("form");
       const titleVal =
-        (form?.querySelector('[name="title"]') as HTMLInputElement)?.value?.trim() ||
+        (form?.querySelector('[name="title"], [name="name"]') as HTMLInputElement)?.value?.trim() ||
         "Cẩm Nang Thực Dưỡng & Sức Khỏe Tự Nhiên";
       const excerptVal =
-        (form?.querySelector('[name="excerpt"]') as HTMLTextAreaElement)?.value?.trim() ||
+        (form?.querySelector('[name="excerpt"], [name="summary"]') as HTMLTextAreaElement)?.value?.trim() ||
         "Ăn lành · Hưởng phúc · Sống thọ";
 
       const { w: targetW, h: targetH } = getTargetDimensions();
@@ -323,12 +329,12 @@ export default function CoverImageStudio({
       className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-4"
     >
       {/* Hidden input synced with form */}
-      <input type="hidden" name="cover" value={coverUrl} />
+      <input type="hidden" name={inputName} value={coverUrl} />
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 pb-3">
         <div>
           <label className="text-sm font-bold text-gray-900">
-            🖼️ Ảnh đại diện bài viết &amp; Tuỳ biến kích thước (Đa nguồn)
+            {label}
           </label>
           <p className="text-xs text-gray-500">
             Tải từ máy tính, dán trực tiếp (Ctrl+V), lấy từ link URL bất kỳ hoặc tạo tự động bằng AI theo tiêu đề bài viết.

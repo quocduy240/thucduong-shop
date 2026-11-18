@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import ConfirmButton from "@/components/admin/ConfirmButton";
-import { getProductById, getProductCategories } from "@/lib/data";
+import ContentEditor from "@/components/admin/ContentEditor";
+import CoverImageStudio from "@/components/admin/CoverImageStudio";
+import { getProductById, getProductCategories, getProducts, url } from "@/lib/data";
 import { deleteProductAction, saveProductAction } from "../../actions";
 
 export const metadata = { title: "Sản phẩm | Quản trị" };
@@ -17,21 +19,33 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
   const error = typeof sp.error === "string" ? sp.error : "";
   const id = rawId === "new" ? 0 : Number(rawId);
   if (rawId !== "new" && !Number.isInteger(id)) notFound();
-  const [p, categories] = await Promise.all([
+  const [p, categories, productsRaw] = await Promise.all([
     id ? getProductById(id) : Promise.resolve(undefined),
     getProductCategories(),
+    getProducts(200),
   ]);
   if (id && !p) notFound();
 
+  const products = productsRaw.map((item) => ({
+    ...item,
+    href: url.product(item),
+  }));
+
   return (
-    <div className="mx-auto max-w-3xl">
-      <Link href="/admin/products/" className="text-sm text-gray-500 hover:underline">← Danh sách sản phẩm</Link>
+    <div className="mx-auto max-w-5xl pb-12">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Link href="/admin/products/" className="text-sm text-gray-500 hover:underline">← Danh sách sản phẩm</Link>
+        {p && (
+          <a href={url.product(p)} target="_blank" rel="noreferrer" className="text-sm font-medium text-brand hover:underline">
+            Xem sản phẩm ngoài trang ↗
+          </a>
+        )}
+      </div>
       <h1 className="mb-4 mt-2 text-2xl font-bold">{p ? "Sửa sản phẩm" : "Thêm sản phẩm"}</h1>
       {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
       <form action={saveProductAction} className="space-y-4 rounded-xl border bg-white p-6 shadow-sm">
         <input type="hidden" name="id" value={id} />
-        <input type="hidden" name="image" value={p?.image ?? ""} />
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className={label}>Tên sản phẩm *</label>
@@ -82,38 +96,30 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
             <input name="unit" defaultValue={p?.unit ?? ""} placeholder="VD: Gói 500g / Hộp 60 gói" className={`${input} bg-white`} />
           </div>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className={label}>Ảnh đại diện sản phẩm</label>
-            {p?.image && (
-              <div className="mb-2 flex items-center gap-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.image} alt="" className="h-24 w-24 rounded border object-cover" />
-                <label className="text-sm"><input type="checkbox" name="remove_image" value="1" /> Xoá ảnh này</label>
-              </div>
-            )}
-            <input name="image_file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="text-sm" />
-            <p className="mt-1 text-xs text-gray-500">JPG, PNG, WEBP hoặc GIF, tối đa 10MB. Ảnh vuông hiển thị đẹp nhất.</p>
-          </div>
-          <div>
-            <label className={label}>Bộ sưu tập ảnh phụ (Gallery)</label>
-            {p?.gallery && (
-              <div className="mb-2 flex flex-wrap gap-2">
-                {p.gallery.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean).map((imgUrl, idx) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={idx} src={imgUrl} alt="" className="h-14 w-14 rounded border object-cover" />
-                ))}
-              </div>
-            )}
-            <input name="gallery_files" type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif" className="mb-2 text-sm" />
-            <textarea
-              name="gallery"
-              rows={2}
-              defaultValue={p?.gallery ?? ""}
-              placeholder="Hoặc dán mỗi dòng 1 URL ảnh phụ (xoá dòng để gỡ ảnh phụ)..."
-              className={`${input} text-xs`}
-            />
-          </div>
+        <CoverImageStudio
+          defaultCover={p?.image ?? ""}
+          inputName="image"
+          defaultPreset="800x800"
+          label="🖼️ Ảnh đại diện sản phẩm & Tuỳ biến kích thước (Đa nguồn)"
+        />
+        <div>
+          <label className={label}>Bộ sưu tập ảnh phụ (Gallery)</label>
+          {p?.gallery && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {p.gallery.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean).map((imgUrl, idx) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={idx} src={imgUrl} alt="" className="h-14 w-14 rounded border object-cover" />
+              ))}
+            </div>
+          )}
+          <input name="gallery_files" type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif" className="mb-2 text-sm" />
+          <textarea
+            name="gallery"
+            rows={2}
+            defaultValue={p?.gallery ?? ""}
+            placeholder="Hoặc dán mỗi dòng 1 URL ảnh phụ (xoá dòng để gỡ ảnh phụ)..."
+            className={`${input} text-xs`}
+          />
         </div>
         <div>
           <label className={label}>Video giới thiệu (Link YouTube)</label>
@@ -129,8 +135,12 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
           <textarea name="summary" rows={2} defaultValue={p?.summary} className={input} />
         </div>
         <div>
-          <label className={label}>Giới thiệu chi tiết (HTML)</label>
-          <textarea name="description" rows={10} defaultValue={p?.description} className={`${input} font-mono text-sm`} />
+          <label className={label}>Giới thiệu chi tiết (Trình soạn thảo chuyên nghiệp)</label>
+          <ContentEditor
+            name="description"
+            defaultValue={p?.description ?? ""}
+            products={products}
+          />
         </div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="featured" value="1" defaultChecked={!!p?.featured} /> Sản phẩm nổi bật (hiện lên đầu danh mục)

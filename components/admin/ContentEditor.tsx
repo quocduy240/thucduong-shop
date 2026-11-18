@@ -416,12 +416,14 @@ export default function ContentEditor({
         throw new Error(data.error ?? "Không thể phân tích dữ liệu nguồn.");
       }
 
-      // Populate form fields (title, slug, excerpt) automatically
+      // Populate form fields (title/name, slug, excerpt/summary) automatically
       const form = visualRef.current?.closest("form");
       if (form) {
-        const titleEl = form.querySelector('[name="title"]') as HTMLInputElement | null;
+        const titleEl = (form.querySelector('[name="title"]') ||
+          form.querySelector('[name="name"]')) as HTMLInputElement | null;
         const slugEl = form.querySelector('[name="slug"]') as HTMLInputElement | null;
-        const excerptEl = form.querySelector('[name="excerpt"]') as HTMLTextAreaElement | null;
+        const excerptEl = (form.querySelector('[name="excerpt"]') ||
+          form.querySelector('[name="summary"]')) as HTMLTextAreaElement | null;
         if (titleEl && data.title) titleEl.value = data.title;
         if (slugEl && data.slug) slugEl.value = data.slug;
         if (excerptEl && data.excerpt) excerptEl.value = data.excerpt;
