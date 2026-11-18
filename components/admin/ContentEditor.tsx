@@ -140,6 +140,21 @@ export default function ContentEditor({
   const recognitionRef = useRef<any>(null);
   const htmlTextareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Block Drag-and-Drop & Layout Control state
+  const [activeBlockIdx, setActiveBlockIdx] = useState<number | null>(null);
+  const [activeBlockTop, setActiveBlockTop] = useState<number>(0);
+  const [activeBlockLabel, setActiveBlockLabel] = useState<string>("Khối");
+  const [dragBlockIdx, setDragBlockIdx] = useState<number | null>(null);
+  const [dropTargetIdx, setDropTargetIdx] = useState<number | null>(null);
+
+  // Inline AI Selection Rewriter state
+  const [selectedText, setSelectedText] = useState("");
+  const [selAiOpen, setSelAiOpen] = useState(false);
+  const [selTone, setSelTone] = useState("chuyen_gia_thuc_duong");
+  const [selCustomPrompt, setSelCustomPrompt] = useState("");
+  const [selBusy, setSelBusy] = useState(false);
+  const [selPreviewHtml, setSelPreviewHtml] = useState("");
+
   useEffect(() => {
     if (visualRef.current && visualRef.current.innerHTML !== defaultValue) {
       visualRef.current.innerHTML = defaultValue;
@@ -484,6 +499,177 @@ export default function ContentEditor({
       setErr((e as Error).message || "Không thể khởi động Micro.");
       setVoiceListening(false);
     }
+  }
+
+  function findTopLevelBlock(node: Node | null): { el: HTMLElement; idx: number; label: string } | null {
+    const root = visualRef.current;
+    if (!root || !node) return null;
+    let cur: Node | null = node;
+    while (cur && cur !== root && cur.parentNode !== root) {
+      cur = cur.parentNode;
+    }
+    if (!cur || cur === root || !(cur instanceof HTMLElement)) return null;
+    const children = Array.from(root.children);
+    const idx = children.indexOf(cur);
+    if (idx < 0) return null;
+
+    const tag = cur.tagName.toLowerCase();
+    const txt = cur.textContent?.trim() ?? "";
+    let label = "Đoạn văn";
+    if (tag === "figure" || cur.querySelector("img")) label = "🖼️ Hình ảnh";
+    else if (cur.classList.contains("mindmap-box") || cur.querySelector("svg")) label = "🧠 Biểu đồ / Sơ đồ";
+    else if (tag === "table") label = "📊 Bảng";
+    else if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4") label = `📌 ${tag.toUpperCase()}`;
+    else if (tag === "ul" || tag === "ol") label = "☰ Danh sách";
+    else if (tag === "blockquote") label = "❝ Trích dẫn";
+    else if (txt.includes("[[block:") || txt.includes("[[qr:") || txt.includes("[[product")) label = "🧩 Block / QR";
+
+    return { el: cur, idx, label };
+  }
+
+  function updateActiveBlockFromTarget(target: EventTarget | null) {
+    if (!(target instanceof Node)) return;
+    const info = findTopLevelBlock(target);
+    if (!info) return;
+    setActiveBlockIdx(info.idx);
+    setActiveBlockLabel(info.label);
+    setActiveBlockTop(Math.max(0, info.el.offsetTop - 6));
+  }
+
+  function moveBlock(fromIdx: number, toIdx: number) {
+    const root = visualRef.current;
+    if (!root) return;
+    const children = Array.from(root.children) as HTMLElement[];
+    if (fromIdx < 0 || fromIdx >= children.length || toIdx < 0 || toIdx >= children.length || fromIdx === toIdx) {
+      return;
+    }
+    const dragged = children[fromIdx];
+    const target = children[toIdx];
+    if (fromIdx < toIdx) {
+      root.insertBefore(dragged, target.nextSibling);
+    } else {
+      root.insertBefore(dragged, target);
+    }
+    syncFromVisual();
+    setActiveBlockIdx(toIdx);
+    setActiveBlockTop(Math.max(0, dragged.offsetTop - 6));
+  }
+
+  function styleActiveBlock(
+    action: "left" | "center" | "right" | "float-left" | "float-right" | "w-50" | "w-75" | "w-100" | "delete",
+  ) {
+    const root = visualRef.current;
+    if (!root || activeBlockIdx === null) return;
+    const el = root.children[activeBlockIdx] as HTMLElement | undefined;
+    if (!el) return;
+
+    if (action === "delete") {
+      el.remove();
+      setActiveBlockIdx(null);
+      syncFromVisual();
+      return;
+    }
+
+    if (action === "left") {
+      el.style.float = "none";
+      el.style.marginLeft = "0";
+      el.style.marginRight = "auto";
+      el.style.textAlign = "left";
+    } else if (action === "center") {
+      el.style.float = "none";
+      el.style.marginLeft = "auto";
+      el.style.marginRight = "auto";
+      el.style.textAlign = "center";
+    } else if (action === "right") {
+      el.style.float = "none";
+      el.style.marginLeft = "auto";
+      el.style.marginRight = "0";
+      el.style.textAlign = "right";
+    } else if (action === "float-left") {
+      el.style.float = "left";
+      el.style.margin = "4px 18px 12px 0";
+      if (!el.style.width || el.style.width === "100%") el.style.width = "48%";
+    } else if (action === "float-right") {
+      el.style.float = "right";
+      el.style.margin = "4px 0 12px 18px";
+      if (!el.style.width || el.style.width === "100%") el.style.width = "48%";
+    } else if (action === "w-50") {
+      el.style.width = "50%";
+    } else if (action === "w-75") {
+      el.style.width = "75%";
+    } else if (action === "w-100") {
+      el.style.float = "none";
+      el.style.width = "100%";
+      el.style.margin = "12px 0";
+    }
+    syncFromVisual();
+  }
+
+  function handleVisualSelectionCheck() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !visualRef.current?.contains(sel.anchorNode)) {
+      return;
+    }
+    const txt = sel.toString().trim();
+    if (txt.length >= 4) {
+      savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+      setSelectedText(txt);
+    } else if (!selAiOpen) {
+      setSelectedText("");
+    }
+  }
+
+  async function runSelectionAiRewrite() {
+    if (!selectedText.trim()) return;
+    setSelBusy(true);
+    setErr("");
+    setSelPreviewHtml("");
+    try {
+      const form = visualRef.current?.closest("form");
+      const titleInput = form?.querySelector('[name="title"], [name="name"]') as HTMLInputElement | null;
+      const res = await fetch("/api/admin/ai-rewrite-selection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          selectedText,
+          tone: selTone,
+          customInstruction: selCustomPrompt,
+          contextTitle: titleInput?.value?.trim() || "",
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; rewrittenHtml?: string; error?: string; note?: string };
+      if (!res.ok || !data.ok || !data.rewrittenHtml) {
+        throw new Error(data.error || "Không thể viết lại đoạn đã chọn.");
+      }
+      setSelPreviewHtml(data.rewrittenHtml);
+      if (data.note) setStatusMsg(data.note);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setSelBusy(false);
+    }
+  }
+
+  function applySelectionRewrite(modeApply: "replace" | "append") {
+    if (!selPreviewHtml || !visualRef.current) return;
+    visualRef.current.focus();
+    const sel = window.getSelection();
+    if (savedRangeRef.current && sel) {
+      sel.removeAllRanges();
+      if (modeApply === "append") {
+        const endRange = savedRangeRef.current.cloneRange();
+        endRange.collapse(false);
+        sel.addRange(endRange);
+      } else {
+        sel.addRange(savedRangeRef.current);
+      }
+    }
+    document.execCommand("insertHTML", false, selPreviewHtml);
+    syncFromVisual();
+    setSelAiOpen(false);
+    setSelPreviewHtml("");
+    setSelectedText("");
+    setStatusMsg("✨ Đã cập nhật đoạn văn bản viết lại bằng AI!");
   }
 
   function insertHtmlSnippet(snippet: string) {
@@ -1548,16 +1734,197 @@ export default function ContentEditor({
           </div>
         )}
 
-        {/* Main Document Canvas (Google Docs Paper Sheet Style) */}
+        {/* Inline AI Selection Rewrite Bar */}
+        {selectedText && (
+          <div className="border-b border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-emerald-50 px-4 py-2 space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="rounded bg-indigo-100 px-2 py-0.5 font-bold text-indigo-800">
+                  ✨ Đang tô chọn {selectedText.length} ký tự
+                </span>
+                <span className="truncate italic text-gray-600 max-w-md">“{selectedText}”</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setSelAiOpen((o) => !o)}
+                  className="rounded-lg bg-indigo-600 px-3 py-1 font-bold text-white shadow-xs hover:bg-indigo-700 cursor-pointer"
+                >
+                  {selAiOpen ? "▲ Đóng AI Viết lại" : "✨ Viết lại đoạn này bằng AI"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedText("");
+                    setSelAiOpen(false);
+                    setSelPreviewHtml("");
+                  }}
+                  className="rounded px-2 py-1 text-gray-400 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {selAiOpen && (
+              <div className="rounded-xl border border-indigo-200 bg-white p-3.5 shadow-sm space-y-3 text-xs">
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block font-bold text-gray-700">Chọn văn phong mới:</label>
+                    <select
+                      value={selTone}
+                      onChange={(e) => setSelTone(e.target.value)}
+                      className="w-full rounded-lg border px-2.5 py-1.5 text-xs"
+                    >
+                      <option value="chuyen_gia_thuc_duong">🌿 Chuyên gia Thực dưỡng (Ấm áp, quân bình)</option>
+                      <option value="y_khoa_khoa_hoc">🩺 Y khoa Hiện đại (Khoa học, chuẩn mực)</option>
+                      <option value="ban_hang_thuyet_phuc">🛍️ Bán hàng Chuyên nghiệp (Thu hút, chuyển đổi)</option>
+                      <option value="suc_tich_de_hieu">⚡ Súc tích, Dễ hiểu (Ngắn gọn, gạch đầu dòng)</option>
+                      <option value="ke_chuyen_gan_gui">💬 Kể chuyện Gần gũi (Đồng cảm, truyền cảm hứng)</option>
+                      <option value="custom">✍️ Tuỳ chỉnh tự do theo chỉ dẫn</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block font-bold text-gray-700">Tuỳ chỉnh thêm cho AI (tuỳ chọn):</label>
+                    <input
+                      value={selCustomPrompt}
+                      onChange={(e) => setSelCustomPrompt(e.target.value)}
+                      placeholder="VD: Viết ngắn hơn 30%, thêm nhấn mạnh công dụng..."
+                      className="w-full rounded-lg border px-2.5 py-1.5 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={selBusy}
+                    onClick={runSelectionAiRewrite}
+                    className="rounded-lg bg-brand px-4 py-1.5 font-bold text-white hover:bg-brand-dark disabled:opacity-50 cursor-pointer"
+                  >
+                    {selBusy ? "⏳ AI đang viết lại..." : "⚡ Tạo bản viết lại"}
+                  </button>
+                  {selPreviewHtml && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => applySelectionRewrite("replace")}
+                        className="rounded-lg bg-emerald-600 px-3 py-1.5 font-bold text-white hover:bg-emerald-700 cursor-pointer"
+                      >
+                        ✓ Thay thế đoạn đã chọn
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applySelectionRewrite("append")}
+                        className="rounded-lg border border-emerald-600 bg-emerald-50 px-3 py-1.5 font-bold text-emerald-800 hover:bg-emerald-100 cursor-pointer"
+                      >
+                        ➕ Chèn bên dưới
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {selPreviewHtml && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-3">
+                    <div className="mb-1 text-[10px] font-bold uppercase text-emerald-700">Bản xem trước từ AI:</div>
+                    <div className="prose-content max-w-none text-xs" dangerouslySetInnerHTML={{ __html: selPreviewHtml }} />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Main Document Canvas (Google Docs Paper Sheet Style + Block Drag-Drop & Align) */}
         <div className={mode === "split" ? "grid divide-x md:grid-cols-2" : ""}>
           {(mode === "visual" || mode === "split") && (
-            <div className="bg-[#f8f9fa] p-4 md:p-6">
+            <div className="relative bg-[#f8f9fa] p-4 md:p-6">
+              {/* Floating Block Controls (Drag-and-Drop, Move Up/Down, Left/Center/Right/Float, Width, Delete) */}
+              {activeBlockIdx !== null && (
+                <div
+                  onMouseDown={(e) => e.preventDefault()}
+                  style={{ top: `${Math.max(8, activeBlockTop)}px` }}
+                  className="sticky z-20 mx-auto mb-2 flex max-w-3xl flex-wrap items-center justify-between gap-1.5 rounded-xl border border-emerald-300 bg-white/95 px-2.5 py-1.5 text-[11px] shadow-md backdrop-blur-sm"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      draggable
+                      onDragStart={(e) => {
+                        setDragBlockIdx(activeBlockIdx);
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", String(activeBlockIdx));
+                      }}
+                      onDragEnd={() => {
+                        setDragBlockIdx(null);
+                        setDropTargetIdx(null);
+                      }}
+                      title="Giữ và kéo thả khối này lên hoặc xuống vị trí khác"
+                      className="cursor-grab active:cursor-grabbing rounded bg-emerald-100 px-2 py-0.5 font-bold text-emerald-900 select-none"
+                    >
+                      ⋮⋮ Kéo thả · {activeBlockLabel}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => moveBlock(activeBlockIdx, activeBlockIdx - 1)}
+                      title="Di chuyển khối lên trên"
+                      className="rounded border px-1.5 py-0.5 font-bold hover:bg-gray-100 cursor-pointer"
+                    >
+                      ⬆️
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveBlock(activeBlockIdx, activeBlockIdx + 1)}
+                      title="Di chuyển khối xuống dưới"
+                      className="rounded border px-1.5 py-0.5 font-bold hover:bg-gray-100 cursor-pointer"
+                    >
+                      ⬇️
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1">
+                    <button type="button" onClick={() => styleActiveBlock("left")} title="Đưa sang trái" className="rounded border px-1.5 py-0.5 hover:bg-gray-100 cursor-pointer">⬅</button>
+                    <button type="button" onClick={() => styleActiveBlock("center")} title="Căn giữa" className="rounded border px-1.5 py-0.5 hover:bg-gray-100 cursor-pointer">⬌</button>
+                    <button type="button" onClick={() => styleActiveBlock("right")} title="Đưa sang phải" className="rounded border px-1.5 py-0.5 hover:bg-gray-100 cursor-pointer">➡</button>
+                    <button type="button" onClick={() => styleActiveBlock("float-left")} title="Đặt bên trái (chữ ôm bên phải)" className="rounded border px-1.5 py-0.5 hover:bg-emerald-50 cursor-pointer">◧ Trôi trái</button>
+                    <button type="button" onClick={() => styleActiveBlock("float-right")} title="Đặt bên phải (chữ ôm bên trái)" className="rounded border px-1.5 py-0.5 hover:bg-emerald-50 cursor-pointer">◨ Trôi phải</button>
+                    <button type="button" onClick={() => styleActiveBlock("w-50")} title="Rộng 50%" className="rounded border px-1.5 py-0.5 hover:bg-gray-100 cursor-pointer">50%</button>
+                    <button type="button" onClick={() => styleActiveBlock("w-75")} title="Rộng 75%" className="rounded border px-1.5 py-0.5 hover:bg-gray-100 cursor-pointer">75%</button>
+                    <button type="button" onClick={() => styleActiveBlock("w-100")} title="Đầy khung 100%" className="rounded border px-1.5 py-0.5 hover:bg-gray-100 cursor-pointer">100%</button>
+                    <button type="button" onClick={() => styleActiveBlock("delete")} title="Xoá khối này" className="rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-red-600 hover:bg-red-100 cursor-pointer">🗑️</button>
+                  </div>
+                </div>
+              )}
+
               <div
                 ref={visualRef}
                 contentEditable
                 suppressContentEditableWarning
                 onInput={syncFromVisual}
                 onBlur={syncFromVisual}
+                onMouseMove={(e) => {
+                  if (dragBlockIdx === null) updateActiveBlockFromTarget(e.target);
+                }}
+                onClick={(e) => updateActiveBlockFromTarget(e.target)}
+                onMouseUp={handleVisualSelectionCheck}
+                onKeyUp={handleVisualSelectionCheck}
+                onDragOver={(e) => {
+                  if (dragBlockIdx === null) return;
+                  e.preventDefault();
+                  const info = findTopLevelBlock(e.target instanceof Node ? e.target : null);
+                  if (info) setDropTargetIdx(info.idx);
+                }}
+                onDrop={(e) => {
+                  if (dragBlockIdx === null) return;
+                  e.preventDefault();
+                  const info = findTopLevelBlock(e.target instanceof Node ? e.target : null);
+                  const targetIdx = info ? info.idx : dropTargetIdx;
+                  if (targetIdx !== null && targetIdx !== dragBlockIdx) {
+                    moveBlock(dragBlockIdx, targetIdx);
+                  }
+                  setDragBlockIdx(null);
+                  setDropTargetIdx(null);
+                }}
                 className="prose-content mx-auto min-h-[480px] max-w-3xl rounded-xl border border-gray-200 bg-white p-6 shadow-sm outline-none focus:ring-2 focus:ring-brand/20 md:p-10"
               />
             </div>
