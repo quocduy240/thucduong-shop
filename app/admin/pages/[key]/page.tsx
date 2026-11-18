@@ -15,7 +15,7 @@ export default async function PageEdit({ params, searchParams }: PageProps<"/adm
   const sp = await searchParams;
   const [g, slug] = decodeURIComponent(key).split("__");
   const grp = g === "-" ? "" : g;
-  const page = slug ? getPageRow(grp, slug) : undefined;
+  const page = slug ? await getPageRow(grp, slug) : undefined;
   if (!page) notFound();
 
   return (

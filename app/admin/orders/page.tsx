@@ -12,8 +12,11 @@ export default async function OrdersAdmin({ searchParams }: PageProps<"/admin/or
   const status = strParam(sp.status);
   const q = strParam(sp.q);
   const page = pageParam(sp.page);
-  const { rows, total } = listOrders({ status, q, page });
-  const counts = Object.fromEntries(countOrdersByStatus().map((c) => [c.status, c.n]));
+  const [{ rows, total }, statusCounts] = await Promise.all([
+    listOrders({ status, q, page }),
+    countOrdersByStatus(),
+  ]);
+  const counts = Object.fromEntries(statusCounts.map((c) => [c.status, c.n]));
   const all = Object.values(counts).reduce((a, b) => a + b, 0);
 
   const tab = (key: string, label: string, n: number) => (

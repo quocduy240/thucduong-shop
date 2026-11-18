@@ -12,8 +12,10 @@ export default async function PostsAdmin({ searchParams }: PageProps<"/admin/pos
   const q = strParam(sp.q);
   const category = Number(strParam(sp.category)) || 0;
   const page = pageParam(sp.page);
-  const { rows, total } = listPosts({ q, category, page });
-  const categories = getPostCategories();
+  const [{ rows, total }, categories] = await Promise.all([
+    listPosts({ q, category, page }),
+    getPostCategories(),
+  ]);
 
   return (
     <div className="mx-auto max-w-6xl">

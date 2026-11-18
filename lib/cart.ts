@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { getProductsByIds, type Product } from "./data";
+import { getProductFlashSale } from "./flash-sale";
 
 /** Cart lives in a cookie: { [productId]: qty }. */
 export const CART_COOKIE = "cart";
@@ -36,15 +37,23 @@ export async function writeCart(cart: CartMap) {
   });
 }
 
-export const unitPrice = (p: Pick<Product, "price" | "sale_price">) => p.sale_price ?? p.price;
+export async function unitPrice(p: Pick<Product, "id" | "price" | "sale_price">): Promise<number> {
+  if (p.id) {
+    const fs = await getProductFlashSale(p.id);
+    if (fs && fs.flash_price > 0) return fs.flash_price;
+  }
+  return p.sale_price ?? p.price;
+}
 
-export function cartLines(cart: CartMap): { lines: CartLine[]; total: number; count: number } {
-  const products = getProductsByIds(Object.keys(cart).map(Number));
-  const lines = products.map((product) => {
-    const qty = cart[String(product.id)];
-    const unit = unitPrice(product);
-    return { product, qty, unit, subtotal: unit * qty };
-  });
+export async function cartLines(cart: CartMap): Promise<{ lines: CartLine[]; total: number; count: number }> {
+  const products = await getProductsByIds(Object.keys(cart).map(Number));
+  const lines = await Promise.all(
+    products.map(async (product) => {
+      const qty = cart[String(product.id)];
+      const unit = await unitPrice(product);
+      return { product, qty, unit, subtotal: unit * qty };
+    }),
+  );
   return {
     lines,
     total: lines.reduce((s, l) => s + l.subtotal, 0),

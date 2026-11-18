@@ -11,8 +11,10 @@ const beVietnam = Be_Vietnam_Pro({
   weight: ["400", "500", "600", "700"],
 });
 
-export function generateMetadata(): Metadata {
-  const site = getSite();
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const site = await getSite();
   return {
     title: { default: `${site.name}. ${site.tagline}`, template: `%s | ${site.name}` },
     description: site.tagline,

@@ -17,9 +17,11 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
   const error = typeof sp.error === "string" ? sp.error : "";
   const id = rawId === "new" ? 0 : Number(rawId);
   if (rawId !== "new" && !Number.isInteger(id)) notFound();
-  const p = id ? getProductById(id) : undefined;
+  const [p, categories] = await Promise.all([
+    id ? getProductById(id) : Promise.resolve(undefined),
+    getProductCategories(),
+  ]);
   if (id && !p) notFound();
-  const categories = getProductCategories();
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -30,13 +32,15 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
       <form action={saveProductAction} className="space-y-4 rounded-xl border bg-white p-6 shadow-sm">
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="image" value={p?.image ?? ""} />
-        <div>
-          <label className={label}>Tên sản phẩm *</label>
-          <input name="name" required defaultValue={p?.name} className={input} />
-        </div>
-        <div>
-          <label className={label}>Đường dẫn (slug)</label>
-          <input name="slug" defaultValue={p?.slug} placeholder="Để trống để tự tạo từ tên" className={input} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className={label}>Tên sản phẩm *</label>
+            <input name="name" required defaultValue={p?.name} className={input} />
+          </div>
+          <div>
+            <label className={label}>Đường dẫn (slug)</label>
+            <input name="slug" defaultValue={p?.slug} placeholder="Để trống để tự tạo từ tên" className={input} />
+          </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-4">
           <div>
@@ -60,17 +64,65 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
             <p className="mt-1 text-xs text-gray-500">Nhập 0 là Hết hàng.</p>
           </div>
         </div>
+        <div className="grid gap-4 rounded-lg border border-green-100 bg-green-50/40 p-4 sm:grid-cols-4">
+          <div>
+            <label className={label}>Mã sản phẩm (SKU)</label>
+            <input name="sku" defaultValue={p?.sku ?? ""} placeholder="VD: PT-001" className={`${input} bg-white`} />
+          </div>
+          <div>
+            <label className={label}>Thương hiệu</label>
+            <input name="brand" defaultValue={p?.brand ?? ""} placeholder="VD: Tâm Minh Foods" className={`${input} bg-white`} />
+          </div>
+          <div>
+            <label className={label}>Xuất xứ</label>
+            <input name="origin" defaultValue={p?.origin ?? ""} placeholder="VD: Việt Nam / Nhật Bản" className={`${input} bg-white`} />
+          </div>
+          <div>
+            <label className={label}>Quy cách / Trọng lượng</label>
+            <input name="unit" defaultValue={p?.unit ?? ""} placeholder="VD: Gói 500g / Hộp 60 gói" className={`${input} bg-white`} />
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className={label}>Ảnh đại diện sản phẩm</label>
+            {p?.image && (
+              <div className="mb-2 flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.image} alt="" className="h-24 w-24 rounded border object-cover" />
+                <label className="text-sm"><input type="checkbox" name="remove_image" value="1" /> Xoá ảnh này</label>
+              </div>
+            )}
+            <input name="image_file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="text-sm" />
+            <p className="mt-1 text-xs text-gray-500">JPG, PNG, WEBP hoặc GIF, tối đa 10MB. Ảnh vuông hiển thị đẹp nhất.</p>
+          </div>
+          <div>
+            <label className={label}>Bộ sưu tập ảnh phụ (Gallery)</label>
+            {p?.gallery && (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {p.gallery.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean).map((imgUrl, idx) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={idx} src={imgUrl} alt="" className="h-14 w-14 rounded border object-cover" />
+                ))}
+              </div>
+            )}
+            <input name="gallery_files" type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif" className="mb-2 text-sm" />
+            <textarea
+              name="gallery"
+              rows={2}
+              defaultValue={p?.gallery ?? ""}
+              placeholder="Hoặc dán mỗi dòng 1 URL ảnh phụ (xoá dòng để gỡ ảnh phụ)..."
+              className={`${input} text-xs`}
+            />
+          </div>
+        </div>
         <div>
-          <label className={label}>Ảnh sản phẩm</label>
-          {p?.image && (
-            <div className="mb-2 flex items-center gap-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.image} alt="" className="h-24 w-24 rounded border object-cover" />
-              <label className="text-sm"><input type="checkbox" name="remove_image" value="1" /> Xoá ảnh này</label>
-            </div>
-          )}
-          <input name="image_file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
-          <p className="mt-1 text-xs text-gray-500">JPG, PNG, WEBP hoặc GIF, tối đa 10MB. Ảnh vuông hiển thị đẹp nhất.</p>
+          <label className={label}>Video giới thiệu (Link YouTube)</label>
+          <input
+            name="video_url"
+            defaultValue={p?.video_url ?? ""}
+            placeholder="VD: https://www.youtube.com/watch?v=... (Để trống nếu không có video)"
+            className={input}
+          />
         </div>
         <div>
           <label className={label}>Mô tả ngắn</label>

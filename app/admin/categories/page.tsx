@@ -15,9 +15,11 @@ export const metadata = { title: "Danh mục | Quản trị" };
 export default async function CategoriesAdmin({ searchParams }: PageProps<"/admin/categories">) {
   await requireAdmin();
   const sp = await searchParams;
-  const productCats = listProductCategoriesWithCount();
-  const postCats = listPostCategoriesWithCount();
-  const sections = getPostSections();
+  const [productCats, postCats, sections] = await Promise.all([
+    listProductCategoriesWithCount(),
+    listPostCategoriesWithCount(),
+    getPostSections(),
+  ]);
   const small = `${ui.input} !py-1.5`;
 
   return (

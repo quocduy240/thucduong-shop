@@ -12,7 +12,7 @@ const cell = (v: unknown) => {
 export async function GET() {
   if (!(await currentAdmin())) return new Response("Unauthorized", { status: 401 });
   const head = ["Mã đơn", "Ngày đặt", "Khách hàng", "Điện thoại", "Email", "Địa chỉ", "Ghi chú", "Thanh toán", "Trạng thái", "Tổng tiền", "Sản phẩm"];
-  const lines = exportOrders().map((o) =>
+  const lines = (await exportOrders()).map((o) =>
     [o.code, o.created_at, o.name, o.phone, o.email, o.address, o.note, o.payment, o.status, o.total, o.items].map(cell).join(","),
   );
   const body = "\uFEFF" + [head.map(cell).join(","), ...lines].join("\r\n");

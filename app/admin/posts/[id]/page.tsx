@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ContentEditor from "@/components/admin/ContentEditor";
+import CoverImageStudio from "@/components/admin/CoverImageStudio";
 import { requireAdmin } from "@/lib/auth";
 import ConfirmButton from "@/components/admin/ConfirmButton";
-import { getPostById, getPostCategories } from "@/lib/data";
+import { getPostById, getPostCategories, getProducts, url } from "@/lib/data";
 import { deletePostAction, savePostAction } from "../../actions";
 
 export const metadata = { title: "Bài viết | Quản trị" };
@@ -18,20 +19,43 @@ export default async function PostEditPage({ params, searchParams }: PageProps<"
   const error = typeof sp.error === "string" ? sp.error : "";
   const id = rawId === "new" ? 0 : Number(rawId);
   if (rawId !== "new" && !Number.isInteger(id)) notFound();
-  const p = id ? getPostById(id) : undefined;
+  const [p, categories, productsRaw] = await Promise.all([
+    id ? getPostById(id) : Promise.resolve(undefined),
+    getPostCategories(),
+    getProducts(200),
+  ]);
   if (id && !p) notFound();
-  const categories = getPostCategories();
   const current = p ? categories.find((c) => c.slug === p.category_slug)?.id : undefined;
+  const products = productsRaw.map((prod) => ({
+    id: prod.id,
+    name: prod.name,
+    slug: prod.slug,
+    category_slug: prod.category_slug,
+    category_name: prod.category_name,
+    price: prod.price,
+    sale_price: prod.sale_price,
+    image: prod.image,
+    sku: prod.sku,
+    brand: prod.brand,
+    unit: prod.unit,
+    summary: prod.summary,
+  }));
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <Link href="/admin/posts/" className="text-sm text-gray-500 hover:underline">← Danh sách bài viết</Link>
+    <div className="mx-auto max-w-5xl pb-12">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Link href="/admin/posts/" className="text-sm text-gray-500 hover:underline">← Danh sách bài viết</Link>
+        {p && (
+          <Link href={url.post(p)} target="_blank" className="rounded-lg border bg-white px-3 py-1.5 text-xs font-semibold text-brand hover:bg-green-50">
+            Xem bài viết ngoài trang ↗
+          </Link>
+        )}
+      </div>
       <h1 className="mb-4 mt-2 text-2xl font-bold">{p ? "Sửa bài viết" : "Thêm bài viết"}</h1>
       {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
       <form action={savePostAction} className="space-y-4 rounded-xl border bg-white p-6 shadow-sm">
         <input type="hidden" name="id" value={id} />
-        <input type="hidden" name="cover" value={p?.cover ?? ""} />
         <div>
           <label className={label}>Tiêu đề *</label>
           <input name="title" required defaultValue={p?.title} className={input} />
@@ -49,23 +73,19 @@ export default async function PostEditPage({ params, searchParams }: PageProps<"
           </div>
         </div>
         <div>
-          <label className={label}>Ảnh đại diện</label>
-          {p?.cover && (
-            <div className="mb-2 flex items-center gap-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.cover} alt="" className="h-24 w-24 rounded border object-cover" />
-              <label className="text-sm"><input type="checkbox" name="remove_cover" value="1" /> Xoá ảnh này</label>
-            </div>
-          )}
-          <input name="cover_file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
-        </div>
-        <div>
-          <label className={label}>Mô tả ngắn</label>
+          <label className={label}>Mô tả ngắn (Meta Description chuẩn SEO)</label>
           <textarea name="excerpt" rows={2} defaultValue={p?.excerpt} className={input} />
         </div>
+        <CoverImageStudio defaultCover={p?.cover ?? ""} />
         <div>
-          <label className={label}>Nội dung</label>
-          <ContentEditor name="content" defaultValue={p?.content ?? ""} />
+          <label className={label}>Nội dung bài viết &amp; Block Sản phẩm đính kèm</label>
+          <ContentEditor
+            name="content"
+            defaultValue={p?.content ?? ""}
+            products={products}
+            defaultComboIds={p?.related_product_ids ?? ""}
+            defaultComboTitle={p?.combo_title ?? ""}
+          />
         </div>
         <button className="rounded bg-brand px-5 py-2 font-medium text-white hover:opacity-90">Lưu</button>
       </form>

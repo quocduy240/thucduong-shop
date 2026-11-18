@@ -13,7 +13,7 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
   await requireAdmin();
   const id = Number((await params).id);
   const sp = await searchParams;
-  const data = Number.isInteger(id) ? getOrder(id) : undefined;
+  const data = Number.isInteger(id) ? await getOrder(id) : undefined;
   if (!data) notFound();
   const { order: o, items } = data;
 

@@ -22,7 +22,7 @@ export default async function AdminHome({ searchParams }: PageProps<"/admin">) {
   const admin = await currentAdmin();
 
   if (!admin) {
-    const first = !hasAdmin();
+    const first = !(await hasAdmin());
     return (
       <div className="mx-auto max-w-sm px-4 py-16">
         <div className={`${ui.card} p-6`}>
@@ -48,8 +48,8 @@ export default async function AdminHome({ searchParams }: PageProps<"/admin">) {
     );
   }
 
-  const s = getStats();
-  const recent = listOrders({ page: 1 }).rows.slice(0, 6);
+  const [s, ordersData] = await Promise.all([getStats(), listOrders({ page: 1 })]);
+  const recent = ordersData.rows.slice(0, 6);
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -63,6 +63,10 @@ export default async function AdminHome({ searchParams }: PageProps<"/admin">) {
         <Stat label="Sản phẩm" value={s.products} href="/admin/products/" />
         <Stat label="Sắp hết / Hết hàng" value={`${s.lowStock} / ${s.outOfStock}`} href="/admin/products/?stock=out" tone={s.outOfStock ? "text-red-600" : s.lowStock ? "text-amber-600" : ""} />
         <Stat label="Bài viết" value={s.posts} href="/admin/posts/" />
+        <Stat label="Block thường dùng" value={s.blocks} href="/admin/blocks/" />
+        <Stat label="Video bài giảng" value={s.videos} href="/admin/videos/" />
+        <Stat label="Tài liệu & Sách" value={s.documents} href="/admin/documents/" />
+        <Stat label="Thành viên / Email" value={`${s.members} / ${s.subscribers}`} href="/admin/members/" />
         <Stat label="Bình luận" value={s.comments} href="/admin/comments/" />
       </div>
 

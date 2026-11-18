@@ -122,8 +122,8 @@ async function sendSmtp(opts: {
 }
 
 export async function sendEmail(opts: { to?: string; subject: string; html: string }): Promise<{ sent: boolean; error?: string }> {
-  const cfg = getMailSettings();
-  const site = getSite();
+  const cfg = await getMailSettings();
+  const site = await getSite();
   const rawTo = opts.to ?? cfg.order_notify_email;
   const recipients = rawTo
     .split(/[,;]+/)
@@ -177,9 +177,9 @@ export type OrderEmailPayload = {
 };
 
 export async function sendNewOrderEmail(order: OrderEmailPayload) {
-  const site = getSite();
-  const prov = one<{ name: string }>("SELECT name FROM provinces WHERE code = ?", order.province_code)?.name;
-  const ward = one<{ name: string }>("SELECT name FROM wards WHERE code = ?", order.ward_code)?.name;
+  const site = await getSite();
+  const prov = (await one<{ name: string }>("SELECT name FROM provinces WHERE code = ?", order.province_code))?.name;
+  const ward = (await one<{ name: string }>("SELECT name FROM wards WHERE code = ?", order.ward_code))?.name;
   const fullAddress = [order.address, ward, prov].filter(Boolean).join(", ");
 
   const rowsHtml = order.items

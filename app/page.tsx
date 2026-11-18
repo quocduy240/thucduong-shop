@@ -1,12 +1,21 @@
 import Link from "next/link";
 import { getPosts, getProductCategories, getProductsByCategory, url } from "@/lib/data";
+import { getFlashSaleDashboard } from "@/lib/flash-sale";
+import BlockZone from "@/components/BlockZone";
+import { FlashSaleShowcase } from "@/components/FlashSaleShowcase";
 import { PostCard, ProductGrid, SectionTitle } from "@/components/ui";
 import { getSite } from "@/lib/settings";
 
-export default function Home() {
-  const site = getSite();
-  const categories = getProductCategories();
-  const posts = getPosts({ limit: 6 });
+export default async function Home() {
+  const [site, categories, posts, flashSale] = await Promise.all([
+    getSite(),
+    getProductCategories(),
+    getPosts({ limit: 6 }),
+    getFlashSaleDashboard(),
+  ]);
+  const categoryProducts = await Promise.all(
+    categories.map(async (c) => ({ c, products: await getProductsByCategory(c.id, 4) })),
+  );
 
   return (
     <div className="mx-auto max-w-6xl px-4">
@@ -15,7 +24,12 @@ export default function Home() {
         <div className="flex min-h-64 flex-col justify-center rounded-xl bg-gradient-to-r from-brand to-green-600 p-8 text-white">
           <p className="text-sm uppercase tracking-widest opacity-80">{site.tagline}</p>
           <h1 className="mt-2 text-3xl font-bold md:text-4xl">{site.name}</h1>
-          <p className="mt-3 max-w-md opacity-90">Banner chính — thay bằng ảnh/slider của bạn.</p>
+          <p className="mt-3 max-w-xl text-sm leading-relaxed opacity-95">
+            CỬA HÀNG THỰC DƯỠNG PHÚC THỌ - CUNG CẤP CÁC SẢN PHẨM THỰC DƯỠNG - THẢO DƯỢC - ĐỒ ĂN - THỨC UỐNG - GIA VỊ SẠCH HỮU CƠ SỐNG KHỎE PHÚC THỌ - TÂM AN
+          </p>
+          <p className="mt-2 text-xs opacity-80">
+            HỘ KINH DOANH CỬA HÀNG PHÚC THỌ · GPKD số 089185004882 cấp ngày 23/10/2025 tại Phòng Kinh Tế TP. Hồ Chí Minh.
+          </p>
           <Link href="/san-pham/" className="mt-6 w-fit rounded-full bg-white px-5 py-2 text-sm font-semibold text-brand">
             Xem sản phẩm
           </Link>
@@ -32,9 +46,20 @@ export default function Home() {
         </aside>
       </section>
 
+      {flashSale.config.enabled && flashSale.slots.length > 0 && (
+        <FlashSaleShowcase
+          title={flashSale.config.title}
+          subtitle={flashSale.config.subtitle}
+          activeSlotId={flashSale.activeSlot?.id ?? flashSale.slots[0].id}
+          countdownTargetIso={flashSale.countdownTargetIso}
+          slots={flashSale.slots}
+        />
+      )}
+
+      <BlockZone position="home_top" className="my-6" />
+
       {/* One block per product category, like the reference home page */}
-      {categories.map((c) => {
-        const products = getProductsByCategory(c.id, 4);
+      {categoryProducts.map(({ c, products }) => {
         if (!products.length) return null;
         return (
           <section key={c.slug} className="my-10">
@@ -50,6 +75,8 @@ export default function Home() {
           {posts.map((p) => <PostCard key={p.id} p={p} />)}
         </div>
       </section>
+
+      <BlockZone position="home_bottom" className="my-8" />
     </div>
   );
 }

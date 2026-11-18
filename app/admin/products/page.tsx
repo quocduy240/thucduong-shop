@@ -15,8 +15,10 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
   const category = Number(strParam(sp.category)) || 0;
   const stock = strParam(sp.stock);
   const page = pageParam(sp.page);
-  const { rows, total } = listProducts({ q, category, stock, page });
-  const categories = getProductCategories();
+  const [{ rows, total }, categories] = await Promise.all([
+    listProducts({ q, category, stock, page }),
+    getProductCategories(),
+  ]);
 
   const currentQuery = new URLSearchParams();
   if (q) currentQuery.set("q", q);
@@ -33,7 +35,7 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
       </PageHeader>
       <Flash saved={sp.saved} error={sp.error} />
       <form className="mb-4 flex flex-wrap gap-2">
-        <input name="q" defaultValue={q} placeholder="Tìm theo tên..." className={`${ui.input} max-w-xs`} />
+        <input name="q" defaultValue={q} placeholder="Tìm theo tên, mã SP, thương hiệu..." className={`${ui.input} max-w-xs`} />
         <select name="category" defaultValue={category || ""} className={`${ui.input} max-w-xs`}>
           <option value="">Tất cả danh mục</option>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -74,6 +76,12 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
                 <td className={`${ui.td} max-w-md`}>
                   <Link href={`/admin/products/${p.id}/`} className="font-medium hover:text-brand">{p.name}</Link>
                   {p.featured ? <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">Nổi bật</span> : null}
+                  <div className="mt-0.5 flex flex-wrap gap-2 text-xs text-gray-500">
+                    {p.sku && <span className="font-mono text-gray-600">#{p.sku}</span>}
+                    {p.brand && <span>· {p.brand}</span>}
+                    {p.unit && <span>· {p.unit}</span>}
+                    {p.origin && <span>({p.origin})</span>}
+                  </div>
                 </td>
                 <td className={ui.td}>{p.category_name}</td>
                 <td className={ui.td}>

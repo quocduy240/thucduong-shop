@@ -9,7 +9,7 @@ export const metadata = { title: "Trang tĩnh | Quản trị" };
 export default async function PagesAdmin({ searchParams }: PageProps<"/admin/pages">) {
   await requireAdmin();
   const sp = await searchParams;
-  const pages = listAllPages();
+  const pages = await listAllPages();
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader title="Trang tĩnh" />

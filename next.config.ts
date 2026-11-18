@@ -1,4 +1,7 @@
 import type { NextConfig } from "next";
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
+
+initOpenNextCloudflareForDev();
 
 const nextConfig: NextConfig = {
   // Match the reference site's URL style: category URLs end with "/",
@@ -10,6 +13,9 @@ const nextConfig: NextConfig = {
   // Admin forms upload images through Server Actions (default limit is 1MB).
   experimental: {
     serverActions: { bodySizeLimit: "12mb" },
+  },
+  images: {
+    unoptimized: true,
   },
   turbopack: {
     rules: {

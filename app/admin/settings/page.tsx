@@ -17,9 +17,7 @@ export const metadata = { title: "Cài đặt | Quản trị" };
 export default async function SettingsAdmin({ searchParams }: PageProps<"/admin/settings">) {
   const me = await requireAdmin();
   const sp = await searchParams;
-  const site = getSite();
-  const mail = getMailSettings();
-  const admins = listAdmins();
+  const [site, mail, admins] = await Promise.all([getSite(), getMailSettings(), listAdmins()]);
 
   const field = (name: keyof typeof site, label: string, hint?: string) => (
     <div>

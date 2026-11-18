@@ -16,37 +16,47 @@ export type MailSettings = typeof mailDefaults;
 export const MAIL_KEYS = Object.keys(mailDefaults) as (keyof MailSettings)[];
 
 /** Brand settings: defaults from lib/site.ts overridden by rows in the `settings` table (edited in /admin/settings/). */
-export function getSite(): SiteSettings {
+export async function getSite(): Promise<SiteSettings> {
   const out: SiteSettings = { ...defaults };
-  for (const r of all<{ key: string; value: string }>("SELECT key, value FROM settings")) {
+  const rows = await all<{ key: string; value: string }>("SELECT key, value FROM settings");
+  for (const r of rows) {
     if (r.key in out) (out as Record<string, string>)[r.key] = r.value;
   }
   return out;
 }
 
-export function saveSite(values: Partial<SiteSettings>) {
+export async function saveSite(values: Partial<SiteSettings>) {
   for (const k of SETTING_KEYS) {
     const v = values[k];
     if (typeof v === "string") {
-      run("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", k, v);
+      await run(
+        "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        k,
+        v,
+      );
     }
   }
 }
 
-export function getMailSettings(): MailSettings {
+export async function getMailSettings(): Promise<MailSettings> {
   const out: MailSettings = { ...mailDefaults };
-  for (const r of all<{ key: string; value: string }>("SELECT key, value FROM settings")) {
+  const rows = await all<{ key: string; value: string }>("SELECT key, value FROM settings");
+  for (const r of rows) {
     if (r.key in out) (out as Record<string, string>)[r.key] = r.value;
   }
   if (!out.order_notify_email.trim()) out.order_notify_email = mailDefaults.order_notify_email;
   return out;
 }
 
-export function saveMailSettings(values: Partial<MailSettings>) {
+export async function saveMailSettings(values: Partial<MailSettings>) {
   for (const k of MAIL_KEYS) {
     const v = values[k];
     if (typeof v === "string") {
-      run("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", k, v);
+      await run(
+        "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        k,
+        v,
+      );
     }
   }
 }

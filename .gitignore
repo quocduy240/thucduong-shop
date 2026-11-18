@@ -44,4 +44,7 @@ next-env.d.ts
 /data/
 note_shop_thucduongphuctho
 *.zip
-*.zip
+
+# Cloudflare OpenNext & Wrangler local state
+/.open-next/
+/.wrangler/

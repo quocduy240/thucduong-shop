@@ -6,9 +6,9 @@ import { PostDetail } from "@/components/PostViews";
 async function load(params: PageProps<"/[section]/[slug]/[post]">["params"]) {
   const { section, slug: category, post } = await params;
   if (!post.endsWith(".html")) return undefined;
-  const p = getPost(category, post.slice(0, -5));
+  const p = await getPost(category, post.slice(0, -5));
   if (!p || p.section_slug !== section) return undefined;
-  const s = getPostSection(section);
+  const s = await getPostSection(section);
   return s ? { post: p, section: s } : undefined;
 }
 

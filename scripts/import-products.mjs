@@ -59,6 +59,12 @@ const pcols = db.prepare("PRAGMA table_info(products)").all().map((c) => c.name)
 if (!pcols.includes("image")) db.exec("ALTER TABLE products ADD COLUMN image TEXT");
 if (!pcols.includes("source_url")) db.exec("ALTER TABLE products ADD COLUMN source_url TEXT");
 if (!pcols.includes("stock")) db.exec("ALTER TABLE products ADD COLUMN stock INTEGER NOT NULL DEFAULT 100");
+if (!pcols.includes("sku")) db.exec("ALTER TABLE products ADD COLUMN sku TEXT NOT NULL DEFAULT ''");
+if (!pcols.includes("brand")) db.exec("ALTER TABLE products ADD COLUMN brand TEXT NOT NULL DEFAULT ''");
+if (!pcols.includes("origin")) db.exec("ALTER TABLE products ADD COLUMN origin TEXT NOT NULL DEFAULT ''");
+if (!pcols.includes("unit")) db.exec("ALTER TABLE products ADD COLUMN unit TEXT NOT NULL DEFAULT ''");
+if (!pcols.includes("gallery")) db.exec("ALTER TABLE products ADD COLUMN gallery TEXT NOT NULL DEFAULT ''");
+if (!pcols.includes("video_url")) db.exec("ALTER TABLE products ADD COLUMN video_url TEXT NOT NULL DEFAULT ''");
 
 // ---- which products ----
 let urls;

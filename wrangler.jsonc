@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "thucduong-shop",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-05-05",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "thucduong-shop"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "thucduong-shop-db",
+      "database_id": "111f93d1-e16a-4ecd-87e4-66ef459c2063"
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "thucduongshop.duyvo.win",
+      "custom_domain": true
+    }
+  ]
+}

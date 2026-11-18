@@ -10,7 +10,7 @@ export default async function CommentsAdmin({ searchParams }: PageProps<"/admin/
   await requireAdmin();
   const sp = await searchParams;
   const page = pageParam(sp.page);
-  const { rows, total } = listComments(page);
+  const { rows, total } = await listComments(page);
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -20,7 +20,14 @@ export default async function CommentsAdmin({ searchParams }: PageProps<"/admin/
         {rows.map((c) => (
           <div key={c.id} className="flex items-start justify-between gap-4 p-4">
             <div className="min-w-0">
-              <div className="text-sm"><span className="font-semibold">{c.name}</span> <span className="text-gray-400">· {c.created_at.slice(0, 16)}</span></div>
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="font-semibold">{c.name}</span>
+                <span className="text-amber-500" title={`${c.rating || 5} sao`}>
+                  {"★".repeat(Math.max(1, Math.min(5, c.rating || 5)))}
+                  <span className="text-gray-300">{"★".repeat(5 - Math.max(1, Math.min(5, c.rating || 5)))}</span>
+                </span>
+                <span className="text-gray-400">· {c.created_at.slice(0, 16)}</span>
+              </div>
               <div className="text-xs text-gray-500">Sản phẩm: {c.product_name}</div>
               <p className="mt-1 whitespace-pre-line break-words text-sm">{c.content}</p>
             </div>

@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { getProductCategories, url } from "@/lib/data";
 
-export default function CategorySidebar({ active }: { active?: string }) {
+export default async function CategorySidebar({ active }: { active?: string }) {
+  const categories = await getProductCategories();
   return (
     <aside className="h-fit rounded-lg border bg-white p-4">
       <h2 className="mb-2 font-bold uppercase text-brand">Danh mục</h2>
       <ul className="space-y-1 text-sm">
-        {getProductCategories().map((c) => (
+        {categories.map((c) => (
           <li key={c.slug}>
             <Link
               href={url.productCategory(c)}

@@ -23,12 +23,26 @@ body {
 }
 
 /* Rich text from the CMS/DB */
-.prose-content h2 { font-size: 1.35rem; font-weight: 700; margin: 1.25rem 0 0.5rem; }
-.prose-content h3 { font-size: 1.15rem; font-weight: 700; margin: 1rem 0 0.5rem; }
-.prose-content p { margin: 0.5rem 0; line-height: 1.75; }
-.prose-content ul { list-style: disc; padding-left: 1.5rem; }
-.prose-content ol { list-style: decimal; padding-left: 1.5rem; }
-.prose-content img { display: inline-block; max-width: 100%; height: auto !important; }
-.prose-content a { color: var(--brand); }
-.prose-content table { border-collapse: collapse; max-width: 100%; }
-.prose-content td, .prose-content th { border: 1px solid #ddd; padding: 0.25rem 0.5rem; }
+.prose-content h1 { font-size: 1.6rem; font-weight: 800; margin: 1.4rem 0 0.6rem; color: #111827; }
+.prose-content h2 { font-size: 1.35rem; font-weight: 700; margin: 1.25rem 0 0.5rem; color: #1f5a22; }
+.prose-content h3 { font-size: 1.15rem; font-weight: 700; margin: 1rem 0 0.5rem; color: #1f2937; }
+.prose-content p { margin: 0.6rem 0; line-height: 1.8; }
+.prose-content ul { list-style: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
+.prose-content ol { list-style: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
+.prose-content li { margin: 0.25rem 0; line-height: 1.7; }
+.prose-content blockquote {
+  border-left: 4px solid var(--brand);
+  background: #f0fdf4;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: #166534;
+}
+.prose-content img { display: inline-block; max-width: 100%; height: auto !important; border-radius: 0.5rem; }
+.prose-content figure { margin: 1rem 0; text-align: center; }
+.prose-content figcaption { font-size: 0.8rem; color: #6b7280; margin-top: 0.35rem; font-style: italic; }
+.prose-content a { color: var(--brand); text-decoration: underline; }
+.prose-content table { border-collapse: collapse; width: 100%; max-width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+.prose-content td, .prose-content th { border: 1px solid #d1d5db; padding: 0.5rem 0.75rem; }
+.prose-content th { background: #f3f4f6; font-weight: 600; text-align: left; }
+.prose-content hr { border: 0; border-top: 1px solid #e5e7eb; margin: 1.5rem 0; }

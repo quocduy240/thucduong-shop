@@ -1,16 +1,23 @@
 import Link from "next/link";
 import { getPages, getPostCategories, getPostSections, getProductCategories, url } from "@/lib/data";
 import { cartLines, readCart } from "@/lib/cart";
+import { currentMember } from "@/lib/member-auth";
 import { getSite } from "@/lib/settings";
 import SearchBox from "./SearchBox";
 
 type MenuItem = { label: string; href: string; children?: { label: string; href: string }[] };
 
 export default async function Header() {
-  const site = getSite();
-  const { count } = cartLines(await readCart());
-  const sections = getPostSections();
-  const postCats = getPostCategories();
+  const [site, cart, member, sections, postCats, productCats, policyPages] = await Promise.all([
+    getSite(),
+    readCart(),
+    currentMember(),
+    getPostSections(),
+    getPostCategories(),
+    getProductCategories(),
+    getPages("chinh-sach"),
+  ]);
+  const { count } = await cartLines(cart);
 
   const menu: MenuItem[] = [
     { label: "Trang chủ", href: "/" },
@@ -18,18 +25,22 @@ export default async function Header() {
     {
       label: "Sản phẩm",
       href: "/san-pham/",
-      children: getProductCategories().map((c) => ({ label: c.name, href: url.productCategory(c) })),
+      children: productCats.map((c) => ({ label: c.name, href: url.productCategory(c) })),
     },
     ...sections.map((s) => ({
       label: s.name,
       href: url.postSection(s.slug),
       children: postCats.filter((c) => c.section_slug === s.slug).map((c) => ({ label: c.name, href: url.postCategory(c) })),
     })),
-    {
-      label: "Chính sách",
-      href: url.page(getPages("chinh-sach")[0]),
-      children: getPages("chinh-sach").map((p) => ({ label: p.title, href: url.page(p) })),
-    },
+    ...(policyPages.length
+      ? [
+          {
+            label: "Chính sách",
+            href: url.page(policyPages[0]),
+            children: policyPages.map((p) => ({ label: p.title, href: url.page(p) })),
+          },
+        ]
+      : []),
     { label: "Liên hệ", href: url.page({ grp: "", slug: "lien-he" }) },
   ];
 
@@ -50,6 +61,17 @@ export default async function Header() {
         <div className="flex-1">
           <SearchBox />
         </div>
+        <Link
+          href="/thanh-vien/"
+          className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition ${
+            member
+              ? "border-green-300 bg-green-50 text-brand hover:bg-green-100"
+              : "border-gray-200 text-gray-700 hover:border-brand hover:text-brand"
+          }`}
+        >
+          <span aria-hidden>{member ? "👑" : "👤"}</span>
+          <span className="hidden sm:inline">{member ? member.name : "Thành viên"}</span>
+        </Link>
         <Link href="/cart" className="relative flex items-center gap-2 rounded-full border px-3 py-2 text-sm hover:border-brand">
           <span aria-hidden>🛒</span>
           <span className="hidden sm:inline">Giỏ hàng</span>

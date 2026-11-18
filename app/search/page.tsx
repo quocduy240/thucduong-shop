@@ -6,7 +6,7 @@ export const metadata = { title: "Tìm kiếm" };
 export default async function SearchPage({ searchParams }: PageProps<"/search">) {
   const raw = (await searchParams).q;
   const q = (Array.isArray(raw) ? raw[0] : raw ?? "").trim();
-  const { products, posts } = q ? search(q, 40) : { products: [], posts: [] };
+  const { products, posts } = q ? await search(q, 40) : { products: [], posts: [] };
 
   return (
     <>

@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { one, run } from "./db";
 
-/** Admin accounts live in SQLite (tables admins / admin_sessions). Passwords: scrypt + random salt. */
+/** Admin accounts live in D1 (tables admins / admin_sessions). Passwords: scrypt + random salt. */
 export const ADMIN_COOKIE = "admin_session";
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
 
@@ -12,18 +12,21 @@ type Admin = { id: number; email: string };
 
 const hash = (password: string, salt: string) => crypto.scryptSync(password, salt, 64).toString("hex");
 
-export const hasAdmin = () => !!one("SELECT 1 AS x FROM admins LIMIT 1");
+export const hasAdmin = async () => !!(await one("SELECT 1 AS x FROM admins LIMIT 1"));
 
-export function createAdmin(email: string, password: string) {
+export async function createAdmin(email: string, password: string) {
   const salt = crypto.randomBytes(16).toString("hex");
-  return Number(
-    run("INSERT INTO admins (email, salt, password_hash) VALUES (?, ?, ?)", email, salt, hash(password, salt))
-      .lastInsertRowid,
+  const r = await run(
+    "INSERT INTO admins (email, salt, password_hash) VALUES (?, ?, ?)",
+    email,
+    salt,
+    hash(password, salt),
   );
+  return Number(r.lastInsertRowid);
 }
 
-export function verifyLogin(email: string, password: string): number | undefined {
-  const a = one<{ id: number; salt: string; password_hash: string }>(
+export async function verifyLogin(email: string, password: string): Promise<number | undefined> {
+  const a = await one<{ id: number; salt: string; password_hash: string }>(
     "SELECT id, salt, password_hash FROM admins WHERE email = ?",
     email,
   );
@@ -37,8 +40,8 @@ export function verifyLogin(email: string, password: string): number | undefined
 export async function startSession(adminId: number) {
   const token = crypto.randomBytes(32).toString("hex");
   const expires = Math.floor(Date.now() / 1000) + SESSION_SECONDS;
-  run("DELETE FROM admin_sessions WHERE expires_at < ?", Math.floor(Date.now() / 1000));
-  run("INSERT INTO admin_sessions (token, admin_id, expires_at) VALUES (?, ?, ?)", token, adminId, expires);
+  await run("DELETE FROM admin_sessions WHERE expires_at < ?", Math.floor(Date.now() / 1000));
+  await run("INSERT INTO admin_sessions (token, admin_id, expires_at) VALUES (?, ?, ?)", token, adminId, expires);
   (await cookies()).set(ADMIN_COOKIE, token, {
     path: "/",
     httpOnly: true,
@@ -50,7 +53,7 @@ export async function startSession(adminId: number) {
 export async function endSession() {
   const jar = await cookies();
   const token = jar.get(ADMIN_COOKIE)?.value;
-  if (token) run("DELETE FROM admin_sessions WHERE token = ?", token);
+  if (token) await run("DELETE FROM admin_sessions WHERE token = ?", token);
   jar.delete(ADMIN_COOKIE);
 }
 
@@ -72,22 +75,21 @@ export async function requireAdmin(): Promise<Admin> {
   return a;
 }
 
-
 /** Check a specific admin's password (used before changing it). */
-export function checkPassword(adminId: number, password: string): boolean {
-  const a = one<{ email: string }>("SELECT email FROM admins WHERE id = ?", adminId);
-  return !!a && verifyLogin(a.email, password) === adminId;
+export async function checkPassword(adminId: number, password: string): Promise<boolean> {
+  const a = await one<{ email: string }>("SELECT email FROM admins WHERE id = ?", adminId);
+  return !!a && (await verifyLogin(a.email, password)) === adminId;
 }
 
 /** Set a new password and sign out every other session of that admin. */
-export function setPassword(adminId: number, password: string, keepToken?: string) {
+export async function setPassword(adminId: number, password: string, keepToken?: string) {
   const salt = crypto.randomBytes(16).toString("hex");
-  run("UPDATE admins SET salt = ?, password_hash = ? WHERE id = ?", salt, hash(password, salt), adminId);
-  run("DELETE FROM admin_sessions WHERE admin_id = ? AND token <> ?", adminId, keepToken ?? "");
+  await run("UPDATE admins SET salt = ?, password_hash = ? WHERE id = ?", salt, hash(password, salt), adminId);
+  await run("DELETE FROM admin_sessions WHERE admin_id = ? AND token <> ?", adminId, keepToken ?? "");
 }
 
-export function removeAdmin(id: number) {
-  run("DELETE FROM admins WHERE id = ?", id); // sessions cascade
+export async function removeAdmin(id: number) {
+  await run("DELETE FROM admins WHERE id = ?", id);
 }
 
 export async function currentToken() {

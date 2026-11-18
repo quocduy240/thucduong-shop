@@ -13,7 +13,7 @@ async function updateQty(formData: FormData) {
   const id = String(formData.get("id"));
   const qty = Math.floor(Number(formData.get("qty")));
   const cart = await readCart();
-  const prod = one<{ stock: number }>("SELECT stock FROM products WHERE id = ?", Number(id));
+  const prod = await one<{ stock: number }>("SELECT stock FROM products WHERE id = ?", Number(id));
   const max = Math.min(prod?.stock ?? 0, 999);
   if (qty > 0 && max > 0) cart[id] = Math.min(qty, max);
   else delete cart[id];
@@ -30,7 +30,7 @@ async function removeItem(formData: FormData) {
 }
 
 export default async function CartPage() {
-  const { lines, total } = cartLines(await readCart());
+  const { lines, total } = await cartLines(await readCart());
 
   return (
     <>
