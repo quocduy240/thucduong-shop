@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { vnd } from "@/lib/site";
+import AiImageRegenerateModal from "./AiImageRegenerateModal";
 
 export type EditorProductItem = {
   id: number;
@@ -154,6 +155,9 @@ export default function ContentEditor({
   const [selCustomPrompt, setSelCustomPrompt] = useState("");
   const [selBusy, setSelBusy] = useState(false);
   const [selPreviewHtml, setSelPreviewHtml] = useState("");
+
+  // Click-image -> Gemini AI Image Regenerator state
+  const [aiImgTarget, setAiImgTarget] = useState<{ el: HTMLImageElement; url: string } | null>(null);
 
   useEffect(() => {
     if (visualRef.current && visualRef.current.innerHTML !== defaultValue) {
@@ -1883,6 +1887,22 @@ export default function ContentEditor({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-1">
+                    {activeBlockLabel.includes("Hình ảnh") && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const blockEl = visualRef.current?.children[activeBlockIdx] as HTMLElement | undefined;
+                          const imgEl = blockEl?.querySelector("img");
+                          if (imgEl) {
+                            setAiImgTarget({ el: imgEl, url: imgEl.getAttribute("src") || imgEl.src });
+                          }
+                        }}
+                        title="Dùng Gemini AI tạo lại ảnh mới từ ảnh gốc"
+                        className="rounded border border-indigo-300 bg-indigo-50 px-2 py-0.5 font-bold text-indigo-700 hover:bg-indigo-600 hover:text-white cursor-pointer"
+                      >
+                        🎨 AI Tạo lại ảnh
+                      </button>
+                    )}
                     <button type="button" onClick={() => styleActiveBlock("left")} title="Đưa sang trái" className="rounded border px-1.5 py-0.5 hover:bg-gray-100 cursor-pointer">⬅</button>
                     <button type="button" onClick={() => styleActiveBlock("center")} title="Căn giữa" className="rounded border px-1.5 py-0.5 hover:bg-gray-100 cursor-pointer">⬌</button>
                     <button type="button" onClick={() => styleActiveBlock("right")} title="Đưa sang phải" className="rounded border px-1.5 py-0.5 hover:bg-gray-100 cursor-pointer">➡</button>
@@ -1905,7 +1925,13 @@ export default function ContentEditor({
                 onMouseMove={(e) => {
                   if (dragBlockIdx === null) updateActiveBlockFromTarget(e.target);
                 }}
-                onClick={(e) => updateActiveBlockFromTarget(e.target)}
+                onClick={(e) => {
+                  updateActiveBlockFromTarget(e.target);
+                  if (e.target instanceof HTMLImageElement) {
+                    const src = e.target.getAttribute("src") || e.target.src;
+                    if (src) setAiImgTarget({ el: e.target, url: src });
+                  }
+                }}
                 onMouseUp={handleVisualSelectionCheck}
                 onKeyUp={handleVisualSelectionCheck}
                 onDragOver={(e) => {
@@ -2297,6 +2323,28 @@ export default function ContentEditor({
           </div>
         </div>
       )}
+
+      {/* Gemini AI Image Regenerator Modal (Click any image in Post/Product/Block) */}
+      <AiImageRegenerateModal
+        open={Boolean(aiImgTarget)}
+        originalUrl={aiImgTarget?.url ?? ""}
+        contextTitle={
+          ((visualRef.current?.closest("form")?.querySelector('[name="title"], [name="name"]') as HTMLInputElement | null)?.value) ||
+          aiImgTarget?.el.alt ||
+          ""
+        }
+        onClose={() => setAiImgTarget(null)}
+        onApply={(newUrl, newName, syncedRows) => {
+          if (aiImgTarget?.el) {
+            aiImgTarget.el.setAttribute("src", newUrl);
+            if (newName) aiImgTarget.el.setAttribute("alt", newName);
+            syncFromVisual();
+          }
+          setStatusMsg(
+            `✨ Đã tạo & thay thế ảnh mới bằng Gemini AI Image${syncedRows > 0 ? ` (đã đồng bộ ${syncedRows} vị trí trên trang)` : ""}!`,
+          );
+        }}
+      />
     </div>
   );
 }

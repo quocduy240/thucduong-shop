@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import AiImageRegenerateModal from "./AiImageRegenerateModal";
 
 const SIZE_PRESETS = [
   { id: "1200x675", label: "16:9 Chuẩn SEO / Blog (1200 × 675 px)", w: 1200, h: 675 },
@@ -32,6 +33,7 @@ export default function CoverImageStudio({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+  const [aiModalOpen, setAiModalOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -521,7 +523,13 @@ export default function CoverImageStudio({
             <div className="space-y-2">
               <div className="relative overflow-hidden rounded-lg border bg-gray-100">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={coverUrl} alt="Ảnh đại diện" className="aspect-video w-full object-cover" />
+                <img
+                  src={coverUrl}
+                  alt="Ảnh đại diện"
+                  onClick={() => setAiModalOpen(true)}
+                  title="Bấm vào ảnh để dùng Gemini AI tạo lại ảnh mới từ ảnh gốc"
+                  className="aspect-video w-full cursor-pointer object-cover transition hover:opacity-90"
+                />
                 <button
                   type="button"
                   onClick={() => setCoverUrl("")}
@@ -530,6 +538,13 @@ export default function CoverImageStudio({
                   ✕ Xoá ảnh
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={() => setAiModalOpen(true)}
+                className="w-full rounded-lg bg-gradient-to-r from-indigo-600 to-brand px-3 py-1.5 text-[11px] font-bold text-white shadow-xs hover:opacity-95 cursor-pointer"
+              >
+                🎨 Tạo lại ảnh này bằng Gemini AI Image
+              </button>
               <div className="flex items-center justify-between gap-2 pt-1 text-[11px]">
                 <select
                   value={displayWidthPct}
@@ -567,6 +582,22 @@ export default function CoverImageStudio({
           {err || msg}
         </div>
       )}
+
+      <AiImageRegenerateModal
+        open={aiModalOpen}
+        originalUrl={coverUrl}
+        contextTitle={
+          ((fileInputRef.current?.closest("form")?.querySelector('[name="title"], [name="name"]') as HTMLInputElement | null)?.value) ||
+          ""
+        }
+        onClose={() => setAiModalOpen(false)}
+        onApply={(newUrl, _newName, syncedRows) => {
+          setCoverUrl(newUrl);
+          setMsg(
+            `✨ Đã thay thế ảnh bằng Gemini AI Image${syncedRows > 0 ? ` (đã đồng bộ ${syncedRows} vị trí trên website)` : ""}!`,
+          );
+        }}
+      />
     </div>
   );
 }
