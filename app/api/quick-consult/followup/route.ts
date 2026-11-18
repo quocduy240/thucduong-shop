@@ -8,6 +8,11 @@ export async function POST(req: Request) {
       phone?: string;
       email?: string;
       note?: string;
+      bookingPackage?: string;
+      bookingMode?: string;
+      bookingDate?: string;
+      bookingSlot?: string;
+      bookingExpert?: string;
     };
 
     const id = Number(body.id ?? 0);
@@ -25,6 +30,11 @@ export async function POST(req: Request) {
       phone: body.phone,
       email: body.email,
       note: body.note,
+      bookingPackage: body.bookingPackage,
+      bookingMode: body.bookingMode,
+      bookingDate: body.bookingDate,
+      bookingSlot: body.bookingSlot,
+      bookingExpert: body.bookingExpert,
     });
 
     return Response.json({

@@ -18,6 +18,21 @@ function parseArr(raw: string): string[] {
   }
 }
 
+const AUDIENCE_LABELS: Record<string, string> = {
+  tre_em: "👶 Trẻ em",
+  truong_thanh: "🧑 Người trưởng thành",
+  benh_ly: "🩺 Bệnh lý mạn tính",
+  cao_tuoi: "👴 Người cao tuổi",
+};
+
+function parseDiet(raw: string): { breakfast?: string; lunch?: string; dinner?: string; snacks?: string } {
+  try {
+    return JSON.parse(raw) || {};
+  } catch {
+    return {};
+  }
+}
+
 function calcBmi(h: number, w: number) {
   if (!h || !w) return null;
   const bmi = Math.round((w / ((h / 100) * (h / 100))) * 10) / 10;
@@ -221,6 +236,8 @@ export default function AdminQuickConsultClient({
           {rows.map((r) => {
             const needs = parseArr(r.needs_json);
             const conditions = parseArr(r.conditions_json);
+            const diet = parseDiet(r.diet_recall_json);
+            const hasDiet = Boolean(diet.breakfast || diet.lunch || diet.dinner || diet.snacks);
             const badge = FOLLOWUP_LABELS[r.followup_choice];
             const bmi = calcBmi(r.height_cm, r.weight_kg);
             const hasReport = Boolean(r.expert_report_html || r.article_html);
@@ -235,6 +252,11 @@ export default function AdminQuickConsultClient({
                       </span>
                       {r.phone && <span className="text-sm font-semibold text-brand">{r.phone}</span>}
                       {r.age_sex && <span className="text-xs text-gray-500">({r.age_sex})</span>}
+                      {r.audience && (
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+                          {AUDIENCE_LABELS[r.audience] ?? r.audience}
+                        </span>
+                      )}
                       {(r.height_cm > 0 || r.weight_kg > 0) && (
                         <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-800">
                           📏 {r.height_cm || "?"} cm · ⚖️ {r.weight_kg || "?"} kg
@@ -277,16 +299,26 @@ export default function AdminQuickConsultClient({
                   <div>
                     <strong className="text-gray-600">Tình trạng:</strong> {conditions.join(", ") || "Không có"}
                   </div>
+                  {hasDiet && (
+                    <div className="md:col-span-2 text-gray-700">
+                      <strong>Khẩu phần 24h:</strong> Sáng: {diet.breakfast || "—"} | Trưa: {diet.lunch || "—"} | Tối: {diet.dinner || "—"}
+                      {diet.snacks ? ` | Phụ: ${diet.snacks}` : ""}
+                    </div>
+                  )}
                   {r.custom_note && (
                     <div className="md:col-span-2 text-gray-700">
                       <strong>Ghi chú:</strong> {r.custom_note}
                     </div>
                   )}
-                  {(r.followup_email || r.followup_note) && (
+                  {(r.booking_package || r.followup_email || r.followup_note) && (
                     <div className="md:col-span-2 text-amber-900">
-                      <strong>Đăng ký nâng cao:</strong>{" "}
-                      {r.followup_email ? `Email: ${r.followup_email} · ` : ""}
-                      {r.followup_note}
+                      <strong>Đặt lịch &amp; Gói nâng cao:</strong>{" "}
+                      {r.booking_package ? `${r.booking_package} ` : ""}
+                      {r.booking_mode ? `(${r.booking_mode === "online_video" ? "Online Video" : r.booking_mode === "in_person" ? "Trực tiếp" : r.booking_mode}) ` : ""}
+                      {r.booking_date ? `· Ngày ${r.booking_date} ${r.booking_slot} ` : ""}
+                      {r.booking_expert ? `· ${r.booking_expert} ` : ""}
+                      {r.followup_email ? `· Email: ${r.followup_email} ` : ""}
+                      {r.followup_note ? `· ${r.followup_note}` : ""}
                     </div>
                   )}
                 </div>

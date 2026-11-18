@@ -3,10 +3,15 @@
 import Link from "next/link";
 import { useState } from "react";
 import {
+  CONSULT_AUDIENCES,
   CONSULT_CONDITIONS,
+  CONSULT_FAQS,
   CONSULT_GOALS,
   CONSULT_HABITS,
   CONSULT_MOTIFS,
+  CONSULT_PACKAGES,
+  CONSULT_PROCESS_STEPS,
+  EXPERT_TEAM,
 } from "@/lib/quick-consult-options";
 import type {
   MatchedDocumentCard,
@@ -23,8 +28,23 @@ type ConsultResult = {
   documents: MatchedDocumentCard[];
 };
 
+type HistoryItem = {
+  id: number;
+  customer_name: string;
+  audience: string;
+  height_cm: number;
+  weight_kg: number;
+  share_token: string;
+  created_at: string;
+};
+
 function formatVnd(n: number) {
   return `${new Intl.NumberFormat("vi-VN").format(n)}đ`;
+}
+
+function calcBmi(h: number, w: number) {
+  if (!h || !w) return null;
+  return Math.round((w / ((h / 100) * (h / 100))) * 10) / 10;
 }
 
 export default function QuickConsultClient({
@@ -34,11 +54,19 @@ export default function QuickConsultClient({
   hotline: string;
   zaloUrl: string;
 }) {
+  const [audience, setAudience] = useState<string>("truong_thanh");
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [ageSex, setAgeSex] = useState("");
   const [heightCm, setHeightCm] = useState("");
   const [weightKg, setWeightKg] = useState("");
+
+  // 24h Dietary Recall
+  const [breakfast, setBreakfast] = useState("");
+  const [lunch, setLunch] = useState("");
+  const [dinner, setDinner] = useState("");
+  const [snacks, setSnacks] = useState("");
+
   const [needs, setNeeds] = useState<string[]>([CONSULT_GOALS[0]]);
   const [conditions, setConditions] = useState<string[]>([]);
   const [habits, setHabits] = useState<string[]>([]);
@@ -49,12 +77,20 @@ export default function QuickConsultClient({
   const [err, setErr] = useState("");
   const [result, setResult] = useState<ConsultResult | null>(null);
 
+  // History / Re-examination tracking by phone
+  const [historyItems, setHistoryItems] = useState<HistoryItem[] | null>(null);
+  const [historyBusy, setHistoryBusy] = useState(false);
+
   // Cart quick-add state
   const [addedIds, setAddedIds] = useState<Record<number, boolean>>({});
 
-  // Follow-up state (Option 1: Hotline, Option 2: Advanced Free/Paid)
+  // Follow-up & Booking state
   const [followupPanel, setFollowupPanel] = useState<"none" | "advanced">("none");
-  const [advancedTier, setAdvancedTier] = useState<"advanced_free" | "advanced_paid">("advanced_free");
+  const [selectedPkgId, setSelectedPkgId] = useState<string>(CONSULT_PACKAGES[0].id);
+  const [bookingExpert, setBookingExpert] = useState<string>(EXPERT_TEAM[0].name);
+  const [bookingMode, setBookingMode] = useState<"online_video" | "in_person">("online_video");
+  const [bookingDate, setBookingDate] = useState("");
+  const [bookingSlot, setBookingSlot] = useState("09:00 - 10:00");
   const [followupPhone, setFollowupPhone] = useState("");
   const [followupEmail, setFollowupEmail] = useState("");
   const [followupNote, setFollowupNote] = useState("");
@@ -63,6 +99,27 @@ export default function QuickConsultClient({
 
   function toggleItem(list: string[], setList: (v: string[]) => void, item: string) {
     setList(list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
+  }
+
+  async function lookupHistory() {
+    if (phone.replace(/\s+/g, "").length < 7) return;
+    setHistoryBusy(true);
+    try {
+      const res = await fetch(`/api/quick-consult/history?phone=${encodeURIComponent(phone)}`);
+      const data = (await res.json()) as { items?: HistoryItem[] };
+      setHistoryItems(data.items ?? []);
+    } catch {
+      setHistoryItems([]);
+    } finally {
+      setHistoryBusy(false);
+    }
+  }
+
+  function fillSampleDiet() {
+    setBreakfast("Phở bò / Bánh mì + cà phê sữa đá");
+    setLunch("Cơm trắng, thịt kho, ít rau xào");
+    setDinner("Cơm trắng, canh chua, cá chiên");
+    setSnacks("Trà sữa / bánh ngọt buổi chiều");
   }
 
   async function runQuickConsult() {
@@ -77,8 +134,10 @@ export default function QuickConsultClient({
           customerName,
           phone,
           ageSex,
+          audience,
           heightCm: Number(heightCm) || 0,
           weightKg: Number(weightKg) || 0,
+          dietRecall: { breakfast, lunch, dinner, snacks },
           needs,
           conditions,
           habits,
@@ -121,6 +180,7 @@ export default function QuickConsultClient({
     if (!result) return;
     setFollowupBusy(true);
     setFollowupMsg("");
+    const pkg = CONSULT_PACKAGES.find((p) => p.id === selectedPkgId) ?? CONSULT_PACKAGES[0];
     try {
       const res = await fetch("/api/quick-consult/followup", {
         method: "POST",
@@ -131,6 +191,11 @@ export default function QuickConsultClient({
           phone: followupPhone || phone,
           email: followupEmail,
           note: followupNote,
+          bookingPackage: choice === "hotline" ? "Hotline" : `${pkg.name} (${pkg.priceLabel})`,
+          bookingMode: choice === "hotline" ? "hotline" : bookingMode,
+          bookingDate,
+          bookingSlot,
+          bookingExpert,
         }),
       });
       const data = (await res.json()) as { ok?: boolean; message?: string; error?: string };
@@ -145,59 +210,200 @@ export default function QuickConsultClient({
 
   return (
     <div className="space-y-8">
+      {/* 5-Step Scientific Consultation Process (NERCI Standard) */}
+      <section className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 md:p-5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-bold text-emerald-900">
+            🧭 Quy Trình Tư Vấn 5 Bước Chuẩn Y Khoa – Thực Dưỡng – Đông Tây Y Kết Hợp
+          </h2>
+          <span className="text-[11px] font-semibold text-emerald-700">
+            AI Gemini 2.5 Flash + Đội ngũ Chuyên gia
+          </span>
+        </div>
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+          {CONSULT_PROCESS_STEPS.map((s) => (
+            <div key={s.step} className="rounded-xl border border-emerald-200/80 bg-white p-3 shadow-2xs">
+              <div className="text-xs font-extrabold text-brand">Bước {s.step}</div>
+              <div className="mt-0.5 text-xs font-bold text-gray-900">{s.title}</div>
+              <p className="mt-1 text-[11px] text-gray-500 leading-snug">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Step 1: Intake Form */}
       <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm md:p-7 space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <div>
-            <label className="mb-1 block text-xs font-bold text-gray-700">Họ tên / Danh xưng</label>
-            <input
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="VD: Chị Lan / Anh Minh"
-              className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
-            />
+        {/* Audience Group Selector */}
+        <div className="space-y-2.5">
+          <h2 className="text-sm font-bold text-gray-900">
+            0. Chọn Nhóm Đối tượng Cần Tư Vấn:
+          </h2>
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+            {CONSULT_AUDIENCES.map((a) => {
+              const active = audience === a.id;
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => setAudience(a.id)}
+                  className={`rounded-xl border-2 p-3 text-left transition cursor-pointer ${
+                    active
+                      ? "border-brand bg-emerald-50/70 shadow-xs"
+                      : "border-gray-200 bg-white hover:border-emerald-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 text-sm font-bold text-gray-900">
+                    <span>{a.icon}</span>
+                    <span>{a.label}</span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-gray-600 leading-snug">{a.hint}</p>
+                </button>
+              );
+            })}
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-bold text-gray-700">Số điện thoại / Zalo</label>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="VD: 0909 xxx xxx"
-              className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
-            />
+        </div>
+
+        {/* Basic Info + Height/Weight + History Lookup */}
+        <div className="space-y-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div>
+              <label className="mb-1 block text-xs font-bold text-gray-700">Họ tên / Tên bé</label>
+              <input
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="VD: Chị Lan / Bé An"
+                className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
+              />
+            </div>
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="text-xs font-bold text-gray-700">Số điện thoại / Zalo</label>
+                {phone.replace(/\s+/g, "").length >= 7 && (
+                  <button
+                    type="button"
+                    onClick={lookupHistory}
+                    className="text-[11px] font-bold text-brand hover:underline cursor-pointer"
+                  >
+                    {historyBusy ? "Đang tìm..." : "🔍 Lịch sử"}
+                  </button>
+                )}
+              </div>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="VD: 0909 xxx xxx"
+                className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-bold text-gray-700">Tuổi &amp; Giới tính</label>
+              <input
+                value={ageSex}
+                onChange={(e) => setAgeSex(e.target.value)}
+                placeholder={audience === "tre_em" ? "VD: 5 tuổi, Bé trai" : "VD: 45 tuổi, Nữ"}
+                className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-bold text-gray-700">Chiều cao (cm)</label>
+              <input
+                type="number"
+                min={40}
+                max={250}
+                value={heightCm}
+                onChange={(e) => setHeightCm(e.target.value)}
+                placeholder="VD: 162"
+                className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-bold text-gray-700">Cân nặng (kg)</label>
+              <input
+                type="number"
+                min={3}
+                max={250}
+                step="0.5"
+                value={weightKg}
+                onChange={(e) => setWeightKg(e.target.value)}
+                placeholder="VD: 56"
+                className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
+              />
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-bold text-gray-700">Tuổi &amp; Giới tính</label>
-            <input
-              value={ageSex}
-              onChange={(e) => setAgeSex(e.target.value)}
-              placeholder="VD: 45 tuổi, Nữ"
-              className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
-            />
+
+          {historyItems !== null && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-xs">
+              <div className="font-bold text-blue-900">
+                📈 Tiến triển Tái khám theo SĐT {phone} ({historyItems.length} hồ sơ trước đây):
+              </div>
+              {historyItems.length === 0 ? (
+                <p className="mt-1 text-blue-700">Chưa có hồ sơ cũ cho số điện thoại này.</p>
+              ) : (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {historyItems.map((h) => {
+                    const b = calcBmi(h.height_cm, h.weight_kg);
+                    return (
+                      <a
+                        key={h.id}
+                        href={h.share_token ? `/ho-so-tu-van/${h.share_token}/` : "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[11px] hover:border-brand"
+                      >
+                        <strong>#{h.id}</strong> ({h.created_at.slice(0, 10)}) · {h.weight_kg || "?"}kg
+                        {b ? ` · BMI ${b}` : ""} ↗
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 24-Hour Dietary Recall */}
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-bold text-amber-950">
+                🍽️ Khai thác Khẩu phần Ăn 24h Gần Nhất (Giúp AI phân tích &amp; Đổi món chính xác)
+              </h2>
+              <p className="text-[11px] text-amber-800">
+                Nhập ngắn gọn những gì bạn (hoặc bé) đã ăn hôm qua/hôm nay:
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={fillSampleDiet}
+              className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 cursor-pointer"
+            >
+              ✨ Điền ví dụ mẫu
+            </button>
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-bold text-gray-700">Chiều cao (cm)</label>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <input
-              type="number"
-              min={50}
-              max={250}
-              value={heightCm}
-              onChange={(e) => setHeightCm(e.target.value)}
-              placeholder="VD: 162"
-              className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
+              value={breakfast}
+              onChange={(e) => setBreakfast(e.target.value)}
+              placeholder="Bữa sáng (VD: Phở, xôi...)"
+              className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs"
             />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-bold text-gray-700">Cân nặng (kg)</label>
             <input
-              type="number"
-              min={15}
-              max={250}
-              step="0.5"
-              value={weightKg}
-              onChange={(e) => setWeightKg(e.target.value)}
-              placeholder="VD: 56"
-              className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
+              value={lunch}
+              onChange={(e) => setLunch(e.target.value)}
+              placeholder="Bữa trưa (VD: Cơm trắng, thịt...)"
+              className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs"
+            />
+            <input
+              value={dinner}
+              onChange={(e) => setDinner(e.target.value)}
+              placeholder="Bữa tối (VD: Cơm, canh, cá...)"
+              className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs"
+            />
+            <input
+              value={snacks}
+              onChange={(e) => setSnacks(e.target.value)}
+              placeholder="Bữa phụ / Đồ uống (VD: Trà sữa...)"
+              className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs"
             />
           </div>
         </div>
@@ -289,7 +495,7 @@ export default function QuickConsultClient({
         {/* Motif Expert Model Selector */}
         <div className="space-y-2.5">
           <h2 className="text-sm font-bold text-gray-900">
-            4. Chọn Mô hình Chuyên gia Thực dưỡng AI phân tích cho bạn:
+            4. Chọn Mô hình Chuyên gia AI (Y khoa · Thực dưỡng · Đông Tây y) phân tích cho bạn:
           </h2>
           <div className="grid gap-3 md:grid-cols-3">
             {CONSULT_MOTIFS.map((m) => {
@@ -319,13 +525,13 @@ export default function QuickConsultClient({
         {/* Custom Note */}
         <div>
           <label className="mb-1 block text-xs font-bold text-gray-700">
-            5. Mô tả thêm tình trạng hoặc câu hỏi riêng của bạn (tuỳ chọn):
+            5. Mô tả thêm tình trạng, kết quả xét nghiệm hoặc câu hỏi riêng (tuỳ chọn):
           </label>
           <textarea
             rows={3}
             value={customNote}
             onChange={(e) => setCustomNote(e.target.value)}
-            placeholder="VD: Tôi bị đau dạ dày 2 năm nay, sáng hay mệt, muốn tìm thực đơn gạo lứt và trà hỗ trợ tiêu hoá..."
+            placeholder="VD: Tôi bị đau dạ dày 2 năm nay, sáng hay mệt, hoặc bé 4 tuổi biếng ăn chậm tăng cân..."
             className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
           />
         </div>
@@ -338,7 +544,7 @@ export default function QuickConsultClient({
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <p className="text-xs text-gray-500">
-            ✨ Hệ thống AI Chuyên gia sẽ tổng hợp bài tư vấn + video + tài liệu + bộ sản phẩm phù hợp nhất cho bạn.
+            ✨ Hệ thống AI Y khoa – Thực dưỡng – Đông Tây y sẽ tổng hợp bài tư vấn + video + tài liệu + bộ sản phẩm phù hợp nhất.
           </p>
           <button
             type="button"
@@ -347,7 +553,7 @@ export default function QuickConsultClient({
             className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand to-emerald-600 px-7 py-3.5 text-sm font-bold text-white shadow-md transition hover:opacity-95 disabled:opacity-60 cursor-pointer"
           >
             <span>{busy ? "⏳" : "🌿"}</span>
-            <span>{busy ? "Chuyên gia AI đang phân tích hồ sơ..." : "Tư Vấn Nhanh Ngay"}</span>
+            <span>{busy ? "Hội đồng AI đang phân tích hồ sơ..." : "Tư Vấn Nhanh Ngay"}</span>
           </button>
         </div>
       </section>
@@ -355,7 +561,6 @@ export default function QuickConsultClient({
       {/* Step 2: Comprehensive Result */}
       {result && (
         <div id="quick-consult-result" className="space-y-8">
-          {/* AI Expert Consultation Article */}
           <article className="rounded-2xl border-2 border-emerald-200 bg-white p-6 shadow-sm md:p-8 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
               <div>
@@ -373,7 +578,7 @@ export default function QuickConsultClient({
             />
           </article>
 
-          {/* Product Blocks by Category (Thức ăn -> Trợ phương -> Dược thảo) */}
+          {/* Product Blocks by Category */}
           {result.productGroups.length > 0 && (
             <section className="space-y-5">
               <div>
@@ -508,19 +713,18 @@ export default function QuickConsultClient({
             </div>
           )}
 
-          {/* 2 Next-Step Consultation Options */}
+          {/* 2 Next-Step Options + Booking Packages */}
           <section className="rounded-2xl border-2 border-brand/30 bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-6 shadow-sm space-y-5">
             <div className="text-center">
               <h2 className="text-xl font-bold text-gray-900">
                 🤝 Bạn muốn được đồng hành chuyên sâu hơn?
               </h2>
               <p className="mt-1 text-sm text-gray-600">
-                Chọn 1 trong 2 hình thức kết nối tiếp theo cùng đội ngũ Chuyên gia Thực dưỡng của chúng tôi:
+                Chọn kết nối Hotline ngay hoặc Đặt lịch Tư vấn Nâng cao (Miễn phí / Gói Chuyên sâu 1:1):
               </p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              {/* Option 1: Hotline Expert */}
               <div className="flex flex-col justify-between rounded-2xl border border-emerald-300 bg-white p-5 shadow-xs space-y-4">
                 <div>
                   <span className="inline-block rounded-full bg-emerald-100 px-3 py-0.5 text-xs font-bold text-emerald-800">
@@ -555,17 +759,16 @@ export default function QuickConsultClient({
                 </div>
               </div>
 
-              {/* Option 2: Advanced Consultation (Free or Paid) */}
               <div className="flex flex-col justify-between rounded-2xl border border-amber-300 bg-white p-5 shadow-xs space-y-4">
                 <div>
                   <span className="inline-block rounded-full bg-amber-100 px-3 py-0.5 text-xs font-bold text-amber-800">
-                    Tuỳ chọn 2 · Lộ trình chuyên sâu
+                    Tuỳ chọn 2 · Chọn gói &amp; Đặt lịch hẹn
                   </span>
                   <h3 className="mt-2 text-lg font-bold text-gray-900">
-                    🌟 Tư Vấn Nâng Cao (Miễn Phí / Trả Phí)
+                    🌟 Tư Vấn Nâng Cao (Miễn Phí / Trả Phí 1:1)
                   </h3>
                   <p className="mt-1 text-xs text-gray-600 leading-relaxed">
-                    Chọn <strong>Gói Miễn phí</strong> (hỏi đáp chuyên đề &amp; gợi ý thực đơn mẫu) hoặc <strong>Gói Trả phí 1-1</strong> (đọc kết quả xét nghiệm, thiết kế thực đơn cá nhân hoá theo tuần).
+                    Chọn gói <strong>Miễn phí</strong> hoặc các gói <strong>Khám 1:1 Online / Trực tiếp</strong> (1 buổi, 1 tháng, 3 tháng VIP) cùng Chuyên gia Y khoa – Đông Tây y.
                   </p>
                 </div>
                 <button
@@ -573,50 +776,96 @@ export default function QuickConsultClient({
                   onClick={() => setFollowupPanel((p) => (p === "advanced" ? "none" : "advanced"))}
                   className="w-full rounded-xl bg-accent px-4 py-2.5 text-xs font-bold text-white hover:opacity-95 cursor-pointer"
                 >
-                  📋 Chọn Gói Tư Vấn Nâng Cao (Miễn phí / Trả phí)
+                  📅 Xem Bảng Gói &amp; Đặt Lịch Hẹn Chuyên Gia
                 </button>
               </div>
             </div>
 
             {followupPanel === "advanced" && (
-              <div className="rounded-2xl border border-amber-200 bg-white p-5 space-y-4">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label
-                    className={`cursor-pointer rounded-xl border-2 p-3.5 ${
-                      advancedTier === "advanced_free" ? "border-brand bg-green-50/60" : "border-gray-200"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 font-bold text-sm text-gray-900">
-                      <input
-                        type="radio"
-                        name="tier"
-                        checked={advancedTier === "advanced_free"}
-                        onChange={() => setAdvancedTier("advanced_free")}
-                      />
-                      <span>🎁 Gói Nâng Cao Miễn Phí</span>
-                    </div>
-                    <p className="mt-1 text-xs text-gray-600">
-                      Tư vấn viên phản hồi qua Zalo/Email trong 24h, gửi thêm tài liệu &amp; thực đơn tham khảo.
-                    </p>
-                  </label>
-                  <label
-                    className={`cursor-pointer rounded-xl border-2 p-3.5 ${
-                      advancedTier === "advanced_paid" ? "border-amber-500 bg-amber-50/60" : "border-gray-200"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 font-bold text-sm text-gray-900">
-                      <input
-                        type="radio"
-                        name="tier"
-                        checked={advancedTier === "advanced_paid"}
-                        onChange={() => setAdvancedTier("advanced_paid")}
-                      />
-                      <span>👑 Gói Chuyên Sâu 1-1 (Trả Phí)</span>
-                    </div>
-                    <p className="mt-1 text-xs text-gray-600">
-                      Chuyên gia thực dưỡng &amp; AI phân tích chuyên sâu hồ sơ/xét nghiệm, theo sát lộ trình 30 ngày.
-                    </p>
-                  </label>
+              <div className="rounded-2xl border border-amber-200 bg-white p-5 space-y-5">
+                <div>
+                  <div className="text-xs font-bold uppercase text-gray-500 mb-2">
+                    1. Chọn Gói Tư Vấn Phù Hợp:
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {CONSULT_PACKAGES.map((pkg) => {
+                      const active = selectedPkgId === pkg.id;
+                      return (
+                        <button
+                          key={pkg.id}
+                          type="button"
+                          onClick={() => setSelectedPkgId(pkg.id)}
+                          className={`flex flex-col justify-between rounded-xl border-2 p-3 text-left transition cursor-pointer ${
+                            active ? "border-brand bg-green-50/70 shadow-xs" : "border-gray-200 hover:border-amber-300"
+                          }`}
+                        >
+                          <div>
+                            <span className="inline-block rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+                              {pkg.badge}
+                            </span>
+                            <div className="mt-1.5 text-xs font-bold text-gray-900">{pkg.name}</div>
+                            <div className="mt-0.5 text-sm font-extrabold text-accent">{pkg.priceLabel}</div>
+                            <ul className="mt-2 space-y-1 text-[11px] text-gray-600">
+                              {pkg.features.map((f) => (
+                                <li key={f}>✓ {f}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <label className="mb-1 block text-[11px] font-bold text-gray-700">Chọn Chuyên gia</label>
+                    <select
+                      value={bookingExpert}
+                      onChange={(e) => setBookingExpert(e.target.value)}
+                      className="w-full rounded-xl border px-3 py-2 text-xs"
+                    >
+                      {EXPERT_TEAM.map((ex) => (
+                        <option key={ex.id} value={ex.name}>
+                          {ex.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[11px] font-bold text-gray-700">Hình thức tư vấn</label>
+                    <select
+                      value={bookingMode}
+                      onChange={(e) => setBookingMode(e.target.value as "online_video" | "in_person")}
+                      className="w-full rounded-xl border px-3 py-2 text-xs"
+                    >
+                      <option value="online_video">💻 Online (Video Call / Zalo)</option>
+                      <option value="in_person">🏥 Trực tiếp tại phòng tư vấn</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[11px] font-bold text-gray-700">Ngày mong muốn</label>
+                    <input
+                      type="date"
+                      value={bookingDate}
+                      onChange={(e) => setBookingDate(e.target.value)}
+                      className="w-full rounded-xl border px-3 py-2 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[11px] font-bold text-gray-700">Khung giờ hẹn</label>
+                    <select
+                      value={bookingSlot}
+                      onChange={(e) => setBookingSlot(e.target.value)}
+                      className="w-full rounded-xl border px-3 py-2 text-xs"
+                    >
+                      <option value="09:00 - 10:00">09:00 – 10:00</option>
+                      <option value="10:30 - 11:30">10:30 – 11:30</option>
+                      <option value="14:30 - 15:30">14:30 – 15:30</option>
+                      <option value="16:00 - 17:00">16:00 – 17:00</option>
+                      <option value="19:30 - 20:30">19:30 – 20:30 (Tối)</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -629,7 +878,7 @@ export default function QuickConsultClient({
                   <input
                     value={followupEmail}
                     onChange={(e) => setFollowupEmail(e.target.value)}
-                    placeholder="Email nhận phác đồ (tuỳ chọn)"
+                    placeholder="Email nhận hồ sơ PDF & phác đồ"
                     className="rounded-xl border px-3 py-2 text-sm"
                   />
                 </div>
@@ -637,16 +886,19 @@ export default function QuickConsultClient({
                   rows={2}
                   value={followupNote}
                   onChange={(e) => setFollowupNote(e.target.value)}
-                  placeholder="Khung giờ thuận tiện liên hệ hoặc câu hỏi thêm..."
+                  placeholder="Ghi chú thêm cho chuyên gia trước buổi tư vấn..."
                   className="w-full rounded-xl border px-3 py-2 text-sm"
                 />
                 <button
                   type="button"
                   disabled={followupBusy}
-                  onClick={() => submitFollowup(advancedTier)}
-                  className="rounded-xl bg-brand px-5 py-2.5 text-xs font-bold text-white hover:bg-brand-dark disabled:opacity-50 cursor-pointer"
+                  onClick={() => {
+                    const pkg = CONSULT_PACKAGES.find((p) => p.id === selectedPkgId) ?? CONSULT_PACKAGES[0];
+                    void submitFollowup(pkg.tierCode);
+                  }}
+                  className="rounded-xl bg-brand px-6 py-2.5 text-xs font-bold text-white hover:bg-brand-dark disabled:opacity-50 cursor-pointer"
                 >
-                  {followupBusy ? "Đang gửi đăng ký..." : "✓ Xác Nhận Đăng Ký Tư Vấn Nâng Cao"}
+                  {followupBusy ? "Đang xác nhận..." : "✓ Xác Nhận Đặt Lịch & Đăng Ký Gói Tư Vấn"}
                 </button>
               </div>
             )}
@@ -659,6 +911,49 @@ export default function QuickConsultClient({
           </section>
         </div>
       )}
+
+      {/* Expert Team Profiles (Trust Section) */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">
+            👨‍⚕️ Hội Đồng Chuyên Gia Y Khoa · Thực Dưỡng · Đông Tây Y Kết Hợp
+          </h2>
+          <p className="text-xs text-gray-500">
+            Đồng hành cùng bạn từ đánh giá khẩu phần ăn 24h, đọc chỉ số xét nghiệm đến xây dựng lối sống quân bình.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {EXPERT_TEAM.map((ex) => (
+            <div key={ex.id} className="rounded-2xl border bg-white p-5 shadow-xs space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800">
+                  {ex.badge}
+                </span>
+                <span className="text-[11px] font-semibold text-gray-500">{ex.experience}</span>
+              </div>
+              <div className="text-base font-bold text-gray-900">{ex.name}</div>
+              <div className="text-xs font-semibold text-brand">{ex.title}</div>
+              <div className="text-[11px] text-gray-700">
+                <strong>Chuyên môn:</strong> {ex.specialty}
+              </div>
+              <p className="text-xs text-gray-600 leading-relaxed">{ex.bio}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="rounded-2xl border bg-white p-5 shadow-xs space-y-3">
+        <h2 className="text-base font-bold text-gray-900">❓ Câu Hỏi Thường Gặp (FAQ)</h2>
+        <div className="space-y-2">
+          {CONSULT_FAQS.map((f) => (
+            <details key={f.q} className="rounded-xl border border-gray-200 p-3">
+              <summary className="cursor-pointer text-xs font-bold text-gray-900">{f.q}</summary>
+              <p className="mt-2 text-xs text-gray-600 leading-relaxed">{f.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

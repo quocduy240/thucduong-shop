@@ -12,12 +12,21 @@ import {
 } from "./data";
 import { CONSULT_MOTIFS, type ConsultMotifOption } from "./quick-consult-options";
 
+export type DietRecall24h = {
+  breakfast?: string;
+  lunch?: string;
+  dinner?: string;
+  snacks?: string;
+};
+
 export type QuickConsultInput = {
   customerName: string;
   phone: string;
   ageSex: string;
+  audience?: string;
   heightCm?: number;
   weightKg?: number;
+  dietRecall?: DietRecall24h;
   needs: string[];
   conditions: string[];
   habits: string[];
@@ -86,8 +95,10 @@ export type QuickConsultRow = {
   customer_name: string;
   phone: string;
   age_sex: string;
+  audience: string;
   height_cm: number;
   weight_kg: number;
+  diet_recall_json: string;
   needs_json: string;
   conditions_json: string;
   habits_json: string;
@@ -97,6 +108,11 @@ export type QuickConsultRow = {
   followup_choice: string;
   followup_email: string;
   followup_note: string;
+  booking_package: string;
+  booking_mode: string;
+  booking_date: string;
+  booking_slot: string;
+  booking_expert: string;
   share_token: string;
   expert_report_html: string;
   expert_config_json: string;
@@ -143,6 +159,13 @@ export async function ensureQuickConsultTable(): Promise<void> {
     ["expert_report_html", "ALTER TABLE quick_consultations ADD COLUMN expert_report_html TEXT NOT NULL DEFAULT ''"],
     ["expert_config_json", "ALTER TABLE quick_consultations ADD COLUMN expert_config_json TEXT NOT NULL DEFAULT '{}'"],
     ["expert_analyzed_at", "ALTER TABLE quick_consultations ADD COLUMN expert_analyzed_at TEXT"],
+    ["audience", "ALTER TABLE quick_consultations ADD COLUMN audience TEXT NOT NULL DEFAULT 'truong_thanh'"],
+    ["diet_recall_json", "ALTER TABLE quick_consultations ADD COLUMN diet_recall_json TEXT NOT NULL DEFAULT '{}'"],
+    ["booking_package", "ALTER TABLE quick_consultations ADD COLUMN booking_package TEXT NOT NULL DEFAULT ''"],
+    ["booking_mode", "ALTER TABLE quick_consultations ADD COLUMN booking_mode TEXT NOT NULL DEFAULT ''"],
+    ["booking_date", "ALTER TABLE quick_consultations ADD COLUMN booking_date TEXT NOT NULL DEFAULT ''"],
+    ["booking_slot", "ALTER TABLE quick_consultations ADD COLUMN booking_slot TEXT NOT NULL DEFAULT ''"],
+    ["booking_expert", "ALTER TABLE quick_consultations ADD COLUMN booking_expert TEXT NOT NULL DEFAULT ''"],
   ];
   for (const [col, sql] of migrations) {
     if (!existing.has(col)) {
@@ -201,12 +224,41 @@ export async function listQuickConsultations(limit = 50): Promise<QuickConsultRo
   );
 }
 
+export async function getPatientHistoryByPhone(phone: string): Promise<
+  {
+    id: number;
+    customer_name: string;
+    audience: string;
+    height_cm: number;
+    weight_kg: number;
+    share_token: string;
+    created_at: string;
+  }[]
+> {
+  await ensureQuickConsultTable();
+  const clean = phone.replace(/\s+/g, "").trim();
+  if (clean.length < 7) return [];
+  return all(
+    `SELECT id, customer_name, audience, height_cm, weight_kg, share_token, created_at
+     FROM quick_consultations
+     WHERE REPLACE(phone, ' ', '') = ?
+     ORDER BY id ASC
+     LIMIT 20`,
+    clean,
+  );
+}
+
 export async function updateQuickConsultFollowup(input: {
   id: number;
   followupChoice: "hotline" | "advanced_free" | "advanced_paid";
   phone?: string;
   email?: string;
   note?: string;
+  bookingPackage?: string;
+  bookingMode?: string;
+  bookingDate?: string;
+  bookingSlot?: string;
+  bookingExpert?: string;
 }): Promise<void> {
   await ensureQuickConsultTable();
   await run(
@@ -214,13 +266,23 @@ export async function updateQuickConsultFollowup(input: {
      SET followup_choice = ?,
          phone = CASE WHEN ? <> '' THEN ? ELSE phone END,
          followup_email = ?,
-         followup_note = ?
+         followup_note = ?,
+         booking_package = ?,
+         booking_mode = ?,
+         booking_date = ?,
+         booking_slot = ?,
+         booking_expert = ?
      WHERE id = ?`,
     input.followupChoice,
     input.phone?.trim() ?? "",
     input.phone?.trim() ?? "",
     input.email?.trim() ?? "",
     input.note?.trim() ?? "",
+    input.bookingPackage?.trim() ?? "",
+    input.bookingMode?.trim() ?? "",
+    input.bookingDate?.trim() ?? "",
+    input.bookingSlot?.trim() ?? "",
+    input.bookingExpert?.trim() ?? "",
     input.id,
   );
 }
@@ -495,16 +557,27 @@ async function callGeminiExpertConsult(
   const docText = documents.map((d) => `- ${d.title}`).join("\n");
 
   const { bmi, label: bmiLabel } = computeBmi(Number(input.heightCm) || 0, Number(input.weightKg) || 0);
+  const audienceLabels: Record<string, string> = {
+    tre_em: "Trẻ em & Tuổi dậy thì (đánh giá theo chuẩn tăng trưởng WHO)",
+    truong_thanh: "Người trưởng thành",
+    benh_ly: "Người có bệnh lý mạn tính / chuyển hoá",
+    cao_tuoi: "Người cao tuổi",
+  };
+  const audienceDesc = audienceLabels[input.audience || "truong_thanh"] ?? "Người trưởng thành";
+  const dr = input.dietRecall ?? {};
+  const hasDietRecall = Boolean(dr.breakfast || dr.lunch || dr.dinner || dr.snacks);
 
   const prompt = `${motif.systemTone}
 
-Hãy viết một **Bài viết Tư vấn Thực dưỡng Cá nhân hoá** bằng tiếng Việt dành riêng cho khách hàng có thông tin sau:
+Hãy đóng vai **Hội đồng Chuyên gia Y khoa Hiện đại – Thực dưỡng Ohsawa – Đông Tây y Kết hợp** để viết một **Bài viết Tư vấn Sức khoẻ Cá nhân hoá** bằng tiếng Việt dành riêng cho khách hàng có thông tin sau:
 - Họ tên: ${input.customerName || "Quý khách"}
+- Nhóm đối tượng: ${audienceDesc}
 - Tuổi / Giới tính: ${input.ageSex || "Chưa cung cấp"}
 - Chiều cao: ${input.heightCm ? `${input.heightCm} cm` : "Chưa nhập"} | Cân nặng: ${input.weightKg ? `${input.weightKg} kg` : "Chưa nhập"} ${bmi ? `(BMI: ${bmi} - ${bmiLabel})` : ""}
 - Nhu cầu chính: ${input.needs.join(", ") || "Cải thiện sức khoẻ tổng thể"}
 - Tình trạng sức khoẻ: ${input.conditions.join(", ") || "Không ghi nhận đặc biệt"}
 - Thói quen ăn uống: ${input.habits.join(", ") || "Chưa ghi nhận"}
+${hasDietRecall ? `- Khẩu phần ăn thực tế 24h gần nhất:\n  + Bữa sáng: ${dr.breakfast || "Chưa ghi"}\n  + Bữa trưa: ${dr.lunch || "Chưa ghi"}\n  + Bữa tối: ${dr.dinner || "Chưa ghi"}\n  + Bữa phụ / Đồ uống: ${dr.snacks || "Không có"}` : ""}
 - Ghi chú thêm: ${input.customNote || "Không có"}
 
 Danh sách tài nguyên thực tế của cửa hàng để lồng ghép khéo léo vào lời khuyên (chỉ nhắc đúng tên nếu phù hợp, không bịa tên khác):
@@ -519,12 +592,13 @@ ${docText || "(Chưa có)"}
 
 Yêu cầu đầu ra:
 - Trả về **HTML sạch** (chỉ dùng thẻ p, h3, ul, li, strong, em, blockquote; KHÔNG bọc markdown \`\`\`html).
-- Gồm 4 mục h3 rõ ràng:
-  1. Đánh giá tổng quan thể trạng & Góc nhìn Quân bình Âm – Dương
-  2. Thực đơn & Nguyên tắc ăn uống thực dưỡng hằng ngày
-  3. Phác đồ phối hợp Thức ăn – Trợ phương – Dược thảo
-  4. Lộ trình 7 ngày đầu & Lưu ý an toàn y khoa (nhấn mạnh không thay thế chẩn đoán bác sĩ nếu có bệnh lý nền).
-- Giọng văn ấm áp, chuyên nghiệp, chuẩn chuyên gia thực dưỡng, độ dài khoảng 450–650 từ.`;
+- Gồm 5 mục h3 rõ ràng:
+  1. Đánh giá tổng quan theo Y khoa Hiện đại, Đông Tây y & Quân bình Âm – Dương (có nhận xét BMI / chuẩn đối tượng ${audienceDesc})
+  2. Phân tích Khẩu phần 24h & Hướng dẫn Đổi món hằng ngày (chỉ rõ điểm cần điều chỉnh từ bữa ăn hiện tại và thực đơn Sáng/Trưa/Tối thay thế)
+  3. Phác đồ phối hợp Thức ăn – Trợ phương – Dược thảo (Đông Tây y hỗ trợ)
+  4. Lộ trình sinh hoạt 7 ngày đầu & Dấu hiệu cần đi khám chuyên khoa
+  5. Lưu ý an toàn y khoa (nhấn mạnh phối hợp song song, không tự ý bỏ thuốc bác sĩ điều trị).
+- Giọng văn ấm áp, chuẩn mực y khoa, độ dài khoảng 550–750 từ.`;
 
   try {
     const res = await fetch(
@@ -567,15 +641,17 @@ export async function generateQuickConsultReport(input: QuickConsultInput): Prom
 
   const res = await run(
     `INSERT INTO quick_consultations (
-      customer_name, phone, age_sex, height_cm, weight_kg,
-      needs_json, conditions_json, habits_json,
+      customer_name, phone, age_sex, audience, height_cm, weight_kg,
+      diet_recall_json, needs_json, conditions_json, habits_json,
       motif_id, custom_note, article_html
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     input.customerName.trim(),
     input.phone.trim(),
     input.ageSex.trim(),
+    input.audience?.trim() || "truong_thanh",
     Number(input.heightCm) || 0,
     Number(input.weightKg) || 0,
+    JSON.stringify(input.dietRecall ?? {}),
     JSON.stringify(input.needs),
     JSON.stringify(input.conditions),
     JSON.stringify(input.habits),

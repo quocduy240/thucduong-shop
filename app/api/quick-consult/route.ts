@@ -6,8 +6,10 @@ export async function POST(req: Request) {
       customerName?: string;
       phone?: string;
       ageSex?: string;
+      audience?: string;
       heightCm?: number | string;
       weightKg?: number | string;
+      dietRecall?: { breakfast?: string; lunch?: string; dinner?: string; snacks?: string };
       needs?: string[];
       conditions?: string[];
       habits?: string[];
@@ -31,8 +33,10 @@ export async function POST(req: Request) {
       customerName: String(body.customerName ?? "").trim(),
       phone: String(body.phone ?? "").trim(),
       ageSex: String(body.ageSex ?? "").trim(),
+      audience: String(body.audience ?? "truong_thanh").trim(),
       heightCm: Number(body.heightCm ?? 0) || 0,
       weightKg: Number(body.weightKg ?? 0) || 0,
+      dietRecall: body.dietRecall ?? {},
       needs,
       conditions,
       habits,
