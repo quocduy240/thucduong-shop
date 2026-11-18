@@ -9,7 +9,15 @@ import {
 import { isOrderStatus } from "@/lib/admin-data";
 import { all, batch, one, run } from "@/lib/db";
 import { sendEmail } from "@/lib/mail";
-import { getSite, MAIL_KEYS, saveMailSettings, saveSite, SETTING_KEYS } from "@/lib/settings";
+import {
+  getSite,
+  MAIL_KEYS,
+  saveMailSettings,
+  saveSite,
+  saveWidgetSettings,
+  SETTING_KEYS,
+  WIDGET_KEYS,
+} from "@/lib/settings";
 import { saveDocumentFile, saveImage, slugify } from "@/lib/uploads";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
@@ -328,6 +336,30 @@ export async function saveSettingsAction(formData: FormData) {
   if (!values.name) back("/admin/settings/", "Tên cửa hàng không được để trống.");
   await saveSite(values);
   refresh();
+  redirect("/admin/settings/?saved=1");
+}
+
+export async function saveWidgetSettingsAction(formData: FormData) {
+  await requireAdmin();
+  const values: Record<string, string> = {};
+  for (const k of WIDGET_KEYS) values[k] = str(formData, k);
+  values.widget_enabled = str(formData, "widget_enabled") === "0" ? "0" : "1";
+  await saveWidgetSettings(values);
+  refresh();
+  redirect("/admin/settings/?saved=1");
+}
+
+export async function updateConsultationStatusAction(formData: FormData) {
+  await requireAdmin();
+  const id = num(formData, "id");
+  const status = str(formData, "status") === "done" ? "done" : "new";
+  await run("UPDATE consultation_requests SET status = ? WHERE id = ?", status, id);
+  redirect("/admin/settings/?saved=1");
+}
+
+export async function deleteConsultationAction(formData: FormData) {
+  await requireAdmin();
+  await run("DELETE FROM consultation_requests WHERE id = ?", num(formData, "id"));
   redirect("/admin/settings/?saved=1");
 }
 

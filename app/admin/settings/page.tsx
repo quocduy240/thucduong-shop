@@ -2,14 +2,18 @@ import { Flash, PageHeader, ui } from "@/components/admin/ui";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import { listAdmins } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/auth";
-import { getMailSettings, getSite } from "@/lib/settings";
+import { all, run } from "@/lib/db";
+import { getMailSettings, getSite, getWidgetSettings } from "@/lib/settings";
 import {
   addAdminAction,
   changePasswordAction,
   deleteAdminAction,
+  deleteConsultationAction,
   saveMailSettingsAction,
   saveSettingsAction,
+  saveWidgetSettingsAction,
   testMailAction,
+  updateConsultationStatusAction,
 } from "../actions";
 
 export const metadata = { title: "Cài đặt | Quản trị" };
@@ -17,7 +21,31 @@ export const metadata = { title: "Cài đặt | Quản trị" };
 export default async function SettingsAdmin({ searchParams }: PageProps<"/admin/settings">) {
   const me = await requireAdmin();
   const sp = await searchParams;
-  const [site, mail, admins] = await Promise.all([getSite(), getMailSettings(), listAdmins()]);
+  await run(`CREATE TABLE IF NOT EXISTS consultation_requests (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL DEFAULT '',
+    phone TEXT NOT NULL,
+    question TEXT NOT NULL,
+    page_url TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'new',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+
+  const [site, mail, widget, admins, consultations] = await Promise.all([
+    getSite(),
+    getMailSettings(),
+    getWidgetSettings(),
+    listAdmins(),
+    all<{
+      id: number;
+      name: string;
+      phone: string;
+      question: string;
+      page_url: string;
+      status: string;
+      created_at: string;
+    }>("SELECT id, name, phone, question, page_url, status, created_at FROM consultation_requests ORDER BY id DESC LIMIT 30"),
+  ]);
 
   const field = (name: keyof typeof site, label: string, hint?: string) => (
     <div>
@@ -117,6 +145,146 @@ export default async function SettingsAdmin({ searchParams }: PageProps<"/admin/
         {field("address", "Địa chỉ")}
         <button className={ui.primary}>Lưu thông tin</button>
       </form>
+
+      {/* Module Tư vấn Nổi: Zalo, Messenger, Hotline, Hỏi nhanh */}
+      <form action={saveWidgetSettingsAction} className={`${ui.card} space-y-4 p-6 border-green-200`}>
+        <div>
+          <h2 className="font-semibold text-brand">💬 Cấu hình Công cụ Tư vấn Nổi (Zalo · Messenger · Hotline · Hỏi nhanh)</h2>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Thanh công cụ chạy dọc góc dưới bên phải toàn bộ website, giúp khách kết nối Zalo, Messenger, gọi Hotline hoặc gửi câu hỏi nhanh qua email.
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className={ui.label}>Trạng thái hiển thị trên web</label>
+            <select name="widget_enabled" defaultValue={widget.widget_enabled} className={ui.input}>
+              <option value="1">🟢 Đang bật (Hiển thị góc dưới bên phải)</option>
+              <option value="0">⚪ Đang tắt</option>
+            </select>
+          </div>
+          <div>
+            <label className={ui.label}>Email tư vấn viên nhận câu hỏi nhanh</label>
+            <input
+              name="widget_consultant_email"
+              defaultValue={widget.widget_consultant_email}
+              placeholder={`Để trống = dùng email nhận đơn (${mail.order_notify_email})`}
+              className={ui.input}
+            />
+          </div>
+          <div>
+            <label className={ui.label}>Số điện thoại / Link Zalo</label>
+            <input
+              name="widget_zalo"
+              defaultValue={widget.widget_zalo}
+              placeholder="VD: 0767518592 hoặc https://zalo.me/0767518592"
+              className={ui.input}
+            />
+          </div>
+          <div>
+            <label className={ui.label}>Link Facebook Messenger (m.me)</label>
+            <input
+              name="widget_messenger"
+              defaultValue={widget.widget_messenger}
+              placeholder="VD: https://m.me/tenfanpage"
+              className={ui.input}
+            />
+          </div>
+          <div>
+            <label className={ui.label}>Số Hotline chính (nút Gọi ngay)</label>
+            <input
+              name="widget_hotline"
+              defaultValue={widget.widget_hotline}
+              placeholder="0767.518.592"
+              className={ui.input}
+            />
+          </div>
+          <div>
+            <label className={ui.label}>Số Hotline phụ (trong popup Hỏi nhanh)</label>
+            <input
+              name="widget_hotline_2"
+              defaultValue={widget.widget_hotline_2}
+              placeholder="0858.816.070"
+              className={ui.input}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={ui.label}>Tiêu đề hộp thoại Hỏi nhanh</label>
+            <input
+              name="widget_quick_ask_title"
+              defaultValue={widget.widget_quick_ask_title}
+              className={ui.input}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={ui.label}>Lời nhắn hướng dẫn khách để lại SĐT</label>
+            <input
+              name="widget_quick_ask_subtitle"
+              defaultValue={widget.widget_quick_ask_subtitle}
+              className={ui.input}
+            />
+          </div>
+        </div>
+
+        <button className={ui.primary}>💾 Lưu cấu hình Công cụ Tư vấn</button>
+      </form>
+
+      {/* Danh sách Yêu cầu Tư vấn Nhanh */}
+      <div className={`${ui.card} p-6`}>
+        <h2 className="mb-1 font-semibold">📋 Khách hàng Hỏi nhanh &amp; Chờ gọi lại ({consultations.length})</h2>
+        <p className="mb-4 text-xs text-gray-500">
+          Mỗi khi khách gửi câu hỏi trên thanh tư vấn, hệ thống lưu tại đây và gửi email báo tư vấn viên gọi lại qua SĐT.
+        </p>
+        {consultations.length === 0 ? (
+          <p className="rounded-lg border border-dashed p-6 text-center text-xs text-gray-500">
+            Chưa có yêu cầu tư vấn nhanh nào.
+          </p>
+        ) : (
+          <div className="divide-y">
+            {consultations.map((c) => (
+              <div key={c.id} className="flex flex-wrap items-start justify-between gap-3 py-3 text-sm">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-bold text-gray-900">{c.name}</span>
+                    <a
+                      href={`tel:${c.phone}`}
+                      className="rounded-full bg-red-50 px-2.5 py-0.5 font-mono text-xs font-bold text-red-700 hover:bg-red-100"
+                    >
+                      📞 {c.phone}
+                    </a>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                        c.status === "done"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-amber-100 text-amber-800"
+                      }`}
+                    >
+                      {c.status === "done" ? "✓ Đã tư vấn" : "🔔 Chờ gọi lại"}
+                    </span>
+                    <span className="text-xs text-gray-400">{c.created_at.slice(0, 16)}</span>
+                  </div>
+                  <p className="whitespace-pre-line text-xs text-gray-700">{c.question}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <form action={updateConsultationStatusAction}>
+                    <input type="hidden" name="id" value={c.id} />
+                    <input type="hidden" name="status" value={c.status === "done" ? "new" : "done"} />
+                    <button className={ui.secondary}>
+                      {c.status === "done" ? "Mở lại" : "✓ Đã gọi"}
+                    </button>
+                  </form>
+                  <form action={deleteConsultationAction}>
+                    <input type="hidden" name="id" value={c.id} />
+                    <ConfirmButton message="Xoá yêu cầu tư vấn này?" className={ui.danger}>
+                      Xoá
+                    </ConfirmButton>
+                  </form>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <form action={changePasswordAction} className={`${ui.card} space-y-4 p-6`}>
         <h2 className="font-semibold">Đổi mật khẩu của bạn ({me.email})</h2>

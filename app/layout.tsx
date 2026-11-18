@@ -3,7 +3,8 @@ import { Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { getSite } from "@/lib/settings";
+import FloatingConsultWidget from "@/components/FloatingConsultWidget";
+import { getSite, getWidgetSettings } from "@/lib/settings";
 
 const beVietnam = Be_Vietnam_Pro({
   variable: "--font-be-vietnam",
@@ -21,13 +22,15 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const widgetCfg = await getWidgetSettings();
   return (
     <html lang="vi" className={`${beVietnam.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
+        <FloatingConsultWidget config={widgetCfg} />
       </body>
     </html>
   );
