@@ -12,6 +12,7 @@ const ITEMS = [
   { href: "/admin/blocks/", label: "Block thường dùng", icon: "🧩" },
   { href: "/admin/qr/", label: "QR Code Động", icon: "📱" },
   { href: "/admin/lab-analysis/", label: "Xét nghiệm AI", icon: "🧪" },
+  { href: "/admin/quick-consult/", label: "Tư vấn nhanh AI", icon: "🌿" },
   { href: "/admin/videos/", label: "Video bài giảng", icon: "🎬" },
   { href: "/admin/documents/", label: "Tài liệu & Sách", icon: "📚" },
   { href: "/admin/members/", label: "Thành viên & Email", icon: "👥" },

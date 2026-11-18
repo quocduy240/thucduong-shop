@@ -41,6 +41,7 @@ export default async function Header() {
           },
         ]
       : []),
+    { label: "Tư vấn nhanh AI", href: "/tu-van-nhanh/" },
     { label: "Liên hệ", href: url.page({ grp: "", slug: "lien-he" }) },
   ];
 
