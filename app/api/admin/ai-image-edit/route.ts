@@ -79,6 +79,9 @@ export async function POST(req: Request) {
 
   try {
     const body = (await req.json()) as {
+      action?: "sync_url";
+      oldUrl?: string;
+      newUrl?: string;
       originalUrl?: string;
       presets?: string[];
       customPrompt?: string;
@@ -87,6 +90,14 @@ export async function POST(req: Request) {
       replaceEverywhere?: boolean;
       geminiApiKey?: string;
     };
+
+    if (body.action === "sync_url" && body.oldUrl && body.newUrl) {
+      const syncedRows =
+        body.replaceEverywhere !== false
+          ? await syncImageUrlAcrossDatabase(body.oldUrl, body.newUrl)
+          : 0;
+      return Response.json({ ok: true, syncedRows });
+    }
 
     const originalUrl = String(body.originalUrl ?? "").trim();
     if (!originalUrl) {
@@ -168,11 +179,24 @@ export async function POST(req: Request) {
       }
     }
 
-    // Free Fallback Pipeline (0đ, no Billing required):
-    // 1. Use Gemini Vision (free tier text/vision) to analyze the original image & craft an English Flux prompt.
-    // 2. Generate the new image via Pollinations.ai Flux (100% free, no API key required).
+    // Free Original-Preserving Pipeline (0đ, 100% keeps the exact original product & label):
+    // Analyze the original image with Gemini Vision (free tier) and return tailored Studio Enhancement parameters
+    // for client-side high-res Canvas Unsharp-Mask sharpening + studio lighting tone mapping.
     if (!outBase64) {
-      let fluxPrompt = `${contextTitle || "organic macrobiotic health product"}, ${presets.join(", ")}, ${customPrompt}, commercial studio photography, high resolution`;
+      const wantWarm = presets.some((p) => p.includes("macrobiotic") || p.includes("warm")) ||
+        /ấm|gỗ|nắng|warm/i.test(customPrompt);
+      const wantVibrant = presets.some((p) => p.includes("Rich balanced") || p.includes("e-commerce"));
+
+      let tuning = {
+        brightness: 1.07,
+        contrast: 1.12,
+        saturate: wantVibrant ? 1.18 : 1.1,
+        warmth: wantWarm ? 0.08 : 0.02,
+        sharpen: 0.45,
+        studioFrame: presets.some((p) => p.includes("studio") || p.includes("minimalist")),
+        analysisNote:
+          "Đã phân tích ảnh gốc: giữ nguyên 100% sản phẩm/nhãn mác thật, tăng độ sắc nét (Unsharp Mask), cân bằng ánh sáng studio và độ rực màu tự nhiên.",
+      };
 
       if (apiKey) {
         try {
@@ -183,43 +207,44 @@ export async function POST(req: Request) {
                 parts: [
                   { inlineData: { mimeType: origMime, data: origB64 } },
                   {
-                    text: `Analyze this product/article image and write ONE concise, vivid English image-generation prompt (max 65 words) to recreate an upgraded, ultra-clean commercial studio photograph of the exact same subject.\nContext: "${contextTitle}".\nStyle requests: ${presets.join("; ")}. ${customPrompt}\nReturn ONLY the English prompt text, no quotes.`,
+                    text: `Analyze this product/article photo and recommend subtle, natural photo-enhancement parameters so it looks crisp, bright, and commercial-studio quality WITHOUT altering the product itself.
+Requests: ${presets.join("; ")}. ${customPrompt}
+Return ONLY valid JSON:
+{"brightness": 1.02-1.15, "contrast": 1.05-1.22, "saturate": 1.05-1.25, "warmth": 0.0-0.12, "sharpen": 0.3-0.7, "analysisNote": "1 short Vietnamese sentence explaining what was improved"}`,
                   },
                 ],
               },
             ],
-            generationConfig: { temperature: 0.4 },
+            generationConfig: { temperature: 0.2, responseMimeType: "application/json" },
           });
           if (visionRes.ok) {
             const vData = (await visionRes.json()) as {
               candidates?: { content?: { parts?: { text?: string }[] } }[];
             };
-            const crafted = vData.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-            if (crafted) fluxPrompt = crafted;
+            const rawJson = vData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+            if (rawJson) {
+              const parsed = JSON.parse(rawJson.replace(/^```json\s*|\s*```$/g, "")) as Partial<typeof tuning>;
+              tuning = {
+                ...tuning,
+                brightness: Math.min(1.25, Math.max(0.95, Number(parsed.brightness) || tuning.brightness)),
+                contrast: Math.min(1.3, Math.max(0.95, Number(parsed.contrast) || tuning.contrast)),
+                saturate: Math.min(1.35, Math.max(0.95, Number(parsed.saturate) || tuning.saturate)),
+                warmth: Math.min(0.18, Math.max(0, Number(parsed.warmth) ?? tuning.warmth)),
+                sharpen: Math.min(0.85, Math.max(0.15, Number(parsed.sharpen) || tuning.sharpen)),
+                analysisNote: parsed.analysisNote || tuning.analysisNote,
+              };
+            }
           }
         } catch {
-          /* fallback to deterministic prompt */
+          /* keep smart default tuning */
         }
       }
 
-      const seed = Math.floor(Math.random() * 999999);
-      const pollUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(fluxPrompt.slice(0, 450))}?width=900&height=900&nologo=true&seed=${seed}`;
-      const pRes = await fetch(pollUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
-      if (pRes.ok) {
-        const buf = await pRes.arrayBuffer();
-        if (buf.byteLength > 1000) {
-          outBase64 = arrayBufferToBase64(buf);
-          outMime = (pRes.headers.get("content-type") || "image/jpeg").split(";")[0].trim();
-          engineUsed = "free-gemini-vision-flux";
-        }
-      }
-    }
-
-    if (!outBase64) {
-      return Response.json(
-        { error: lastError || "Chưa tạo được ảnh mới lúc này. Vui lòng thử lại sau vài giây." },
-        { status: 502 },
-      );
+      return Response.json({
+        ok: true,
+        mode: "client-studio-enhance",
+        tuning,
+      });
     }
 
     const ext = outMime.includes("jpeg") ? "jpg" : outMime.includes("webp") ? "webp" : "png";

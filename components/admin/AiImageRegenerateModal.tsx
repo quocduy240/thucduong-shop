@@ -72,10 +72,96 @@ export default function AiImageRegenerateModal({
   const [newName, setNewName] = useState(() => suggestSeoImageName(contextTitle, originalUrl));
   const [geminiApiKey, setGeminiApiKey] = useState("");
   const [replaceEverywhere, setReplaceEverywhere] = useState(true);
+type StudioTuning = {
+  brightness: number;
+  contrast: number;
+  saturate: number;
+  warmth: number;
+  sharpen: number;
+  studioFrame?: boolean;
+  analysisNote?: string;
+};
+
+/** Applies 3x3 unsharp-mask sharpening directly onto Canvas ImageData */
+function applyUnsharpMask(ctx: CanvasRenderingContext2D, w: number, h: number, amount: number) {
+  if (amount <= 0) return;
+  const src = ctx.getImageData(0, 0, w, h);
+  const dst = ctx.createImageData(w, h);
+  const s = src.data;
+  const d = dst.data;
+  const k = amount;
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = (y * w + x) * 4;
+      for (let c = 0; c < 3; c++) {
+        const center = s[i + c];
+        const neighbors =
+          (s[((y - 1) * w + x) * 4 + c] +
+            s[((y + 1) * w + x) * 4 + c] +
+            s[(y * w + (x - 1)) * 4 + c] +
+            s[(y * w + (x + 1)) * 4 + c]) *
+          0.25;
+        const val = center + (center - neighbors) * k;
+        d[i + c] = val < 0 ? 0 : val > 255 ? 255 : val;
+      }
+      d[i + 3] = s[i + 3];
+    }
+  }
+  ctx.putImageData(dst, 0, 0);
+}
+
+async function enhanceOriginalImageOnCanvas(
+  originalUrl: string,
+  tuning: StudioTuning,
+  seoName: string,
+): Promise<File> {
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const el = new Image();
+    el.crossOrigin = "anonymous";
+    el.onload = () => resolve(el);
+    el.onerror = () => reject(new Error("Không thể nạp ảnh gốc lên Canvas để làm nét."));
+    el.src = originalUrl;
+  });
+
+  const targetMax = 1200;
+  const scale = Math.min(2, targetMax / Math.max(img.naturalWidth, img.naturalHeight, 1));
+  const imgW = Math.round(img.naturalWidth * (scale > 1 ? scale : 1));
+  const imgH = Math.round(img.naturalHeight * (scale > 1 ? scale : 1));
+
+  const pad = tuning.studioFrame ? Math.round(Math.min(imgW, imgH) * 0.06) : 0;
+  const canvas = document.createElement("canvas");
+  canvas.width = imgW + pad * 2;
+  canvas.height = imgH + pad * 2;
+  const ctx = canvas.getContext("2d")!;
+
+  if (pad > 0) {
+    const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    bg.addColorStop(0, "#ffffff");
+    bg.addColorStop(1, "#f7faf7");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.shadowColor = "rgba(15, 23, 42, 0.14)";
+    ctx.shadowBlur = Math.round(pad * 0.9);
+    ctx.shadowOffsetY = Math.round(pad * 0.35);
+  }
+
+  ctx.filter = `brightness(${tuning.brightness}) contrast(${tuning.contrast}) saturate(${tuning.saturate}) sepia(${tuning.warmth})`;
+  ctx.drawImage(img, pad, pad, imgW, imgH);
+  ctx.filter = "none";
+  ctx.shadowColor = "transparent";
+
+  applyUnsharpMask(ctx, canvas.width, canvas.height, tuning.sharpen);
+
+  const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/webp", 0.9));
+  if (!blob) throw new Error("Không thể xuất ảnh sau khi làm nét.");
+  return new File([blob], `${seoName || "enhanced"}.webp`, { type: "image/webp" });
+}
+
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [generatedUrl, setGeneratedUrl] = useState("");
   const [syncedRows, setSyncedRows] = useState(0);
+  const [analysisNote, setAnalysisNote] = useState("");
 
   useEffect(() => {
     if (open) {
@@ -97,7 +183,9 @@ export default function AiImageRegenerateModal({
     setBusy(true);
     setErr("");
     setGeneratedUrl("");
+    setAnalysisNote("");
     try {
+      const seoName = newName.trim() || suggestSeoImageName(contextTitle, originalUrl);
       const res = await fetch("/api/admin/ai-image-edit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -105,7 +193,7 @@ export default function AiImageRegenerateModal({
           originalUrl,
           presets: selectedPresets,
           customPrompt,
-          newName: newName.trim() || contextTitle,
+          newName: seoName,
           contextTitle,
           replaceEverywhere,
           geminiApiKey,
@@ -113,12 +201,49 @@ export default function AiImageRegenerateModal({
       });
       const data = (await res.json()) as {
         ok?: boolean;
+        mode?: "client-studio-enhance";
+        tuning?: StudioTuning;
         newUrl?: string;
         syncedRows?: number;
         error?: string;
       };
-      if (!res.ok || !data.ok || !data.newUrl) {
-        throw new Error(data.error || "Không thể tạo ảnh mới bằng Gemini AI.");
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Không thể xử lý ảnh.");
+      }
+
+      if (data.mode === "client-studio-enhance" && data.tuning) {
+        const enhancedFile = await enhanceOriginalImageOnCanvas(originalUrl, data.tuning, seoName);
+        const fd = new FormData();
+        fd.append("file", enhancedFile);
+        const upRes = await fetch("/admin/upload", { method: "POST", body: fd });
+        const upData = (await upRes.json()) as { url?: string; error?: string };
+        if (!upRes.ok || !upData.url) {
+          throw new Error(upData.error || "Không thể lưu ảnh đã làm nét.");
+        }
+        let synced = 0;
+        if (replaceEverywhere) {
+          const sRes = await fetch("/api/admin/ai-image-edit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "sync_url",
+              oldUrl: originalUrl,
+              newUrl: upData.url,
+              replaceEverywhere: true,
+            }),
+          });
+          const sData = (await sRes.json()) as { syncedRows?: number };
+          synced = sData.syncedRows ?? 0;
+        }
+        setGeneratedUrl(upData.url);
+        setSyncedRows(synced);
+        if (data.tuning.analysisNote) setAnalysisNote(data.tuning.analysisNote);
+        return;
+      }
+
+      if (!data.newUrl) {
+        throw new Error(data.error || "Không thể tạo ảnh mới.");
       }
       setGeneratedUrl(data.newUrl);
       setSyncedRows(data.syncedRows ?? 0);
@@ -265,6 +390,12 @@ export default function AiImageRegenerateModal({
             <span>Đồng bộ cập nhật đường dẫn ảnh mới này trên toàn bộ dữ liệu trang (Sản phẩm, Bài viết, Block)</span>
           </label>
         </div>
+
+        {analysisNote && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+            ✨ {analysisNote}
+          </div>
+        )}
 
         {err && (
           <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
