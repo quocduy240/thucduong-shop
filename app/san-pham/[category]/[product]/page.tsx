@@ -66,8 +66,8 @@ export default async function ProductPage({ params }: PageProps<"/san-pham/[cate
           { label: p.name },
         ]}
       />
-      <div className="mx-auto max-w-6xl px-4">
-        <div className="grid gap-8 md:grid-cols-[440px_1fr]">
+      <div className="mx-auto max-w-6xl px-4 pb-10">
+        <div className="grid gap-8 rounded-3xl border border-emerald-100/90 bg-white p-5 shadow-sm md:grid-cols-[450px_1fr] md:p-8">
           {/* Left: Interactive Image Gallery + Product QR Badge */}
           <div className="space-y-3">
             <ProductGallery
@@ -79,173 +79,179 @@ export default async function ProductPage({ params }: PageProps<"/san-pham/[cate
               outOfStock={p.stock <= 0}
             />
             {productQrBadges.length > 0 && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-2.5">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-2.5">
                 <QrCornerBadge items={productQrBadges} label="Quét QR sản phẩm" />
               </div>
             )}
           </div>
 
           {/* Right: Product Info, Metadata, Price & Actions */}
-          <div>
-            <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-              {p.brand && (
-                <Link
-                  href={`/san-pham/?brand=${encodeURIComponent(p.brand)}`}
-                  className="rounded-full bg-green-50 px-2.5 py-0.5 font-semibold text-brand hover:underline"
-                >
-                  Thương hiệu: {p.brand}
-                </Link>
-              )}
-              {p.sku && (
-                <span className="rounded-full bg-gray-100 px-2.5 py-0.5 font-mono text-gray-600">
-                  Mã SP: {p.sku}
-                </span>
-              )}
-              {p.origin && (
-                <Link
-                  href={`/san-pham/?origin=${encodeURIComponent(p.origin)}`}
-                  className="rounded-full bg-gray-100 px-2.5 py-0.5 text-gray-600 hover:text-brand"
-                >
-                  Xuất xứ: {p.origin}
-                </Link>
-              )}
-            </div>
-
-            <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">{p.name}</h1>
-
-            {/* Rating & Stock bar */}
-            <div className="mt-2.5 flex flex-wrap items-center gap-4 text-sm">
-              <a href="#danh-gia" className="flex items-center gap-1.5 hover:underline">
-                <span className="text-amber-500">
-                  {"★".repeat(Math.round(p.rating_avg || 5))}
-                </span>
-                <span className="font-semibold text-gray-800">{p.rating_avg || "5.0"}</span>
-                <span className="text-xs text-gray-500">
-                  ({p.rating_count} đánh giá)
-                </span>
-              </a>
-              <span className="text-gray-300">|</span>
-              <div>
-                <span className="text-gray-500">Tình trạng: </span>
-                {p.stock > 0 ? (
-                  <span className="font-semibold text-brand">✓ Còn hàng ({p.stock})</span>
-                ) : (
-                  <span className="font-semibold text-red-600">Hết hàng</span>
+          <div className="flex flex-col justify-between">
+            <div>
+              <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+                {p.brand && (
+                  <Link
+                    href={`/san-pham/?brand=${encodeURIComponent(p.brand)}`}
+                    className="rounded-full border border-emerald-200 bg-emerald-50/80 px-3 py-1 font-bold text-brand hover:bg-emerald-100"
+                  >
+                    🌿 {p.brand}
+                  </Link>
+                )}
+                {p.sku && (
+                  <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 font-mono text-[11px] font-medium text-gray-600">
+                    SKU: {p.sku}
+                  </span>
+                )}
+                {p.origin && (
+                  <Link
+                    href={`/san-pham/?origin=${encodeURIComponent(p.origin)}`}
+                    className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 font-medium text-gray-600 hover:border-brand hover:text-brand"
+                  >
+                    🌍 {p.origin}
+                  </Link>
                 )}
               </div>
-              {p.unit && (
-                <>
-                  <span className="text-gray-300">|</span>
-                  <div>
-                    <span className="text-gray-500">Quy cách: </span>
-                    <span className="font-semibold text-gray-800">{p.unit}</span>
-                  </div>
-                </>
-              )}
-            </div>
 
-            {/* Flash Sale Banner if active */}
-            {flashDeal && (
-              <div className="mt-4 rounded-xl overflow-hidden border-2 border-red-500 bg-gradient-to-r from-red-600 via-red-500 to-amber-500 p-3.5 text-white shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-yellow-300 px-2.5 py-0.5 text-xs font-extrabold uppercase text-red-900">
-                      ⚡ GIỜ VÀNG SĂN SALE
-                    </span>
-                    <span className="text-xs font-semibold text-amber-100">
-                      Đã săn {flashDeal.sold}/{flashDeal.quota} suất ưu đãi
-                    </span>
+              <h1 className="text-2xl font-extrabold leading-snug tracking-tight text-gray-900 md:text-[1.85rem]">
+                {p.name}
+              </h1>
+
+              {/* Rating & Stock bar */}
+              <div className="mt-3 flex flex-wrap items-center gap-3.5 text-sm">
+                <a href="#danh-gia" className="flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 hover:bg-amber-100">
+                  <span className="text-amber-500">
+                    {"★".repeat(Math.round(p.rating_avg || 5))}
+                  </span>
+                  <span className="font-bold text-gray-900">{p.rating_avg || "5.0"}</span>
+                  <span className="text-xs text-gray-500">
+                    ({p.rating_count} đánh giá)
+                  </span>
+                </a>
+                <span className="text-gray-300">|</span>
+                <div>
+                  <span className="text-gray-500">Tình trạng: </span>
+                  {p.stock > 0 ? (
+                    <span className="font-bold text-brand">✓ Còn hàng ({p.stock})</span>
+                  ) : (
+                    <span className="font-bold text-red-600">Hết hàng</span>
+                  )}
+                </div>
+                {p.unit && (
+                  <>
+                    <span className="text-gray-300">|</span>
+                    <div>
+                      <span className="text-gray-500">Quy cách: </span>
+                      <span className="font-bold text-gray-800">{p.unit}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Flash Sale Banner if active */}
+              {flashDeal && (
+                <div className="mt-4 overflow-hidden rounded-2xl border-2 border-red-500 bg-gradient-to-r from-red-600 via-red-500 to-amber-500 p-3.5 text-white shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-yellow-300 px-2.5 py-0.5 text-xs font-extrabold uppercase text-red-900">
+                        ⚡ GIỜ VÀNG SĂN SALE
+                      </span>
+                      <span className="text-xs font-semibold text-amber-100">
+                        Đã săn {flashDeal.sold}/{flashDeal.quota} suất ưu đãi
+                      </span>
+                    </div>
+                    {flashDeal.gift_note && (
+                      <span className="rounded-full bg-black/25 px-2.5 py-0.5 text-xs font-semibold text-yellow-200">
+                        🎁 {flashDeal.gift_note}
+                      </span>
+                    )}
                   </div>
-                  {flashDeal.gift_note && (
-                    <span className="rounded-full bg-black/25 px-2.5 py-0.5 text-xs font-semibold text-yellow-200">
-                      🎁 {flashDeal.gift_note}
+                </div>
+              )}
+
+              {/* Price Box */}
+              <div className="my-5 rounded-2xl border border-amber-200/80 bg-gradient-to-r from-amber-50/75 via-orange-50/40 to-white p-4 md:p-5">
+                <div className="flex flex-wrap items-baseline gap-3">
+                  <Price p={{ ...p, sale_price: effectiveSalePrice }} big />
+                  {savedAmount > 0 && (
+                    <span className="rounded-full bg-accent px-3 py-0.5 text-xs font-bold text-white shadow-2xs">
+                      Tiết kiệm {vnd(savedAmount)} (-{discountPct}%)
                     </span>
                   )}
                 </div>
-              </div>
-            )}
-
-            {/* Price Box */}
-            <div className="my-4 rounded-xl border border-orange-100 bg-orange-50/50 p-4">
-              <div className="flex flex-wrap items-baseline gap-3">
-                <Price p={{ ...p, sale_price: effectiveSalePrice }} big />
-                {savedAmount > 0 && (
-                  <span className="rounded-md bg-accent/10 px-2 py-0.5 text-xs font-bold text-accent">
-                    Tiết kiệm {vnd(savedAmount)} (-{discountPct}%)
-                  </span>
+                {p.summary && (
+                  <p className="mt-2.5 text-sm leading-relaxed text-gray-700">{p.summary}</p>
                 )}
               </div>
-              {p.summary && <p className="mt-2 text-sm text-gray-600">{p.summary}</p>}
-            </div>
 
-            {p.price > 0 ? (
-              <AddToCart productId={p.id} stock={p.stock} />
-            ) : (
-              <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-                Vui lòng liên hệ hotline <strong>{site.hotline}</strong> để được báo giá và đặt mua.
-              </p>
-            )}
+              {p.price > 0 ? (
+                <AddToCart productId={p.id} stock={p.stock} />
+              ) : (
+                <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-sm text-amber-900">
+                  Vui lòng liên hệ hotline <strong>{site.hotline}</strong> để được báo giá và đặt mua.
+                </p>
+              )}
 
-            {/* Quick Consultation Hotline / Zalo Callout */}
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-green-200 bg-green-50/70 p-3.5 text-sm">
-              <div>
-                <div className="font-bold text-brand">Cần tư vấn thực dưỡng phù hợp thể trạng?</div>
-                <div className="text-xs text-gray-600">Gọi trực tiếp hoặc nhắn Zalo để được hướng dẫn cách dùng chi tiết</div>
-              </div>
-              <div className="flex items-center gap-2">
-                <a
-                  href={`tel:${primaryPhone}`}
-                  className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-dark"
-                >
-                  📞 {site.hotline.split("-")[0]?.trim()}
-                </a>
-                <a
-                  href={`https://zalo.me/${primaryPhone}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-lg border border-brand bg-white px-3 py-1.5 text-xs font-semibold text-brand hover:bg-green-50"
-                >
-                  Chat Zalo
-                </a>
+              {/* Quick Consultation Hotline / Zalo Callout */}
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50/80 to-green-50/40 p-4 text-sm">
+                <div>
+                  <div className="font-bold text-brand">🌿 Cần tư vấn thực dưỡng phù hợp thể trạng?</div>
+                  <div className="text-xs text-gray-600">Gọi trực tiếp hoặc nhắn Zalo để được hướng dẫn cách dùng chi tiết</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`tel:${primaryPhone}`}
+                    className="rounded-xl bg-brand px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-brand-dark"
+                  >
+                    📞 {site.hotline.split("-")[0]?.trim()}
+                  </a>
+                  <a
+                    href={`https://zalo.me/${primaryPhone}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-xl border border-brand bg-white px-3.5 py-2 text-xs font-bold text-brand transition hover:bg-green-50"
+                  >
+                    💬 Chat Zalo
+                  </a>
+                </div>
               </div>
             </div>
 
             {/* Service Commitments linked to Policy Pages */}
-            <div className="mt-4 grid grid-cols-1 gap-2.5 text-xs text-gray-700 sm:grid-cols-2">
+            <div className="mt-5 grid grid-cols-1 gap-2.5 text-xs text-gray-700 sm:grid-cols-2">
               <Link
                 href="/chinh-sach/chinh-sach-kiem-hang.html"
-                className="flex items-start gap-2 rounded-lg border bg-white p-2.5 transition hover:border-brand hover:bg-green-50/40"
+                className="flex items-start gap-2.5 rounded-xl border border-gray-200/90 bg-gray-50/50 p-3 transition hover:-translate-y-0.5 hover:border-brand hover:bg-white hover:shadow-xs"
               >
-                <span className="text-base">📦</span>
+                <span className="rounded-lg bg-emerald-100/70 p-1.5 text-base leading-none">📦</span>
                 <div>
-                  <strong className="text-brand">Chính sách kiểm hàng:</strong> Đồng kiểm với shipper hoặc trong 30 phút từ khi nhận hàng (quay video mở thùng).
+                  <strong className="text-brand">Chính sách kiểm hàng:</strong> Đồng kiểm với shipper hoặc trong 30 phút từ khi nhận hàng.
                 </div>
               </Link>
               <Link
                 href="/chinh-sach/chinh-sach-van-chuyen.html"
-                className="flex items-start gap-2 rounded-lg border bg-white p-2.5 transition hover:border-brand hover:bg-green-50/40"
+                className="flex items-start gap-2.5 rounded-xl border border-gray-200/90 bg-gray-50/50 p-3 transition hover:-translate-y-0.5 hover:border-brand hover:bg-white hover:shadow-xs"
               >
-                <span className="text-base">🚚</span>
+                <span className="rounded-lg bg-emerald-100/70 p-1.5 text-base leading-none">🚚</span>
                 <div>
-                  <strong className="text-brand">Chính sách vận chuyển:</strong> Giao 1–2 ngày tại TP.HCM, 3–4 ngày tỉnh khác; cam kết nguyên đai nguyên kiện.
+                  <strong className="text-brand">Chính sách vận chuyển:</strong> Giao 1–2 ngày tại TP.HCM, 3–4 ngày tỉnh khác.
                 </div>
               </Link>
               <Link
                 href="/chinh-sach/chinh-sach-doi-tra-hoan-tien.html"
-                className="flex items-start gap-2 rounded-lg border bg-white p-2.5 transition hover:border-brand hover:bg-green-50/40"
+                className="flex items-start gap-2.5 rounded-xl border border-gray-200/90 bg-gray-50/50 p-3 transition hover:-translate-y-0.5 hover:border-brand hover:bg-white hover:shadow-xs"
               >
-                <span className="text-base">🔄</span>
+                <span className="rounded-lg bg-emerald-100/70 p-1.5 text-base leading-none">🔄</span>
                 <div>
-                  <strong className="text-brand">Chính sách đổi trả:</strong> Thông báo trong 48h, gửi trả trong 7 ngày nếu sai mẫu, thiếu hàng hoặc bể vỡ.
+                  <strong className="text-brand">Chính sách đổi trả:</strong> Thông báo trong 48h, gửi trả trong 7 ngày nếu lỗi/bể vỡ.
                 </div>
               </Link>
               <Link
                 href="/chinh-sach/chinh-sach-thanh-toan.html"
-                className="flex items-start gap-2 rounded-lg border bg-white p-2.5 transition hover:border-brand hover:bg-green-50/40"
+                className="flex items-start gap-2.5 rounded-xl border border-gray-200/90 bg-gray-50/50 p-3 transition hover:-translate-y-0.5 hover:border-brand hover:bg-white hover:shadow-xs"
               >
-                <span className="text-base">💳</span>
+                <span className="rounded-lg bg-emerald-100/70 p-1.5 text-base leading-none">💳</span>
                 <div>
-                  <strong className="text-brand">Chính sách thanh toán:</strong> Tiền mặt khi nhận hàng (COD) hoặc chuyển khoản BIDV (STK: 8610312888).
+                  <strong className="text-brand">Chính sách thanh toán:</strong> COD tiền mặt hoặc chuyển khoản BIDV (8610312888).
                 </div>
               </Link>
             </div>
@@ -253,11 +259,11 @@ export default async function ProductPage({ params }: PageProps<"/san-pham/[cate
         </div>
 
         {/* Specifications Table & Detailed Description */}
-        <div className="my-10 grid gap-8 md:grid-cols-[1fr_320px]">
+        <div className="my-10 grid gap-8 md:grid-cols-[1fr_330px]">
           <section>
             <SectionTitle title="Thông tin chi tiết sản phẩm" />
             {embedUrl && (
-              <div className="mb-6 overflow-hidden rounded-xl border shadow-sm">
+              <div className="mb-6 overflow-hidden rounded-2xl border shadow-sm">
                 <iframe
                   src={embedUrl}
                   title={`Video giới thiệu ${p.name}`}
@@ -269,7 +275,7 @@ export default async function ProductPage({ params }: PageProps<"/san-pham/[cate
             )}
             <BlockZone position="product_top" productId={p.id} className="mb-4" />
             <div
-              className="prose-content rounded-xl border bg-white p-6 shadow-sm"
+              className="prose-content rounded-3xl border border-gray-200/90 bg-white p-6 text-[15.5px] leading-[1.82] shadow-sm md:p-9"
               dangerouslySetInnerHTML={{ __html: expandedDescription }}
             />
             <BlockZone position="product_bottom" productId={p.id} className="mt-4" />
@@ -279,10 +285,10 @@ export default async function ProductPage({ params }: PageProps<"/san-pham/[cate
           </section>
 
           {/* Right column: Structured Specifications Table + Product Sidebar Blocks */}
-          <div className="space-y-6 h-fit">
-            <aside className="rounded-xl border bg-white p-5 shadow-sm">
-              <h2 className="mb-3 border-b pb-2 text-base font-bold text-brand">
-                Thông số sản phẩm
+          <div className="h-fit space-y-6 md:sticky md:top-24">
+            <aside className="rounded-3xl border border-gray-200/90 bg-white p-5 shadow-sm">
+              <h2 className="mb-3 border-b border-emerald-100 pb-2.5 text-base font-extrabold text-brand">
+                📋 Thông số sản phẩm
               </h2>
               <dl className="divide-y text-sm">
                 {p.sku && (
