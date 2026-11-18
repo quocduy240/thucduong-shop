@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { currentAdmin } from "@/lib/auth";
+import { assertSafePublicHttpUrl } from "@/lib/security";
 import { MAX_IMAGE_BYTES, saveGeneratedMedia, saveImage } from "@/lib/uploads";
 
 const MIME_EXT: Record<string, string> = {
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
       return Response.json({ error: "Đường dẫn ảnh (URL) không hợp lệ." }, { status: 400 });
     }
     try {
+      assertSafePublicHttpUrl(rawUrl);
       // Convert Google Drive sharing link to direct download link if applicable
       let fetchUrl = rawUrl;
       const driveMatch = rawUrl.match(/\/file\/d\/([a-zA-Z0-9_-]{15,})/);

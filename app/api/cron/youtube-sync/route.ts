@@ -1,10 +1,11 @@
 import { currentAdmin } from "@/lib/auth";
+import { safeEqualSecret } from "@/lib/security";
 import { scanYoutubeChannelAndSync } from "@/lib/youtube-sync";
 
 async function handleCron(req: Request) {
-  const secret = process.env.IDLE_WORKER_SECRET?.trim();
-  const reqSecret = req.headers.get("x-cron-secret")?.trim() || new URL(req.url).searchParams.get("secret")?.trim();
-  const authorizedBySecret = Boolean(secret && reqSecret && secret === reqSecret);
+  const secret = process.env.IDLE_WORKER_SECRET?.trim() ?? "";
+  const reqSecret = req.headers.get("x-cron-secret")?.trim() ?? "";
+  const authorizedBySecret = safeEqualSecret(secret, reqSecret);
 
   if (!authorizedBySecret) {
     const admin = await currentAdmin();

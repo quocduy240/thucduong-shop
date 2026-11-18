@@ -12,7 +12,8 @@
     "cf:db:remote": "wrangler d1 execute thucduong-shop-db --remote --file=data/d1-dump.sql --yes",
     "import:post": "node scripts/import-post.mjs",
     "import:products": "node scripts/import-products.mjs",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "security:check": "npm audit --omit=dev --audit-level=high && npm run typecheck"
   },
   "engines": {
     "node": ">=22.13"

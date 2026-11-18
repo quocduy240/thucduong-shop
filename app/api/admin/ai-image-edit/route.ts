@@ -2,6 +2,7 @@ import { currentAdmin } from "@/lib/auth";
 import { run } from "@/lib/db";
 import { callGeminiGenerateContent, resolveGeminiApiKey } from "@/lib/gemini-key";
 import { saveMediaAsset } from "@/lib/media-assets";
+import { assertSafePublicHttpUrl } from "@/lib/security";
 
 function slugifyName(raw: string): string {
   return (
@@ -36,7 +37,7 @@ async function fetchOriginalImageAsBase64(originalUrl: string, reqUrl: string): 
   }
 
   const resolved = originalUrl.startsWith("http")
-    ? originalUrl
+    ? assertSafePublicHttpUrl(originalUrl).toString()
     : new URL(originalUrl.startsWith("/") ? originalUrl : `/${originalUrl}`, reqUrl).toString();
 
   const res = await fetch(resolved, { headers: { "User-Agent": "Mozilla/5.0" } });

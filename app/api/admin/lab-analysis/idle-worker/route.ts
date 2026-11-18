@@ -1,10 +1,11 @@
 import { currentAdmin } from "@/lib/auth";
 import { processNextIdleLabJob } from "@/lib/lab-analysis";
+import { safeEqualSecret } from "@/lib/security";
 
 async function handleIdleRun(req: Request) {
-  const secret = process.env.IDLE_WORKER_SECRET?.trim();
-  const reqSecret = req.headers.get("x-idle-secret")?.trim();
-  const isCronAuthorized = Boolean(secret && reqSecret && secret === reqSecret);
+  const secret = process.env.IDLE_WORKER_SECRET?.trim() ?? "";
+  const reqSecret = req.headers.get("x-idle-secret")?.trim() ?? "";
+  const isCronAuthorized = safeEqualSecret(secret, reqSecret);
 
   if (!isCronAuthorized) {
     const admin = await currentAdmin();

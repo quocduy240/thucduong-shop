@@ -1,9 +1,11 @@
-import { updateQuickConsultFollowup } from "@/lib/quick-consult";
+import { currentAdmin } from "@/lib/auth";
+import { getQuickConsultById, updateQuickConsultFollowup } from "@/lib/quick-consult";
 
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as {
       id?: number;
+      shareToken?: string;
       followupChoice?: "hotline" | "advanced_free" | "advanced_paid";
       phone?: string;
       email?: string;
@@ -22,6 +24,14 @@ export async function POST(req: Request) {
     }
     if (choice !== "hotline" && choice !== "advanced_free" && choice !== "advanced_paid") {
       return Response.json({ error: "Tuỳ chọn tư vấn tiếp theo không hợp lệ." }, { status: 400 });
+    }
+
+    const admin = await currentAdmin();
+    if (!admin) {
+      const existing = await getQuickConsultById(id);
+      if (!existing || !body.shareToken || existing.share_token !== body.shareToken) {
+        return Response.json({ error: "Không có quyền cập nhật hồ sơ này." }, { status: 403 });
+      }
     }
 
     await updateQuickConsultFollowup({

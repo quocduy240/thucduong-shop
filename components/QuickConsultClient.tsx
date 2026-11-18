@@ -21,6 +21,7 @@ import type {
 
 type ConsultResult = {
   id: number;
+  shareToken?: string;
   motif: { id: string; name: string; badge: string };
   articleHtml: string;
   productGroups: MatchedProductGroup[];
@@ -187,6 +188,7 @@ export default function QuickConsultClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: result.id,
+          shareToken: result.shareToken,
           followupChoice: choice,
           phone: followupPhone || phone,
           email: followupEmail,

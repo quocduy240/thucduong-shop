@@ -1,5 +1,7 @@
 import "server-only";
+import crypto from "node:crypto";
 import { all, one, run } from "./db";
+import { escapeHtml, sanitizeAiHtml } from "./security";
 import {
   getDocuments,
   getProductCategories,
@@ -510,15 +512,15 @@ function buildFallbackArticle(
 
   return `
 <div class="quick-consult-article">
-  <p>Thân gửi <strong>${name}</strong>,</p>
-  <p>Dựa trên hồ sơ bạn vừa khai báo theo mô hình <strong>${motif.name}</strong>, chúng tôi tổng hợp phân tích và lộ trình gợi ý dành riêng cho bạn như sau:</p>
+  <p>Thân gửi <strong>${escapeHtml(name)}</strong>,</p>
+  <p>Dựa trên hồ sơ bạn vừa khai báo theo mô hình <strong>${escapeHtml(motif.name)}</strong>, chúng tôi tổng hợp phân tích và lộ trình gợi ý dành riêng cho bạn như sau:</p>
 
   <h3>1. Đánh giá tổng quan thể trạng &amp; Nguyên lý Quân bình</h3>
   <ul>
-    <li><strong>Mục tiêu ưu tiên:</strong> ${goalsText}</li>
-    <li><strong>Tình trạng đang gặp phải:</strong> ${condText}</li>
-    <li><strong>Thói quen hiện tại:</strong> ${habitText}</li>
-    ${input.customNote ? `<li><strong>Ghi chú thêm của bạn:</strong> ${input.customNote}</li>` : ""}
+    <li><strong>Mục tiêu ưu tiên:</strong> ${escapeHtml(goalsText)}</li>
+    <li><strong>Tình trạng đang gặp phải:</strong> ${escapeHtml(condText)}</li>
+    <li><strong>Thói quen hiện tại:</strong> ${escapeHtml(habitText)}</li>
+    ${input.customNote ? `<li><strong>Ghi chú thêm của bạn:</strong> ${escapeHtml(input.customNote)}</li>` : ""}
   </ul>
   <p>Theo nguyên lý Thực dưỡng quân bình Âm – Dương kết hợp dinh dưỡng hiện đại, bước đầu tiên quan trọng nhất là giảm tải thực phẩm tinh chế nhiều đường/dầu công nghiệp, chuyển sang ngũ cốc nguyên cám nhai kỹ (20–30 lần/miếng) để ổn định đường huyết và làm dịu hệ tiêu hoá.</p>
 
@@ -626,6 +628,7 @@ Yêu cầu đầu ra:
 
 export async function generateQuickConsultReport(input: QuickConsultInput): Promise<{
   id: number;
+  shareToken: string;
   motif: ConsultMotifOption;
   articleHtml: string;
   productGroups: MatchedProductGroup[];
@@ -637,7 +640,7 @@ export async function generateQuickConsultReport(input: QuickConsultInput): Prom
   const { productGroups, videos, documents } = await matchResources(input);
 
   const aiHtml = await callGeminiExpertConsult(input, motif, productGroups, videos, documents);
-  const articleHtml = aiHtml || buildFallbackArticle(input, motif, productGroups);
+  const articleHtml = sanitizeAiHtml(aiHtml || buildFallbackArticle(input, motif, productGroups));
 
   const res = await run(
     `INSERT INTO quick_consultations (
@@ -660,11 +663,12 @@ export async function generateQuickConsultReport(input: QuickConsultInput): Prom
     articleHtml,
   );
 
-  const shareToken = `hs-${res.lastInsertRowid}-${Math.random().toString(36).slice(2, 8)}`;
+  const shareToken = `hs-${res.lastInsertRowid}-${crypto.randomBytes(6).toString("hex")}`;
   await run(`UPDATE quick_consultations SET share_token = ? WHERE id = ?`, shareToken, res.lastInsertRowid);
 
   return {
     id: res.lastInsertRowid,
+    shareToken,
     motif,
     articleHtml,
     productGroups,
