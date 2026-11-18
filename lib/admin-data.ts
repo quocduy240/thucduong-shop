@@ -105,26 +105,93 @@ export type OrderRow = {
   province_code: string; ward_code: string; note: string; payment: string; total: number;
   status: string; created_at: string;
 };
-export async function listOrders(opts: { status?: string; q?: string; page: number }) {
+export type OrderSort = "newest" | "oldest" | "total_desc" | "total_asc";
+
+export type OrderFilterOptions = {
+  status?: string;
+  q?: string;
+  payment?: string;
+  date?: string;
+  month?: string;
+  year?: string;
+  from?: string;
+  to?: string;
+  sort?: OrderSort;
+  page?: number;
+};
+
+const ORDER_SORT_SQL: Record<OrderSort, (p: string) => string> = {
+  newest: (p) => `${p}created_at DESC, ${p}id DESC`,
+  oldest: (p) => `${p}created_at ASC, ${p}id ASC`,
+  total_desc: (p) => `${p}total DESC, ${p}id DESC`,
+  total_asc: (p) => `${p}total ASC, ${p}id ASC`,
+};
+
+function buildOrderQueryParts(opts: Omit<OrderFilterOptions, "page">, alias = "") {
+  const p = alias ? `${alias}.` : "";
   const where: string[] = [];
   const params: (string | number)[] = [];
-  if (opts.status && isOrderStatus(opts.status)) (where.push("status = ?"), params.push(opts.status));
-  if (opts.q) {
-    where.push("(code LIKE ? OR name LIKE ? OR phone LIKE ?)");
-    params.push(like(opts.q), like(opts.q), like(opts.q));
+
+  if (opts.status && isOrderStatus(opts.status)) {
+    where.push(`${p}status = ?`);
+    params.push(opts.status);
   }
+  if (opts.q?.trim()) {
+    const q = like(opts.q.trim());
+    where.push(`(${p}code LIKE ? OR ${p}name LIKE ? OR ${p}phone LIKE ?)`);
+    params.push(q, q, q);
+  }
+  if (opts.payment === "cod" || opts.payment === "bank") {
+    where.push(`${p}payment = ?`);
+    params.push(opts.payment);
+  }
+  if (opts.date && /^\d{4}-\d{2}-\d{2}$/.test(opts.date)) {
+    where.push(`substr(${p}created_at, 1, 10) = ?`);
+    params.push(opts.date);
+  } else {
+    if (opts.year && /^\d{4}$/.test(opts.year)) {
+      where.push(`substr(${p}created_at, 1, 4) = ?`);
+      params.push(opts.year);
+    }
+    if (opts.month && /^(?:[1-9]|1[0-2]|0[1-9])$/.test(opts.month)) {
+      where.push(`substr(${p}created_at, 6, 2) = ?`);
+      params.push(opts.month.padStart(2, "0"));
+    }
+    if (opts.from && /^\d{4}-\d{2}-\d{2}$/.test(opts.from)) {
+      where.push(`substr(${p}created_at, 1, 10) >= ?`);
+      params.push(opts.from);
+    }
+    if (opts.to && /^\d{4}-\d{2}-\d{2}$/.test(opts.to)) {
+      where.push(`substr(${p}created_at, 1, 10) <= ?`);
+      params.push(opts.to);
+    }
+  }
+
   const w = where.length ? "WHERE " + where.join(" AND ") : "";
-  const [totalRow, rows] = await Promise.all([
-    one<{ n: number }>(`SELECT COUNT(*) AS n FROM orders ${w}`, ...params),
+  const sortKey: OrderSort = opts.sort && opts.sort in ORDER_SORT_SQL ? opts.sort : "newest";
+  const orderBy = ORDER_SORT_SQL[sortKey](p);
+  return { w, params, orderBy };
+}
+
+export async function listOrders(opts: OrderFilterOptions & { page: number }) {
+  const { w, params, orderBy } = buildOrderQueryParts(opts);
+  const [aggRow, rows] = await Promise.all([
+    one<{ n: number; rev: number }>(
+      `SELECT COUNT(*) AS n, COALESCE(SUM(CASE WHEN status <> 'cancelled' THEN total ELSE 0 END), 0) AS rev FROM orders ${w}`,
+      ...params,
+    ),
     all<OrderRow>(
-      `SELECT * FROM orders ${w} ORDER BY id DESC LIMIT ? OFFSET ?`,
+      `SELECT * FROM orders ${w} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
       ...params, PAGE_SIZE, offset(opts.page),
     ),
   ]);
-  return { rows, total: totalRow?.n ?? 0 };
+  return { rows, total: aggRow?.n ?? 0, revenueTotal: aggRow?.rev ?? 0 };
 }
-export const countOrdersByStatus = () =>
-  all<{ status: string; n: number }>("SELECT status, COUNT(*) AS n FROM orders GROUP BY status");
+
+export const countOrdersByStatus = (opts: Omit<OrderFilterOptions, "status" | "page"> = {}) => {
+  const { w, params } = buildOrderQueryParts({ ...opts, status: undefined });
+  return all<{ status: string; n: number }>(`SELECT status, COUNT(*) AS n FROM orders ${w} GROUP BY status`, ...params);
+};
 
 export async function getOrder(id: number) {
   const [order, items] = await Promise.all([
@@ -142,11 +209,14 @@ export async function getOrder(id: number) {
   return { order, items };
 }
 /** Every order with its items, for CSV export. */
-export const exportOrders = () =>
-  all<OrderRow & { items: string }>(
+export const exportOrders = (opts: Omit<OrderFilterOptions, "page"> = {}) => {
+  const { w, params, orderBy } = buildOrderQueryParts(opts, "o");
+  return all<OrderRow & { items: string }>(
     `SELECT o.*, (SELECT GROUP_CONCAT(i.name || ' x' || i.qty, '; ') FROM order_items i WHERE i.order_id = o.id) AS items
-     FROM orders o ORDER BY o.id DESC`,
+     FROM orders o ${w} ORDER BY ${orderBy}`,
+    ...params,
   );
+};
 
 // ---- comments ----
 export async function listComments(page: number) {
