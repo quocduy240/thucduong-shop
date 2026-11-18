@@ -133,6 +133,13 @@ export default function ContentEditor({
   const [textColor, setTextColor] = useState("#2f7d32");
   const [highlightColor, setHighlightColor] = useState("#fef08a");
 
+  // Voice-to-Text (vi-VN Web Speech API) state
+  const [voiceListening, setVoiceListening] = useState(false);
+  const [voiceInterim, setVoiceInterim] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+  const htmlTextareaRef = useRef<HTMLTextAreaElement>(null);
+
   useEffect(() => {
     if (visualRef.current && visualRef.current.innerHTML !== defaultValue) {
       visualRef.current.innerHTML = defaultValue;
@@ -157,7 +164,14 @@ export default function ContentEditor({
       }
     }
     window.addEventListener("td:insert-html", onInsertEvent);
-    return () => window.removeEventListener("td:insert-html", onInsertEvent);
+    return () => {
+      window.removeEventListener("td:insert-html", onInsertEvent);
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        /* ignore */
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -351,6 +365,125 @@ export default function ContentEditor({
       document.execCommand(kind === "text" ? "foreColor" : "hiliteColor", false, color);
       syncFromVisual();
     }, 10);
+  }
+
+  function insertTextAtCursor(text: string) {
+    const clean = text.trim();
+    if (!clean) return;
+    const toInsert = `${clean} `;
+
+    if (mode === "html" && htmlTextareaRef.current) {
+      const ta = htmlTextareaRef.current;
+      const start = ta.selectionStart ?? html.length;
+      const end = ta.selectionEnd ?? html.length;
+      const next = html.slice(0, start) + toInsert + html.slice(end);
+      setHtml(next);
+      if (visualRef.current) visualRef.current.innerHTML = next;
+      requestAnimationFrame(() => {
+        ta.focus();
+        const pos = start + toInsert.length;
+        ta.setSelectionRange(pos, pos);
+      });
+      return;
+    }
+
+    if (visualRef.current) {
+      visualRef.current.focus();
+      const sel = window.getSelection();
+      if (savedRangeRef.current && sel) {
+        sel.removeAllRanges();
+        sel.addRange(savedRangeRef.current);
+      }
+      document.execCommand("insertText", false, toInsert);
+      if (sel && sel.rangeCount > 0) {
+        savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+      }
+      syncFromVisual();
+    }
+  }
+
+  function toggleVoiceDictation() {
+    if (voiceListening) {
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        /* ignore */
+      }
+      setVoiceListening(false);
+      setVoiceInterim("");
+      return;
+    }
+
+    setErr("");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const win = window as any;
+    const SpeechRec = win.SpeechRecognition || win.webkitSpeechRecognition;
+    if (!SpeechRec) {
+      setErr("Trình duyệt hiện tại chưa hỗ trợ nhập liệu giọng nói. Vui lòng dùng Google Chrome hoặc Microsoft Edge.");
+      return;
+    }
+
+    // Save current cursor range inside Visual editor before starting
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && visualRef.current?.contains(sel.anchorNode)) {
+      savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+    }
+
+    const recognition = new SpeechRec();
+    recognition.lang = "vi-VN";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      setVoiceListening(true);
+      setVoiceInterim("");
+      setStatusMsg("🎙️ Đang bật micro tiếng Việt — Hãy đặt con trỏ vào vị trí cần nhập và đọc...");
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
+      let finalChunk = "";
+      let interimChunk = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const res = event.results[i];
+        const transcript = res[0]?.transcript ?? "";
+        if (res.isFinal) {
+          finalChunk += transcript;
+        } else {
+          interimChunk += transcript;
+        }
+      }
+      setVoiceInterim(interimChunk.trim());
+      if (finalChunk.trim()) {
+        insertTextAtCursor(finalChunk);
+      }
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onerror = (event: any) => {
+      const code = event?.error as string | undefined;
+      if (code === "no-speech") return;
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        setErr("Không có quyền truy cập Micro. Vui lòng cho phép quyền Micro trên thanh địa chỉ trình duyệt.");
+      } else if (code !== "aborted") {
+        setErr(`Lỗi nhận diện giọng nói (${code ?? "unknown"}).`);
+      }
+      setVoiceListening(false);
+      setVoiceInterim("");
+    };
+
+    recognition.onend = () => {
+      setVoiceListening(false);
+      setVoiceInterim("");
+    };
+
+    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+    } catch (e) {
+      setErr((e as Error).message || "Không thể khởi động Micro.");
+      setVoiceListening(false);
+    }
   }
 
   function insertHtmlSnippet(snippet: string) {
@@ -1237,6 +1370,24 @@ export default function ContentEditor({
           <button type="button" onClick={() => execCmd("indent")} className={tbtn} title="Tăng thụt lề">
             ⇥
           </button>
+
+          <span className="mx-1 h-4 w-px bg-gray-300" />
+
+          {/* Voice-to-Text Dictation (vi-VN) */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={toggleVoiceDictation}
+            title="Đặt con trỏ vào vị trí cần nhập rồi bấm để đọc thành văn bản tiếng Việt"
+            className={`inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
+              voiceListening
+                ? "animate-pulse border-red-400 bg-red-600 text-white shadow-xs"
+                : "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-600 hover:text-white"
+            }`}
+          >
+            <span>{voiceListening ? "🔴" : "🎤"}</span>
+            <span>{voiceListening ? "Đang nghe... (Dừng)" : "Nhập giọng nói"}</span>
+          </button>
         </div>
 
         {/* Ribbon Row 2: Rich Media Inserts + Shoppable Product & Combo Blocks */}
@@ -1377,6 +1528,26 @@ export default function ContentEditor({
           </div>
         </div>
 
+        {/* Live Voice Dictation Interim Bar */}
+        {voiceListening && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-red-200 bg-red-50/80 px-4 py-2 text-xs text-red-900">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="inline-block h-2.5 w-2.5 shrink-0 animate-ping rounded-full bg-red-600" />
+              <span className="font-bold shrink-0">🎙️ Đang nghe (Tiếng Việt):</span>
+              <span className="italic text-red-700 truncate">
+                {voiceInterim ? `"${voiceInterim}"` : "Hãy đọc nội dung, văn bản sẽ tự chèn tại vị trí con trỏ..."}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={toggleVoiceDictation}
+              className="rounded bg-red-600 px-2.5 py-0.5 font-bold text-white hover:bg-red-700 cursor-pointer"
+            >
+              Dừng Micro
+            </button>
+          </div>
+        )}
+
         {/* Main Document Canvas (Google Docs Paper Sheet Style) */}
         <div className={mode === "split" ? "grid divide-x md:grid-cols-2" : ""}>
           {(mode === "visual" || mode === "split") && (
@@ -1395,6 +1566,7 @@ export default function ContentEditor({
           {(mode === "html" || mode === "split") && (
             <div className="bg-gray-900 p-4 text-gray-100">
               <textarea
+                ref={htmlTextareaRef}
                 rows={22}
                 value={html}
                 onChange={(e) => {
