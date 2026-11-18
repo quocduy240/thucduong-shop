@@ -67,6 +67,12 @@ export default function ContentEditor({
     { id: number; slug: string; title: string; style_variant: string; positions: string; content_html: string }[]
   >([]);
 
+  // Dynamic QR_Block picker modal state
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrBlocks, setQrBlocks] = useState<
+    { id: number; slug: string; name: string; target_url: string; caption: string; scans: number }[]
+  >([]);
+
   // AI Gemini Multi-Source & Customizable Motif Studio state
   const [aiSourceType, setAiSourceType] = useState<"auto" | "web" | "youtube" | "gdocs" | "deep_research">("auto");
   const [aiUrl, setAiUrl] = useState("");
@@ -159,6 +165,13 @@ export default function ContentEditor({
       .then((r) => r.json())
       .then((d) => {
         if (Array.isArray(d.items)) setReusableBlocks(d.items);
+      })
+      .catch(() => {});
+
+    fetch("/api/admin/qr")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d.items)) setQrBlocks(d.items);
       })
       .catch(() => {});
 
@@ -1324,9 +1337,16 @@ export default function ContentEditor({
             <button
               type="button"
               onClick={() => setBlockModalOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-brand bg-green-50 px-3 py-1.5 text-xs font-bold text-brand shadow-xs transition hover:bg-brand hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-brand bg-green-50 px-3 py-1.5 text-xs font-bold text-brand shadow-xs transition hover:bg-brand hover:text-white cursor-pointer"
             >
               🧩 + Chèn Block Thường Dùng ({reusableBlocks.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setQrModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-emerald-600 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 shadow-xs transition hover:bg-emerald-700 hover:text-white cursor-pointer"
+            >
+              📱 + Chèn QR Code ({qrBlocks.length})
             </button>
             {products.length > 0 && (
               <>
@@ -1657,6 +1677,81 @@ export default function ContentEditor({
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL: PICK DYNAMIC QR_BLOCK */}
+      {qrModalOpen && (
+        <div
+          onClick={() => setQrModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b bg-emerald-800 px-5 py-3.5 text-white">
+              <div>
+                <h3 className="text-base font-bold">📱 Chọn Mã QR Động (QR_Block) để chèn vào nội dung</h3>
+                <p className="text-xs text-emerald-100">
+                  Khi bạn đổi link đích của mã QR trong Quản trị QR, mọi bài viết/sản phẩm/block đang nhúng <code>[[qr:slug]]</code> sẽ tự động chuyển hướng theo link mới.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQrModalOpen(false)}
+                className="grid h-8 w-8 place-items-center rounded-full bg-white/20 text-sm font-bold text-white hover:bg-white/30 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 divide-y overflow-y-auto p-4">
+              {qrBlocks.map((q) => (
+                <div key={q.id} className="flex flex-col justify-between gap-3 py-3 sm:flex-row sm:items-center">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/qr/${encodeURIComponent(q.slug)}`}
+                      alt={q.name}
+                      className="h-14 w-14 shrink-0 rounded-lg border p-1"
+                    />
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-bold text-gray-900 text-sm">{q.name}</span>
+                        <code className="rounded bg-green-100 px-2 py-0.5 font-mono text-[11px] font-bold text-brand">
+                          [[qr:{q.slug}]]
+                        </code>
+                      </div>
+                      <div className="mt-0.5 truncate text-xs text-gray-500">
+                        Đích: <strong>{q.target_url}</strong> · {q.scans} lượt quét
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        insertHtmlSnippet(
+                          `<div data-qr-block="${q.slug}" style="border:2px dashed #15803d;background:#f0fdf4;border-radius:12px;padding:12px;margin:14px 0;font-size:13px;color:#14532d;">📱 <strong>QR_Block Đồng Bộ:</strong> ${q.name} <code>[[qr:${q.slug}]]</code></div><p></p>`,
+                        );
+                        setQrModalOpen(false);
+                        setStatusMsg(`✓ Đã chèn QR_Block [[qr:${q.slug}]] vào nội dung!`);
+                      }}
+                      className="rounded-xl bg-brand px-3 py-2 text-xs font-bold text-white shadow-xs hover:bg-brand-dark cursor-pointer"
+                    >
+                      📱 Chèn Đồng Bộ [[qr:{q.slug}]]
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {qrBlocks.length === 0 && (
+                <p className="p-6 text-center text-xs text-gray-500">
+                  Chưa có mã QR nào. Hãy vào mục <strong>QR Code Động</strong> ở menu bên trái để tạo mới.
+                </p>
+              )}
             </div>
           </div>
         </div>

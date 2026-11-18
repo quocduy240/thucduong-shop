@@ -10,6 +10,7 @@ const ITEMS = [
   { href: "/admin/flash-sale/", label: "Giờ vàng săn sale", icon: "⚡" },
   { href: "/admin/posts/", label: "Bài viết", icon: "📝" },
   { href: "/admin/blocks/", label: "Block thường dùng", icon: "🧩" },
+  { href: "/admin/qr/", label: "QR Code Động", icon: "📱" },
   { href: "/admin/videos/", label: "Video bài giảng", icon: "🎬" },
   { href: "/admin/documents/", label: "Tài liệu & Sách", icon: "📚" },
   { href: "/admin/members/", label: "Thành viên & Email", icon: "👥" },

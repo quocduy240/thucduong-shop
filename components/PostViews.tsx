@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { expandNestedBlocks, preparePostHtmlWithBlocks } from "@/lib/blocks";
+import { expandNestedBlocks, getQrBadgesForPosition, preparePostHtmlWithBlocks } from "@/lib/blocks";
+import QrCornerBadge from "./QrCornerBadge";
 import {
   getBestSellingProducts,
   getCrossSellProducts,
@@ -91,7 +92,10 @@ export async function PostList({ section, category }: { section: PostSection; ca
 
   const isVideoLibrary = category?.slug === "bai-giang-thuc-duong" || (section.slug === "thu-vien" && !category);
   if (isVideoLibrary) {
-    const videos = await getVideos();
+    const [videos, videoQrBadges] = await Promise.all([
+      getVideos(),
+      getQrBadgesForPosition("video_library"),
+    ]);
     return (
       <>
         <Breadcrumb
@@ -102,7 +106,7 @@ export async function PostList({ section, category }: { section: PostSection; ca
           }
         />
         <div className="mx-auto max-w-6xl px-4 pb-8">
-          <VideoLibrary videos={videos} />
+          <VideoLibrary videos={videos} qrBadges={videoQrBadges} />
         </div>
       </>
     );
@@ -128,11 +132,12 @@ export async function PostList({ section, category }: { section: PostSection; ca
 
 /** /<category>/<slug>.html */
 export async function PostDetail({ post, section }: { post: Post; section: PostSection }) {
-  const [relatedAll, comboProducts, bestSelling, bodyHtml] = await Promise.all([
+  const [relatedAll, comboProducts, bestSelling, bodyHtml, postImgQrBadges] = await Promise.all([
     getPosts({ categoryId: undefined, section: section.slug, limit: 6 }),
     getPostComboProducts(post),
     getBestSellingProducts(4),
     preparePostHtmlWithBlocks(post.content, post.id),
+    getQrBadgesForPosition("post_image_badge", { postId: post.id }),
   ]);
   const related = relatedAll.filter((p) => p.id !== post.id).slice(0, 4);
   const comboIds = comboProducts.map((p) => p.id);
@@ -158,6 +163,11 @@ export async function PostDetail({ post, section }: { post: Post; section: PostS
             )}
             <BlockZone position="post_top" postId={post.id} className="mt-4" />
             <ShoppableArticleBody html={bodyHtml} />
+            {postImgQrBadges.length > 0 && (
+              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/40 p-3">
+                <QrCornerBadge items={postImgQrBadges} label="Quét mã QR bài viết" />
+              </div>
+            )}
             <BlockZone position="post_bottom" postId={post.id} className="mt-6" />
           </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import QrCornerBadge, { type QrBadgeItem } from "./QrCornerBadge";
 
 export type VideoEntry = {
   id: number;
@@ -92,7 +93,13 @@ function durationMinutes(dur: string): number | null {
   return null;
 }
 
-export default function VideoLibrary({ videos }: { videos: VideoEntry[] }) {
+export default function VideoLibrary({
+  videos,
+  qrBadges = [],
+}: {
+  videos: VideoEntry[];
+  qrBadges?: QrBadgeItem[];
+}) {
   const [selectedId, setSelectedId] = useState<number>(videos[0]?.id ?? 0);
   const [activeGroup, setActiveGroup] = useState<string>("all");
   const [activeTopic, setActiveTopic] = useState<string>("all");
@@ -320,6 +327,11 @@ export default function VideoLibrary({ videos }: { videos: VideoEntry[] }) {
               <h2 className="mt-2.5 text-lg font-bold text-gray-900 md:text-xl">{activeVideo.title}</h2>
               {activeVideo.description && (
                 <p className="mt-1 text-xs text-gray-500">{activeVideo.description}</p>
+              )}
+              {qrBadges.length > 0 && (
+                <div className="mt-3 pt-2.5 border-t border-gray-100">
+                  <QrCornerBadge items={qrBadges} label="Quét mã QR Video" compact />
+                </div>
               )}
             </div>
           </div>

@@ -1,5 +1,6 @@
 import "server-only";
 import { all, one } from "./db";
+import { getActiveQrCodes, renderQrBlockHtml, type QrBlockRow } from "./qr";
 
 export type BlockPosition =
   | "post_top"
@@ -123,12 +124,18 @@ export async function expandNestedBlocks(
   depth = 0,
   visited: Set<string> = new Set(),
   blocksMap?: Map<string, ContentBlock>,
+  qrMap?: Map<string, QrBlockRow>,
 ): Promise<string> {
   if (!rawHtml || depth > 4) return rawHtml;
   const map =
     blocksMap ??
     new Map(
       (await getActiveBlocks()).map((b) => [b.slug, b]),
+    );
+  const qMap =
+    qrMap ??
+    new Map(
+      (await getActiveQrCodes()).map((q) => [q.slug, q]),
     );
 
   const renderSlug = async (slug: string): Promise<string> => {
@@ -138,8 +145,16 @@ export async function expandNestedBlocks(
     if (!blk || !blk.active) return "";
     const nextVisited = new Set(visited);
     nextVisited.add(cleanSlug);
-    const expandedInner = await expandNestedBlocks(blk.content_html, depth + 1, nextVisited, map);
+    const expandedInner = await expandNestedBlocks(blk.content_html, depth + 1, nextVisited, map, qMap);
     return wrapBlockCard(blk, expandedInner);
+  };
+
+  const renderQrSlug = async (slug: string): Promise<string> => {
+    const cleanSlug = slug.trim().toLowerCase();
+    if (!cleanSlug) return "";
+    const qr = qMap.get(cleanSlug);
+    if (!qr || !qr.active) return "";
+    return renderQrBlockHtml(qr);
   };
 
   // Helper to do async regex replace
@@ -163,6 +178,12 @@ export async function expandNestedBlocks(
     renderSlug,
   );
   out = await replaceAsync(out, /\[\[\s*block\s*:\s*([a-zA-Z0-9_-]+)\s*\]\]/gi, renderSlug);
+  out = await replaceAsync(
+    out,
+    /<div[^>]*data-qr-block="([^"]+)"[^>]*>[\s\S]*?<\/div>/gi,
+    renderQrSlug,
+  );
+  out = await replaceAsync(out, /\[\[\s*qr\s*:\s*([a-zA-Z0-9_-]+)\s*\]\]/gi, renderQrSlug);
   return out;
 }
 
@@ -174,42 +195,41 @@ function parseIds(csv: string): number[] {
 }
 
 /**
- * Get all active blocks assigned to a Frontend Block-Position,
+ * Get all active blocks AND QR_Blocks assigned to a Frontend Block-Position,
  * filtered by optional postId or productId targeting, with nested blocks expanded.
  */
 export async function getRenderedBlocksForPosition(
   position: BlockPosition,
   context: { postId?: number; productId?: number } = {},
 ): Promise<{ id: number; slug: string; html: string }[]> {
-  const active = await getActiveBlocks();
+  const [active, activeQrs] = await Promise.all([getActiveBlocks(), getActiveQrCodes()]);
   const map = new Map(active.map((b) => [b.slug, b]));
+  const qMap = new Map(activeQrs.map((q) => [q.slug, q]));
 
-  const matched = active.filter((b) => {
-    const posList = b.positions
+  const matchTarget = (positionsStr: string, targetPostsStr: string, targetProductsStr: string) => {
+    const posList = positionsStr
       .split(/[\s,]+/)
       .map((s) => s.trim())
       .filter(Boolean);
     if (!posList.includes(position)) return false;
 
-    const targetPosts = parseIds(b.target_post_ids);
-    const targetProducts = parseIds(b.target_product_ids);
+    const targetPosts = parseIds(targetPostsStr);
+    const targetProducts = parseIds(targetProductsStr);
 
-    if (context.postId && targetPosts.length > 0 && !targetPosts.includes(context.postId)) {
-      return false;
-    }
-    if (context.productId && targetProducts.length > 0 && !targetProducts.includes(context.productId)) {
-      return false;
-    }
+    if (context.postId && targetPosts.length > 0 && !targetPosts.includes(context.postId)) return false;
+    if (context.productId && targetProducts.length > 0 && !targetProducts.includes(context.productId)) return false;
     if (!context.postId && targetPosts.length > 0 && position.startsWith("post_")) return false;
     if (!context.productId && targetProducts.length > 0 && position.startsWith("product_")) return false;
-
     return true;
-  });
+  };
 
-  return Promise.all(
+  const matched = active.filter((b) => matchTarget(b.positions, b.target_post_ids, b.target_product_ids));
+  const matchedQrs = activeQrs.filter((q) => matchTarget(q.positions, q.target_post_ids, q.target_product_ids));
+
+  const renderedBlocks = await Promise.all(
     matched.map(async (b) => {
       const visited = new Set<string>([b.slug]);
-      const inner = await expandNestedBlocks(b.content_html, 1, visited, map);
+      const inner = await expandNestedBlocks(b.content_html, 1, visited, map, qMap);
       return {
         id: b.id,
         slug: b.slug,
@@ -217,6 +237,40 @@ export async function getRenderedBlocksForPosition(
       };
     }),
   );
+
+  const renderedQrs = matchedQrs.map((q) => ({
+    id: 100000 + q.id,
+    slug: `qr-${q.slug}`,
+    html: renderQrBlockHtml(q),
+  }));
+
+  return [...renderedBlocks, ...renderedQrs];
+}
+
+export async function getQrBadgesForPosition(
+  position: "video_library" | "product_card_badge" | "post_image_badge",
+  context: { postId?: number; productId?: number } = {},
+): Promise<{ id: number; slug: string; name: string; caption: string }[]> {
+  const activeQrs = await getActiveQrCodes();
+  return activeQrs
+    .filter((q) => {
+      const posList = q.positions
+        .split(/[\s,]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (!posList.includes(position)) return false;
+      const targetPosts = parseIds(q.target_post_ids);
+      const targetProducts = parseIds(q.target_product_ids);
+      if (context.postId && targetPosts.length > 0 && !targetPosts.includes(context.postId)) return false;
+      if (context.productId && targetProducts.length > 0 && !targetProducts.includes(context.productId)) return false;
+      return true;
+    })
+    .map((q) => ({
+      id: q.id,
+      slug: q.slug,
+      name: q.name,
+      caption: q.caption,
+    }));
 }
 
 /**

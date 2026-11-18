@@ -363,6 +363,94 @@ export async function deleteConsultationAction(formData: FormData) {
   redirect("/admin/settings/?saved=1");
 }
 
+// ---- Dynamic QR Code & QR_Block ----
+export async function saveQrAction(formData: FormData) {
+  await requireAdmin();
+  const id = num(formData, "id");
+  const here = `/admin/qr/${id || "new"}/`;
+  const name = str(formData, "name");
+  if (!name) back(here, "Vui lòng nhập Tên riêng cho mã QR.");
+  const slug = slugify(str(formData, "slug") || name);
+  if (!slug) back(here, "Mã định danh (slug) không hợp lệ.");
+  const targetUrl = str(formData, "target_url");
+  if (!targetUrl) back(here, "Vui lòng nhập Link đích khi quét mã QR.");
+
+  const caption = str(formData, "caption");
+  const fgColor = str(formData, "fg_color") || "#14532d";
+  const bgColor = str(formData, "bg_color") || "#ffffff";
+  const styleVariant = str(formData, "style_variant") || "emerald";
+  const selectedPositions = formData
+    .getAll("positions")
+    .map((x) => String(x).trim())
+    .filter(Boolean);
+  const positions = selectedPositions.length > 0 ? selectedPositions.join(",") : "manual";
+  const targetPosts = formData
+    .getAll("target_post_ids")
+    .map((x) => String(x).trim())
+    .filter(Boolean)
+    .join(",");
+  const targetProducts = formData
+    .getAll("target_product_ids")
+    .map((x) => String(x).trim())
+    .filter(Boolean)
+    .join(",");
+  const active = str(formData, "active") === "0" ? 0 : 1;
+  const sort = num(formData, "sort") || 1;
+
+  try {
+    if (id) {
+      await run(
+        `UPDATE qr_codes SET
+          slug=?, name=?, target_url=?, caption=?, fg_color=?, bg_color=?, style_variant=?,
+          positions=?, target_post_ids=?, target_product_ids=?, active=?, sort=?
+         WHERE id=?`,
+        slug, name, targetUrl, caption, fgColor, bgColor, styleVariant,
+        positions, targetPosts, targetProducts, active, sort, id,
+      );
+    } else {
+      await run(
+        `INSERT INTO qr_codes (
+          slug, name, target_url, caption, fg_color, bg_color, style_variant,
+          positions, target_post_ids, target_product_ids, active, sort
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        slug, name, targetUrl, caption, fgColor, bgColor, styleVariant,
+        positions, targetPosts, targetProducts, active, sort,
+      );
+    }
+  } catch (e) {
+    if (String(e).includes("UNIQUE")) back(here, "Mã định danh (slug) này đã được dùng cho một QR khác.");
+    throw e;
+  }
+  refresh();
+  redirect("/admin/qr/?saved=1");
+}
+
+export async function updateQrUrlQuickAction(formData: FormData) {
+  await requireAdmin();
+  const id = num(formData, "id");
+  const targetUrl = str(formData, "target_url");
+  if (!targetUrl) back("/admin/qr/", "Link đích không được để trống.");
+  await run("UPDATE qr_codes SET target_url = ? WHERE id = ?", targetUrl, id);
+  refresh();
+  redirect("/admin/qr/?saved=1");
+}
+
+export async function toggleQrAction(formData: FormData) {
+  await requireAdmin();
+  const id = num(formData, "id");
+  const active = num(formData, "active") ? 1 : 0;
+  await run("UPDATE qr_codes SET active = ? WHERE id = ?", active, id);
+  refresh();
+  redirect("/admin/qr/?saved=1");
+}
+
+export async function deleteQrAction(formData: FormData) {
+  await requireAdmin();
+  await run("DELETE FROM qr_codes WHERE id = ?", num(formData, "id"));
+  refresh();
+  redirect("/admin/qr/?saved=1");
+}
+
 export async function saveMailSettingsAction(formData: FormData) {
   await requireAdmin();
   const values: Record<string, string> = {};

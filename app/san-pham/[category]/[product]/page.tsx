@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { expandNestedBlocks } from "@/lib/blocks";
+import { expandNestedBlocks, getQrBadgesForPosition } from "@/lib/blocks";
+import QrCornerBadge from "@/components/QrCornerBadge";
 import { getProduct, getRelatedProducts, url } from "@/lib/data";
 import { getProductFlashSale } from "@/lib/flash-sale";
 import { getSite } from "@/lib/settings";
@@ -38,11 +39,12 @@ export async function generateMetadata({ params }: PageProps<"/san-pham/[categor
 export default async function ProductPage({ params }: PageProps<"/san-pham/[category]/[product]">) {
   const p = await load(params);
   if (!p) notFound();
-  const [related, site, flashDeal, expandedDescription] = await Promise.all([
+  const [related, site, flashDeal, expandedDescription, productQrBadges] = await Promise.all([
     getRelatedProducts(p),
     getSite(),
     getProductFlashSale(p.id),
     expandNestedBlocks(p.description),
+    getQrBadgesForPosition("product_card_badge", { productId: p.id }),
   ]);
   const effectiveSalePrice = flashDeal ? flashDeal.flash_price : p.sale_price;
 
@@ -66,15 +68,22 @@ export default async function ProductPage({ params }: PageProps<"/san-pham/[cate
       />
       <div className="mx-auto max-w-6xl px-4">
         <div className="grid gap-8 md:grid-cols-[440px_1fr]">
-          {/* Left: Interactive Image Gallery */}
-          <ProductGallery
-            name={p.name}
-            seed={p.id}
-            image={p.image}
-            gallery={p.gallery}
-            discountPct={discountPct}
-            outOfStock={p.stock <= 0}
-          />
+          {/* Left: Interactive Image Gallery + Product QR Badge */}
+          <div className="space-y-3">
+            <ProductGallery
+              name={p.name}
+              seed={p.id}
+              image={p.image}
+              gallery={p.gallery}
+              discountPct={discountPct}
+              outOfStock={p.stock <= 0}
+            />
+            {productQrBadges.length > 0 && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-2.5">
+                <QrCornerBadge items={productQrBadges} label="Quét QR sản phẩm" />
+              </div>
+            )}
+          </div>
 
           {/* Right: Product Info, Metadata, Price & Actions */}
           <div>
