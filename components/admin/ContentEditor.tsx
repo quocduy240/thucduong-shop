@@ -18,21 +18,12 @@ export type EditorProductItem = {
   summary: string;
 };
 
-const TEXT_COLORS = [
-  { label: "Mặc định", color: "#1f2937" },
-  { label: "Xanh Thực dưỡng", color: "#2f7d32" },
-  { label: "Đỏ Điểm nhấn", color: "#c62828" },
-  { label: "Cam Đất", color: "#d97706" },
-  { label: "Xanh Dương", color: "#1d4ed8" },
-  { label: "Tím", color: "#7e22ce" },
-];
-
-const BG_COLORS = [
-  { label: "Không màu nền", color: "transparent" },
-  { label: "Vàng nhạt", color: "#fef08a" },
-  { label: "Xanh lá nhạt", color: "#dcfce7" },
-  { label: "Cam nhạt", color: "#ffedd5" },
-  { label: "Xanh dương nhạt", color: "#dbeafe" },
+const GOOGLE_DOCS_PALETTE = [
+  "#000000", "#434343", "#666666", "#999999", "#b7b7b7", "#cccccc", "#efefef", "#ffffff",
+  "#980000", "#ff0000", "#ff9900", "#ffff00", "#00ff00", "#00ffff", "#4a86e8", "#9900ff",
+  "#e6b8af", "#f4cccc", "#fce5cd", "#fff2cc", "#d9ead3", "#d0e0e3", "#c9daf8", "#d9d2e9",
+  "#dd7e6b", "#ea9999", "#f9cb9c", "#ffe599", "#b6d7a8", "#a2c4c9", "#a4c2f4", "#b4a7d6",
+  "#a61c00", "#cc0000", "#e69138", "#f1c232", "#2f7d32", "#134f5c", "#1155cc", "#674ea7",
 ];
 
 function extractYtId(raw: string): string | null {
@@ -131,6 +122,10 @@ export default function ContentEditor({
 
   const visualRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const savedRangeRef = useRef<Range | null>(null);
+  const [colorPopover, setColorPopover] = useState<"text" | "highlight" | null>(null);
+  const [textColor, setTextColor] = useState("#2f7d32");
+  const [highlightColor, setHighlightColor] = useState("#fef08a");
 
   useEffect(() => {
     if (visualRef.current && visualRef.current.innerHTML !== defaultValue) {
@@ -306,6 +301,41 @@ export default function ContentEditor({
     setTimeout(() => {
       visualRef.current?.focus();
       document.execCommand(cmd, false, val);
+      syncFromVisual();
+    }, 10);
+  }
+
+  function saveCurrentSelection() {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+    }
+  }
+
+  function toggleColorPopover(kind: "text" | "highlight") {
+    saveCurrentSelection();
+    setColorPopover((prev) => (prev === kind ? null : kind));
+  }
+
+  function applyColor(kind: "text" | "highlight", color: string) {
+    if (mode === "html") setMode("visual");
+    setColorPopover(null);
+    if (kind === "text") setTextColor(color);
+    else if (color !== "transparent") setHighlightColor(color);
+
+    setTimeout(() => {
+      visualRef.current?.focus();
+      const sel = window.getSelection();
+      if (savedRangeRef.current && sel) {
+        sel.removeAllRanges();
+        sel.addRange(savedRangeRef.current);
+      }
+      try {
+        document.execCommand("styleWithCSS", false, "true");
+      } catch {
+        /* ignore */
+      }
+      document.execCommand(kind === "text" ? "foreColor" : "hiliteColor", false, color);
       syncFromVisual();
     }, 10);
   }
@@ -1058,44 +1088,108 @@ export default function ContentEditor({
             S
           </button>
 
-          {/* Text Color & Highlight */}
-          <select
-            onChange={(e) => {
-              if (e.target.value) execCmd("foreColor", e.target.value);
-              e.target.value = "";
-            }}
-            defaultValue=""
-            className="rounded border border-gray-300 bg-white px-1.5 py-1 text-xs font-semibold text-brand outline-none"
-            title="Màu chữ"
-          >
-            <option value="" disabled>
-              A Màu chữ
-            </option>
-            {TEXT_COLORS.map((c) => (
-              <option key={c.color} value={c.color}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+          {/* Google Docs Style Text Color (A + indicator bar) & Highlight Color (Marker + indicator bar) */}
+          <div className="relative inline-flex items-center gap-0.5">
+            {/* Text Color Button */}
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => toggleColorPopover("text")}
+              className="inline-flex flex-col items-center justify-center rounded border border-transparent px-2 py-0.5 hover:border-gray-300 hover:bg-white transition cursor-pointer"
+              title="Màu chữ (Text Color)"
+            >
+              <span className="text-[13px] font-extrabold leading-none text-gray-800">A</span>
+              <span
+                className="mt-0.5 h-[3px] w-4 rounded-full"
+                style={{ backgroundColor: textColor }}
+              />
+            </button>
 
-          <select
-            onChange={(e) => {
-              if (e.target.value) execCmd("hiliteColor", e.target.value);
-              e.target.value = "";
-            }}
-            defaultValue=""
-            className="rounded border border-gray-300 bg-white px-1.5 py-1 text-xs font-medium text-amber-800 outline-none"
-            title="Tô sáng nền chữ"
-          >
-            <option value="" disabled>
-              🖍️ Tô nền
-            </option>
-            {BG_COLORS.map((c) => (
-              <option key={c.color} value={c.color}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+            {/* Highlight / Fill Color Button */}
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => toggleColorPopover("highlight")}
+              className="inline-flex flex-col items-center justify-center rounded border border-transparent px-2 py-0.5 hover:border-gray-300 hover:bg-white transition cursor-pointer"
+              title="Màu nền chữ (Highlight Color)"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-3.5 w-3.5 text-gray-800"
+              >
+                <path d="m9 11-6 6v3h9l3-3" />
+                <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" />
+              </svg>
+              <span
+                className="mt-0.5 h-[3px] w-4 rounded-full border border-gray-300/60"
+                style={{ backgroundColor: highlightColor }}
+              />
+            </button>
+
+            {/* Color Swatch Grid Popover */}
+            {colorPopover && (
+              <div
+                onMouseDown={(e) => e.preventDefault()}
+                className="absolute left-0 top-full z-50 mt-1.5 w-56 rounded-xl border border-gray-200 bg-white p-3 shadow-xl"
+              >
+                <div className="mb-2 flex items-center justify-between border-b pb-1.5">
+                  <span className="text-[11px] font-bold text-gray-700">
+                    {colorPopover === "text" ? "🅰️ Chọn Màu Chữ" : "🖍️ Chọn Màu Nền (Highlight)"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setColorPopover(null)}
+                    className="text-xs text-gray-400 hover:text-gray-700"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    applyColor(colorPopover, colorPopover === "text" ? "#1f2937" : "transparent")
+                  }
+                  className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-100 cursor-pointer"
+                >
+                  <span>🚫</span>
+                  <span>{colorPopover === "text" ? "Màu mặc định" : "Không tô nền (Xoá màu)"}</span>
+                </button>
+
+                <div className="grid grid-cols-8 gap-1">
+                  {GOOGLE_DOCS_PALETTE.map((hex) => (
+                    <button
+                      key={hex}
+                      type="button"
+                      onClick={() => applyColor(colorPopover, hex)}
+                      title={hex}
+                      className="h-5 w-5 rounded border border-gray-300/80 transition hover:scale-110 hover:border-gray-900 cursor-pointer"
+                      style={{ backgroundColor: hex }}
+                    />
+                  ))}
+                </div>
+
+                <div className="mt-2.5 flex items-center justify-between border-t pt-2">
+                  <span className="text-[11px] font-semibold text-gray-600">Tuỳ chỉnh HEX:</span>
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded border border-gray-300 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-700 hover:bg-gray-100">
+                    <span>🎨 Chọn</span>
+                    <input
+                      type="color"
+                      value={colorPopover === "text" ? textColor : highlightColor}
+                      onChange={(e) => applyColor(colorPopover, e.target.value)}
+                      className="h-4 w-5 cursor-pointer border-0 bg-transparent p-0"
+                    />
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
 
           <span className="mx-1 h-4 w-px bg-gray-300" />
 
