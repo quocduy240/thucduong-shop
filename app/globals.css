@@ -17,7 +17,8 @@
   --font-sans: var(--font-be-vietnam);
 }
 
-body {
+html, body {
+  overflow-x: clip;
   background: var(--background);
   color: var(--foreground);
 }
@@ -43,7 +44,17 @@ body {
 .prose-content figure { margin: 1rem 0; text-align: center; }
 .prose-content figcaption { font-size: 0.8rem; color: #6b7280; margin-top: 0.35rem; font-style: italic; }
 .prose-content a { color: var(--brand); text-decoration: underline; }
-.prose-content table { border-collapse: collapse; width: 100%; max-width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+.prose-content table { display: block; overflow-x: auto; border-collapse: collapse; width: 100%; max-width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+.prose-content iframe, .prose-content video { max-width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 0.75rem; }
 .prose-content td, .prose-content th { border: 1px solid #d1d5db; padding: 0.5rem 0.75rem; }
 .prose-content th { background: #f3f4f6; font-weight: 600; text-align: left; }
 .prose-content hr { border: 0; border-top: 1px solid #e5e7eb; margin: 1.5rem 0; }
+
+@media (max-width: 640px) {
+  .prose-content [style*="float:"] {
+    float: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 12px 0 !important;
+  }
+}

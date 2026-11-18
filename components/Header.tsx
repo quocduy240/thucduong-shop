@@ -4,6 +4,7 @@ import { cartLines, readCart } from "@/lib/cart";
 import { currentMember } from "@/lib/member-auth";
 import { getSite } from "@/lib/settings";
 import { getThemeSettings } from "@/lib/theme-settings";
+import MobileNavDrawer from "./MobileNavDrawer";
 import SearchBox from "./SearchBox";
 import ThemeSwitcher from "./ThemeSwitcher";
 
@@ -64,33 +65,40 @@ export default async function Header() {
         </div>
       </div>
 
-      <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
-        <Link href="/" className="shrink-0">
-          <div className="text-xl font-bold text-brand">{site.name}</div>
-          <div className="text-xs text-gray-500">{site.tagline}</div>
-        </Link>
-        <div className="flex-1">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-2.5 gap-y-2.5 px-3 py-2.5 md:flex-nowrap md:gap-4 md:px-4 md:py-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <MobileNavDrawer menu={menu} siteName={site.name} hotline={site.hotline} />
+          <Link href="/" className="shrink-0">
+            <div className="text-lg font-bold text-brand sm:text-xl">{site.name}</div>
+            <div className="hidden text-xs text-gray-500 sm:block">{site.tagline}</div>
+          </Link>
+        </div>
+
+        <div className="order-last w-full md:order-none md:w-auto md:flex-1">
           <SearchBox />
         </div>
-        <ThemeSwitcher config={themeConfig} />
-        <Link
-          href="/thanh-vien/"
-          className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition ${
-            member
-              ? "border-green-300 bg-green-50 text-brand hover:bg-green-100"
-              : "border-gray-200 text-gray-700 hover:border-brand hover:text-brand"
-          }`}
-        >
-          <span aria-hidden>{member ? "👑" : "👤"}</span>
-          <span className="hidden sm:inline">{member ? member.name : "Thành viên"}</span>
-        </Link>
-        <Link href="/cart" className="relative flex items-center gap-2 rounded-full border px-3 py-2 text-sm hover:border-brand">
-          <span aria-hidden>🛒</span>
-          <span className="hidden sm:inline">Giỏ hàng</span>
-          <span className="absolute -right-2 -top-2 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-xs font-semibold text-white">
-            {count}
-          </span>
-        </Link>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <ThemeSwitcher config={themeConfig} />
+          <Link
+            href="/thanh-vien/"
+            className={`flex items-center gap-1.5 rounded-full border px-2.5 py-2 text-xs font-semibold transition sm:px-3 ${
+              member
+                ? "border-green-300 bg-green-50 text-brand hover:bg-green-100"
+                : "border-gray-200 text-gray-700 hover:border-brand hover:text-brand"
+            }`}
+          >
+            <span aria-hidden>{member ? "👑" : "👤"}</span>
+            <span className="hidden sm:inline">{member ? member.name : "Thành viên"}</span>
+          </Link>
+          <Link href="/cart" className="relative flex items-center gap-2 rounded-full border px-2.5 py-2 text-sm hover:border-brand sm:px-3">
+            <span aria-hidden>🛒</span>
+            <span className="hidden sm:inline">Giỏ hàng</span>
+            <span className="absolute -right-2 -top-2 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-xs font-semibold text-white">
+              {count}
+            </span>
+          </Link>
+        </div>
       </div>
 
       <nav className="bg-brand text-white">

@@ -82,7 +82,7 @@ export default function FloatingConsultWidget({ config }: { config: FloatingWidg
   }
 
   return (
-    <div className="fixed bottom-4 right-3 z-40 flex flex-col items-end gap-2.5 sm:bottom-6 sm:right-5 print:hidden">
+    <div className="fixed bottom-20 right-3 z-40 flex flex-col items-end gap-2.5 md:bottom-6 sm:right-5 print:hidden">
       {/* Popup Hỏi Nhanh (gửi câu hỏi qua email + báo tư vấn viên gọi lại SĐT) */}
       {openAsk && (
         <div className="mb-1 w-[calc(100vw-24px)] max-w-sm overflow-hidden rounded-2xl border-2 border-brand/30 bg-white shadow-2xl">
