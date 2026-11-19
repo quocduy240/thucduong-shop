@@ -646,7 +646,62 @@ export async function generateQuickConsultReport(input: QuickConsultInput): Prom
   const motif = CONSULT_MOTIFS.find((m) => m.id === input.motifId) ?? CONSULT_MOTIFS[0];
   const { productGroups, videos, documents } = await matchResources(input);
 
-  const aiHtml = await callGeminiExpertConsult(input, motif, productGroups, videos, documents);
+  const hasDietRecall = Object.values(input.dietRecall ?? {}).some((v) => String(v ?? "").trim().length > 0);
+  const canUseCache = !(input.customNote || "").trim() && !hasDietRecall;
+  const { bmi } = computeBmi(Number(input.heightCm) || 0, Number(input.weightKg) || 0);
+  const bmiBand = !bmi ? "none" : bmi < 18.5 ? "under" : bmi < 23 ? "normal" : bmi < 25 ? "over" : "obese";
+  const cacheKey = canUseCache
+    ? crypto
+        .createHash("sha256")
+        .update(
+          JSON.stringify({
+            audience: input.audience || "truong_thanh",
+            needs: [...input.needs].sort(),
+            conditions: [...input.conditions].sort(),
+            habits: [...input.habits].sort(),
+            motifId: motif.id,
+            bmiBand,
+          }),
+        )
+        .digest("hex")
+        .slice(0, 32)
+    : "";
+
+  let aiHtml: string | null = null;
+  if (cacheKey) {
+    try {
+      await run(`
+        CREATE TABLE IF NOT EXISTS quick_consult_cache (
+          cache_key TEXT PRIMARY KEY,
+          article_html TEXT NOT NULL,
+          hit_count INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+      const cached = await one<{ article_html: string }>(
+        "SELECT article_html FROM quick_consult_cache WHERE cache_key = ? AND created_at >= datetime('now', '-14 days')",
+        cacheKey,
+      );
+      if (cached?.article_html) {
+        aiHtml = cached.article_html;
+        await run("UPDATE quick_consult_cache SET hit_count = hit_count + 1 WHERE cache_key = ?", cacheKey);
+      }
+    } catch {
+      /* ignore cache errors */
+    }
+  }
+
+  if (!aiHtml) {
+    aiHtml = await callGeminiExpertConsult(input, motif, productGroups, videos, documents);
+    if (aiHtml && cacheKey) {
+      await run(
+        "INSERT OR REPLACE INTO quick_consult_cache (cache_key, article_html, hit_count, created_at) VALUES (?, ?, 1, datetime('now'))",
+        cacheKey,
+        aiHtml,
+      ).catch(() => {});
+    }
+  }
+
   const articleHtml = sanitizeAiHtml(aiHtml || buildFallbackArticle(input, motif, productGroups));
 
   const res = await run(

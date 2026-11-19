@@ -57,15 +57,37 @@ export default function FrontendAdminProvider({ children }: { children: ReactNod
   }, []);
 
   useEffect(() => {
+    if (isAdminRoute) return;
     let cancelled = false;
+
+    const CACHE_KEY = "td_frontend_admin_ctx_v1";
+    const CACHE_TTL_MS = 180_000;
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const cached = JSON.parse(raw) as { ts: number; isAdmin: boolean; admin?: FrontendAdminInfo };
+        if (Date.now() - cached.ts < CACHE_TTL_MS) {
+          setAdmin(cached.isAdmin && cached.admin ? cached.admin : null);
+          return;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+
     fetch("/api/admin/frontend-context", { credentials: "same-origin" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data) return;
-        if (data.isAdmin && data.admin) {
-          setAdmin(data.admin);
-        } else {
-          setAdmin(null);
+        const nextAdmin = data.isAdmin && data.admin ? (data.admin as FrontendAdminInfo) : null;
+        setAdmin(nextAdmin);
+        try {
+          sessionStorage.setItem(
+            CACHE_KEY,
+            JSON.stringify({ ts: Date.now(), isAdmin: Boolean(nextAdmin), admin: nextAdmin }),
+          );
+        } catch {
+          /* ignore */
         }
       })
       .catch(() => {
@@ -74,7 +96,7 @@ export default function FrontendAdminProvider({ children }: { children: ReactNod
     return () => {
       cancelled = true;
     };
-  }, [pathname]);
+  }, [isAdminRoute]);
 
   function setViewAsUser(next: boolean) {
     setViewAsUserState(next);

@@ -3,6 +3,8 @@ import { getPage, getPost, getPostCategory, getPostSection } from "@/lib/data";
 import { triggerDueYoutubeSyncInBackground } from "@/lib/youtube-sync";
 import { PostDetail, PostList, StaticPage } from "@/components/PostViews";
 
+export const revalidate = 300;
+
 /**
  * Two segments:
  *   /thuc-duong/thuc-duong-can-ban/      → post category listing

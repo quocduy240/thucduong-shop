@@ -22,7 +22,7 @@ export function Thumb({
   if (image) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={image} alt={label} loading="lazy" className={`aspect-square w-full object-cover ${className}`} />
+      <img src={image} alt={label} loading="lazy" decoding="async" className={`aspect-square w-full object-cover ${className}`} />
     );
   }
   return (
@@ -140,6 +140,7 @@ export function PostCard({ p }: { p: Post }) {
             src={p.cover}
             alt={p.title}
             loading="lazy"
+            decoding="async"
             className="aspect-square w-full object-cover transition duration-300 group-hover:scale-105"
           />
         ) : (

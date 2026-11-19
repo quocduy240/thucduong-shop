@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { getPage, getPostSection } from "@/lib/data";
 import { PostList, StaticPage } from "@/components/PostViews";
 
+export const revalidate = 300;
+
 /**
  * One top-level segment:
  *   /thuc-duong/        → post section listing

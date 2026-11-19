@@ -76,29 +76,10 @@ export const url = {
   page: (p: { grp: string; slug: string }) => (p.grp ? `/${p.grp}/${p.slug}.html` : `/${p.slug}.html`),
 };
 
-let ensuredCatMenuCol: Promise<void> | null = null;
 export async function ensureProductCategoryMenuColumn() {
-  if (!ensuredCatMenuCol) {
-    ensuredCatMenuCol = (async () => {
-      const cols = await all<{ name: string }>("PRAGMA table_info(product_categories)");
-      const names = new Set(cols.map((c) => c.name));
-      const migrations: Array<[string, string]> = [
-        ["show_in_menu", "ALTER TABLE product_categories ADD COLUMN show_in_menu INTEGER NOT NULL DEFAULT 1"],
-        ["show_in_home", "ALTER TABLE product_categories ADD COLUMN show_in_home INTEGER NOT NULL DEFAULT 1"],
-        ["show_in_footer", "ALTER TABLE product_categories ADD COLUMN show_in_footer INTEGER NOT NULL DEFAULT 1"],
-        ["is_active", "ALTER TABLE product_categories ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1"],
-        ["seo_title", "ALTER TABLE product_categories ADD COLUMN seo_title TEXT NOT NULL DEFAULT ''"],
-        ["description", "ALTER TABLE product_categories ADD COLUMN description TEXT NOT NULL DEFAULT ''"],
-      ];
-      for (const [col, sql] of migrations) {
-        if (!names.has(col)) await run(sql);
-      }
-    })().catch((err) => {
-      ensuredCatMenuCol = null;
-      throw err;
-    });
-  }
-  await ensuredCatMenuCol;
+  // Columns (show_in_menu, show_in_home, show_in_footer, is_active, seo_title, description)
+  // are applied via D1 migrations (migrations/0001_schema_sync.sql) to avoid runtime PRAGMA overhead.
+  return;
 }
 
 // ---- Products ----

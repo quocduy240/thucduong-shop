@@ -3,6 +3,8 @@ import { getPost, getPostSection } from "@/lib/data";
 import ArticleReadTracker from "@/components/ArticleReadTracker";
 import { PostDetail } from "@/components/PostViews";
 
+export const revalidate = 300;
+
 // URL: /<section>/<category>/<slug>.html  e.g. /thuc-duong/thuc-duong-can-ban/abc.html
 async function load(params: PageProps<"/[section]/[slug]/[post]">["params"]) {
   const { section, slug: category, post } = await params;

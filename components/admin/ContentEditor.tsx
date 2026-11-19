@@ -728,20 +728,48 @@ export default function ContentEditor({
     syncFromVisual();
   }
 
+  async function compressImageToWebp(file: File): Promise<File> {
+    if (!file.type.startsWith("image/") || file.type === "image/svg+xml" || file.type === "image/gif" || file.size <= 120 * 1024) {
+      return file;
+    }
+    try {
+      const bitmap = await createImageBitmap(file);
+      const maxW = 1200;
+      const scale = bitmap.width > maxW ? maxW / bitmap.width : 1;
+      const w = Math.max(1, Math.round(bitmap.width * scale));
+      const h = Math.max(1, Math.round(bitmap.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return file;
+      ctx.drawImage(bitmap, 0, 0, w, h);
+      bitmap.close();
+      const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/webp", 0.82));
+      if (!blob || blob.size >= file.size) return file;
+      const baseName = file.name.replace(/\.[^.]+$/, "") || "image";
+      return new File([blob], `${baseName}.webp`, { type: "image/webp" });
+    } catch {
+      return file;
+    }
+  }
+
   async function uploadImage(file: File) {
     setBusy(true);
     setErr("");
     setStatusMsg("");
-    const fd = new FormData();
-    fd.append("file", file);
     try {
+      const optimized = await compressImageToWebp(file);
+      const fd = new FormData();
+      fd.append("file", optimized);
       const res = await fetch("/admin/upload", { method: "POST", body: fd });
       const data = (await res.json()) as { url?: string; error?: string };
       if (!res.ok || !data.url) throw new Error(data.error ?? "Upload ảnh thất bại.");
       insertHtmlSnippet(
-        `<figure style="text-align:center;margin:16px 0;"><img src="${data.url}" alt="Hình minh họa" style="width:${imgWidthPct}%;max-width:100%;border-radius:12px;" /><figcaption>Hình minh họa thực dưỡng</figcaption></figure><p></p>`,
+        `<figure style="text-align:center;margin:16px 0;"><img src="${data.url}" alt="Hình minh họa" loading="lazy" decoding="async" style="width:${imgWidthPct}%;max-width:100%;border-radius:12px;" /><figcaption>Hình minh họa thực dưỡng</figcaption></figure><p></p>`,
       );
-      setStatusMsg(`✓ Đã tải và chèn ảnh (kích thước ${imgWidthPct}% khung bài viết).`);
+      const savedPct = file.size > optimized.size ? ` (đã nén WebP giảm ${Math.round(((file.size - optimized.size) / file.size) * 100)}%)` : "";
+      setStatusMsg(`✓ Đã tải và chèn ảnh${savedPct} (rộng ${imgWidthPct}%).`);
     } catch (e) {
       setErr((e as Error).message);
     } finally {

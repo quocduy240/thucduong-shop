@@ -19,6 +19,8 @@ import ProductGallery from "@/components/ProductGallery";
 import RecentlyViewed from "@/components/RecentlyViewed";
 
 // URL: /san-pham/<category>/<slug>.html
+export const revalidate = 300;
+
 async function load(params: PageProps<"/san-pham/[category]/[product]">["params"]) {
   const { category, product } = await params;
   if (!product.endsWith(".html")) return undefined;
