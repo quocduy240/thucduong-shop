@@ -1,9 +1,16 @@
 import { requireAdmin } from "@/lib/auth";
-import { getCrmCustomers } from "@/lib/crm";
+import { getCrmDashboardData } from "@/lib/crm";
 import CrmDashboardClient from "@/components/admin/CrmDashboardClient";
 
 export default async function AdminCrmPage() {
   await requireAdmin();
-  const customers = await getCrmCustomers();
-  return <CrmDashboardClient initialCustomers={customers} />;
+  const data = await getCrmDashboardData();
+  return (
+    <CrmDashboardClient
+      initialCustomers={data.customers}
+      initialAnalytics={data.analytics}
+      initialQueue={data.automationQueue}
+      initialTags={data.allTags}
+    />
+  );
 }

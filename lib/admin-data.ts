@@ -20,7 +20,7 @@ export async function getStats() {
   const n = async (sql: string) => (await one<{ n: number }>(sql))?.n ?? 0;
   const [
     products, outOfStock, lowStock, posts, blocks, videos, documents,
-    members, subscribers, comments, ordersNew, ordersTotal, revenue, revenue30,
+    members, subscribers, comments, ordersNew, ordersTotal, revenue, revenue30, crmFollowupsDue,
   ] = await Promise.all([
     n("SELECT COUNT(*) AS n FROM products"),
     n("SELECT COUNT(*) AS n FROM products WHERE stock <= 0"),
@@ -36,10 +36,11 @@ export async function getStats() {
     n("SELECT COUNT(*) AS n FROM orders"),
     n("SELECT COALESCE(SUM(total), 0) AS n FROM orders WHERE status <> 'cancelled'"),
     n("SELECT COALESCE(SUM(total), 0) AS n FROM orders WHERE status <> 'cancelled' AND created_at >= datetime('now', '-30 days')"),
+    n("SELECT COUNT(DISTINCT customer_key) AS n FROM crm_notes WHERE followup_done = 0 AND next_followup_date IS NOT NULL AND next_followup_date <> '' AND next_followup_date <= date('now', '+7 hours')"),
   ]);
   return {
     products, outOfStock, lowStock, posts, blocks, videos, documents,
-    members, subscribers, comments, ordersNew, ordersTotal, revenue, revenue30,
+    members, subscribers, comments, ordersNew, ordersTotal, revenue, revenue30, crmFollowupsDue,
   };
 }
 

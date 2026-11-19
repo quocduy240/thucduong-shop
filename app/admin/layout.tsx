@@ -21,7 +21,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
           </div>
           <Link href="/" target="_blank" className="text-xs text-gray-500 hover:underline md:mt-1 md:inline-block">Xem website ↗</Link>
         </div>
-        <AdminNav newOrders={stats.ordersNew} />
+        <AdminNav newOrders={stats.ordersNew} crmFollowupsDue={stats.crmFollowupsDue} />
         <form action={logoutAction} className="mt-3 md:mt-auto md:pt-6">
           <div className="mb-2 truncate text-xs text-gray-500">{admin.email}</div>
           <button className="w-full rounded-lg border px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Đăng xuất</button>

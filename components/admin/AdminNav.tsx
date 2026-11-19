@@ -26,7 +26,7 @@ const ITEMS = [
   { href: "/admin/settings/", label: "Cài đặt", icon: "⚙️" },
 ];
 
-export default function AdminNav({ newOrders }: { newOrders: number }) {
+export default function AdminNav({ newOrders, crmFollowupsDue = 0 }: { newOrders: number; crmFollowupsDue?: number }) {
   const path = usePathname().replace(/\/?$/, "/");
   return (
     <nav className="flex gap-1 overflow-x-auto md:flex-col md:overflow-visible">
@@ -44,6 +44,11 @@ export default function AdminNav({ newOrders }: { newOrders: number }) {
             <span>{it.label}</span>
             {it.href === "/admin/orders/" && newOrders > 0 && (
               <span className="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-xs text-white">{newOrders}</span>
+            )}
+            {it.href === "/admin/crm/" && crmFollowupsDue > 0 && (
+              <span className="ml-auto rounded-full bg-amber-500 px-2 py-0.5 text-xs text-white" title="Khách cần gọi lại hôm nay">
+                {crmFollowupsDue}
+              </span>
             )}
           </Link>
         );
