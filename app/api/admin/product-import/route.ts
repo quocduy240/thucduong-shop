@@ -76,6 +76,17 @@ export async function POST(req: Request) {
       const categoryId = Number(b.category_id);
       const priceAdjustPct = Number(b.price_adjust_pct) || 0;
       const holdStockZero = Boolean(b.hold_stock_zero);
+      const overrideName = typeof b.override_name === "string" ? b.override_name : undefined;
+      const overridePrice =
+        b.override_price !== undefined && b.override_price !== null && b.override_price !== ""
+          ? Number(b.override_price)
+          : undefined;
+      const overrideSalePrice =
+        b.override_sale_price === null || b.override_sale_price === ""
+          ? null
+          : b.override_sale_price !== undefined
+            ? Number(b.override_sale_price)
+            : undefined;
       if (!jobId || !categoryId) {
         return NextResponse.json({ error: "Thiếu mã phiên hoặc danh mục sản phẩm." }, { status: 400 });
       }
@@ -84,6 +95,9 @@ export async function POST(req: Request) {
         categoryId,
         priceAdjustPct,
         holdStockZero,
+        overrideName,
+        overridePrice,
+        overrideSalePrice,
       });
       revalidatePath("/", "layout");
       const [jobs, workerSummary] = await Promise.all([listImportJobs(50), getIdleWorkerSummary()]);

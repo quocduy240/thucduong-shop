@@ -681,14 +681,25 @@ export async function fetchAndCreateImportJob(opts: {
   }
 
   const raw = extractRawFromHtml(html, sourceUrl);
-  const site = await getSite();
-  const normalized = await normalizeDraftWithMotif(raw, sourceDomain, site.name);
+  // Zero-token fast parse on fetch; Gemini AI runs once when admin triggers clean_data
+  const normalized: ParsedProductDraft = {
+    name: raw.name,
+    price: raw.price,
+    sale_price: raw.sale_price,
+    summary: raw.summary,
+    description_html: raw.description_html,
+    brand: raw.brand,
+    origin: raw.origin,
+    unit: raw.unit,
+    sku: raw.sku,
+    images: raw.images,
+  };
   const traces = scanLegacyTraces(`${raw.raw_text}\n${raw.description_html}`, sourceDomain, raw.images);
 
   const r = await run(
     `INSERT INTO product_import_jobs
      (source_url, canonical_url, source_domain, status, mode, raw_payload, normalized_payload, audit_notes, images_total, progress_pct, current_step)
-     VALUES (?, ?, ?, 'fetched', 'pending', ?, ?, ?, ?, 100, 'Đã lấy & chuẩn hoá theo motif shop')`,
+     VALUES (?, ?, ?, 'fetched', 'pending', ?, ?, ?, ?, 100, 'Đã quét nhanh từ link — Sẵn sàng làm sạch AI')`,
     sourceUrl,
     canonicalUrl,
     sourceDomain,
@@ -796,6 +807,9 @@ export async function importJobIntoProducts(opts: {
   categoryId: number;
   priceAdjustPct?: number;
   holdStockZero?: boolean;
+  overrideName?: string;
+  overridePrice?: number;
+  overrideSalePrice?: number | null;
 }): Promise<{ productId: number; job: ProductImportJobRow }> {
   await ensureProductImportSchema();
   const job = await getImportJobById(opts.jobId);
@@ -805,7 +819,15 @@ export async function importJobIntoProducts(opts: {
   }
 
   const draft = JSON.parse(job.normalized_payload || "{}") as ParsedProductDraft;
-  const baseSlug = slugifyVi(draft.name || "san-pham");
+  const finalName = (opts.overrideName ?? "").trim() || draft.name || "Sản phẩm mới";
+  const basePrice =
+    typeof opts.overridePrice === "number" && opts.overridePrice >= 0
+      ? opts.overridePrice
+      : draft.price;
+  const finalSalePrice =
+    opts.overrideSalePrice !== undefined ? opts.overrideSalePrice : draft.sale_price;
+
+  const baseSlug = slugifyVi(finalName || "san-pham");
   let slug = baseSlug;
   if (await one("SELECT 1 FROM products WHERE slug = ?", slug)) {
     slug = `${baseSlug}-${Date.now().toString(36).slice(-4)}`;
@@ -813,9 +835,9 @@ export async function importJobIntoProducts(opts: {
 
   const pct = Number(opts.priceAdjustPct) || 0;
   const price =
-    pct !== 0 && draft.price > 0
-      ? Math.round((draft.price * (1 + pct / 100)) / 1000) * 1000
-      : draft.price;
+    pct !== 0 && basePrice > 0
+      ? Math.round((basePrice * (1 + pct / 100)) / 1000) * 1000
+      : basePrice;
   const stock = opts.holdStockZero ? 0 : 100;
   const mainImg = draft.images?.[0] ?? null;
   const gallery = (draft.images ?? []).slice(1).join("\n");
@@ -827,9 +849,9 @@ export async function importJobIntoProducts(opts: {
      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     slug,
     opts.categoryId,
-    draft.name || "Sản phẩm mới",
+    finalName,
     Math.max(0, price),
-    draft.sale_price,
+    finalSalePrice,
     draft.summary || "",
     draft.description_html || "",
     mainImg,
