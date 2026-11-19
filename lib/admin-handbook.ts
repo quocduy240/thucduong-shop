@@ -83,6 +83,10 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
             body: "Ở Bước 3, thanh công cụ chỉ giữ lại các nút thiết yếu (Tiêu đề mục H2/H3, Đậm/Nghiêng, Danh sách, Chèn ảnh, Liên kết) và đặt thanh '✨ Viết lại bằng AI' ngay đầu khung soạn thảo. Khi cần chèn Bảng, Video, Block hoặc nhập giọng nói, bấm '+ Công cụ nâng cao'.",
           },
           {
+            heading: "Tối ưu SEO Google (SERP Preview & Chấm điểm 0–100)",
+            body: "Ngay trong trang sửa Sản phẩm và Bài viết có hộp '🔍 Tối ưu SEO Google': xem trước kết quả hiển thị trên Google, bấm '⚡ Tự điền SEO gợi ý' để tự lấy tiêu đề/mô tả chuẩn độ dài (60 / 155 ký tự), nhập từ khoá chính và theo dõi 5 tiêu chí chấm điểm SEO. Hệ thống tự xuất Meta Tags, Canonical URL và Schema.org JSON-LD (Product/Article) ra trang ngoài.",
+          },
+          {
             heading: "Giá bán, Giá khuyến mãi & Tồn kho",
             body: "Nhập giá gốc và giá khuyến mãi (phải nhỏ hơn giá gốc). Nếu đặt Giá = 0, nút mua sẽ tự chuyển thành 'Liên hệ'. Đặt Tồn kho = 0 sẽ hiển thị hết hàng.",
           },

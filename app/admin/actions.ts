@@ -10,6 +10,7 @@ import { isOrderStatus } from "@/lib/admin-data";
 import { all, batch, one, run } from "@/lib/db";
 import { onOrderStatusChanged } from "@/lib/loyalty-events";
 import { sendEmail } from "@/lib/mail";
+import { ensureSeoColumns } from "@/lib/seo";
 import {
   getSite,
   MAIL_KEYS,
@@ -95,6 +96,9 @@ export async function saveProductAction(formData: FormData) {
   const origin = str(formData, "origin");
   const unit = str(formData, "unit");
   const videoUrl = str(formData, "video_url");
+  const seoTitle = str(formData, "seo_title");
+  const seoDescription = str(formData, "seo_description");
+  const seoKeywords = str(formData, "seo_keywords");
 
   // Gallery images: newline/comma separated URLs + any uploaded gallery_files
   const galleryList = String(formData.get("gallery") ?? "")
@@ -113,19 +117,20 @@ export async function saveProductAction(formData: FormData) {
   const gallery = galleryList.join("\n");
 
   try {
+    await ensureSeoColumns();
     if (id) {
       await run(
         `UPDATE products SET name=?, slug=?, category_id=?, price=?, sale_price=?, stock=?, summary=?, description=?, image=?, featured=?,
-         sku=?, brand=?, origin=?, unit=?, gallery=?, video_url=? WHERE id=?`,
+         sku=?, brand=?, origin=?, unit=?, gallery=?, video_url=?, seo_title=?, seo_description=?, seo_keywords=? WHERE id=?`,
         name, slug, categoryId, price, salePrice, stock, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured,
-        sku, brand, origin, unit, gallery, videoUrl, id,
+        sku, brand, origin, unit, gallery, videoUrl, seoTitle, seoDescription, seoKeywords, id,
       );
     } else {
       await run(
-        `INSERT INTO products (name, slug, category_id, price, sale_price, stock, summary, description, image, featured, sku, brand, origin, unit, gallery, video_url)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO products (name, slug, category_id, price, sale_price, stock, summary, description, image, featured, sku, brand, origin, unit, gallery, video_url, seo_title, seo_description, seo_keywords)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         name, slug, categoryId, price, salePrice, stock, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured,
-        sku, brand, origin, unit, gallery, videoUrl,
+        sku, brand, origin, unit, gallery, videoUrl, seoTitle, seoDescription, seoKeywords,
       );
     }
   } catch (e) {
@@ -183,16 +188,20 @@ export async function savePostAction(formData: FormData) {
   const content = String(formData.get("content") ?? "");
   const relatedProductIds = str(formData, "related_product_ids");
   const comboTitle = str(formData, "combo_title");
+  const seoTitle = str(formData, "seo_title");
+  const seoDescription = str(formData, "seo_description");
+  const seoKeywords = str(formData, "seo_keywords");
   try {
+    await ensureSeoColumns();
     if (id) {
       await run(
-        `UPDATE posts SET title=?, slug=?, category_id=?, excerpt=?, content=?, cover=?, related_product_ids=?, combo_title=? WHERE id=?`,
-        title, slug, categoryId, str(formData, "excerpt"), content, cover, relatedProductIds, comboTitle, id,
+        `UPDATE posts SET title=?, slug=?, category_id=?, excerpt=?, content=?, cover=?, related_product_ids=?, combo_title=?, seo_title=?, seo_description=?, seo_keywords=? WHERE id=?`,
+        title, slug, categoryId, str(formData, "excerpt"), content, cover, relatedProductIds, comboTitle, seoTitle, seoDescription, seoKeywords, id,
       );
     } else {
       await run(
-        `INSERT INTO posts (title, slug, category_id, excerpt, content, cover, related_product_ids, combo_title) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        title, slug, categoryId, str(formData, "excerpt"), content, cover, relatedProductIds, comboTitle,
+        `INSERT INTO posts (title, slug, category_id, excerpt, content, cover, related_product_ids, combo_title, seo_title, seo_description, seo_keywords) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        title, slug, categoryId, str(formData, "excerpt"), content, cover, relatedProductIds, comboTitle, seoTitle, seoDescription, seoKeywords,
       );
     }
   } catch (e) {

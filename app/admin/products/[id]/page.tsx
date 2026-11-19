@@ -7,8 +7,10 @@ import CoverImageStudio from "@/components/admin/CoverImageStudio";
 import ProductEditTabs from "@/components/admin/ProductEditTabs";
 import ProductGalleryStudio from "@/components/admin/ProductGalleryStudio";
 import ProductSourceNoteBanner from "@/components/admin/ProductSourceNoteBanner";
+import SeoPanel from "@/components/admin/SeoPanel";
 import { getProductById, getProductCategories, url } from "@/lib/data";
 import { one } from "@/lib/db";
+import { getSeoFields } from "@/lib/seo";
 import { deleteProductAction, saveProductAction } from "../../actions";
 
 export const metadata = { title: "Sản phẩm | Quản trị" };
@@ -25,7 +27,7 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
   const saved = sp.saved === "1";
   const id = rawId === "new" ? 0 : Number(rawId);
   if (rawId !== "new" && !Number.isInteger(id)) notFound();
-  const [p, categories, sourceRow] = await Promise.all([
+  const [p, categories, sourceRow, seo] = await Promise.all([
     id ? getProductById(id) : Promise.resolve(undefined),
     getProductCategories(),
     id
@@ -34,6 +36,7 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
           id,
         ).catch(() => undefined)
       : Promise.resolve(undefined),
+    id ? getSeoFields("products", id) : Promise.resolve({ seo_title: "", seo_description: "", seo_keywords: "" }),
   ]);
   if (id && !p) notFound();
 
@@ -158,6 +161,21 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
               className={input}
             />
           </div>
+
+          <SeoPanel
+            entityType="product"
+            defaultSeoTitle={seo.seo_title}
+            defaultSeoDescription={seo.seo_description}
+            defaultSeoKeywords={seo.seo_keywords}
+            titleFieldName="name"
+            summaryFieldName="summary"
+            imageFieldName="image"
+            defaultTitle={p?.name ?? ""}
+            defaultSummary={p?.summary ?? ""}
+            defaultSlug={p?.slug ?? ""}
+            defaultImage={p?.image ?? ""}
+            urlPrefix={`https://thucduongshop.duyvo.win/san-pham/${p?.category_slug || "danh-muc"}/`}
+          />
         </section>
 
         {/* Section 2: Pricing, Stock & Category (Highlighted Commerce Card) */}

@@ -4,7 +4,9 @@ import ContentEditor from "@/components/admin/ContentEditor";
 import CoverImageStudio from "@/components/admin/CoverImageStudio";
 import { requireAdmin } from "@/lib/auth";
 import ConfirmButton from "@/components/admin/ConfirmButton";
+import SeoPanel from "@/components/admin/SeoPanel";
 import { getPostById, getPostCategories, getProducts, url } from "@/lib/data";
+import { getSeoFields } from "@/lib/seo";
 import { deletePostAction, savePostAction } from "../../actions";
 
 export const metadata = { title: "Bài viết | Quản trị" };
@@ -19,10 +21,11 @@ export default async function PostEditPage({ params, searchParams }: PageProps<"
   const error = typeof sp.error === "string" ? sp.error : "";
   const id = rawId === "new" ? 0 : Number(rawId);
   if (rawId !== "new" && !Number.isInteger(id)) notFound();
-  const [p, categories, productsRaw] = await Promise.all([
+  const [p, categories, productsRaw, seo] = await Promise.all([
     id ? getPostById(id) : Promise.resolve(undefined),
     getPostCategories(),
     getProducts(200),
+    id ? getSeoFields("posts", id) : Promise.resolve({ seo_title: "", seo_description: "", seo_keywords: "" }),
   ]);
   if (id && !p) notFound();
   const current = p ? categories.find((c) => c.slug === p.category_slug)?.id : undefined;
@@ -76,6 +79,20 @@ export default async function PostEditPage({ params, searchParams }: PageProps<"
           <label className={label}>Mô tả ngắn (Meta Description chuẩn SEO)</label>
           <textarea name="excerpt" rows={2} defaultValue={p?.excerpt} className={input} />
         </div>
+        <SeoPanel
+          entityType="post"
+          defaultSeoTitle={seo.seo_title}
+          defaultSeoDescription={seo.seo_description}
+          defaultSeoKeywords={seo.seo_keywords}
+          titleFieldName="title"
+          summaryFieldName="excerpt"
+          imageFieldName="cover"
+          defaultTitle={p?.title ?? ""}
+          defaultSummary={p?.excerpt ?? ""}
+          defaultSlug={p?.slug ?? ""}
+          defaultImage={p?.cover ?? ""}
+          urlPrefix={`https://thucduongshop.duyvo.win/${p?.section_slug || "thuc-duong"}/${p?.category_slug || "bai-viet"}/`}
+        />
         <CoverImageStudio defaultCover={p?.cover ?? ""} />
         <div>
           <label className={label}>Nội dung bài viết &amp; Block Sản phẩm đính kèm</label>

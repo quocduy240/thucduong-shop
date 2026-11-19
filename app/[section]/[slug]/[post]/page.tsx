@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { getPost, getPostSection } from "@/lib/data";
+import { getPost, getPostSection, url } from "@/lib/data";
+import { getSeoFields } from "@/lib/seo";
 import ArticleReadTracker from "@/components/ArticleReadTracker";
 import { PostDetail } from "@/components/PostViews";
 
@@ -17,16 +18,37 @@ async function load(params: PageProps<"/[section]/[slug]/[post]">["params"]) {
 
 export async function generateMetadata({ params }: PageProps<"/[section]/[slug]/[post]">) {
   const r = await load(params);
-  return r
-    ? { title: r.post.title, description: r.post.excerpt, openGraph: r.post.cover ? { images: [r.post.cover] } : undefined }
-    : { title: "Không tìm thấy" };
+  if (!r) return { title: "Không tìm thấy" };
+  const seo = await getSeoFields("posts", r.post.id);
+  const title = seo.seo_title || r.post.title;
+  const description = seo.seo_description || r.post.excerpt || undefined;
+  return {
+    title,
+    description,
+    keywords: seo.seo_keywords || undefined,
+    alternates: { canonical: url.post(r.post) },
+    openGraph: {
+      title,
+      description,
+      images: r.post.cover ? [r.post.cover] : undefined,
+    },
+  };
 }
 
 export default async function PostPage({ params }: PageProps<"/[section]/[slug]/[post]">) {
   const r = await load(params);
   if (!r) notFound();
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: r.post.title,
+    description: r.post.excerpt || undefined,
+    image: r.post.cover ? [r.post.cover] : undefined,
+    datePublished: r.post.created_at || undefined,
+  };
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
       <PostDetail post={r.post} section={r.section} />
       <ArticleReadTracker postId={r.post.id} postTitle={r.post.title} />
     </>

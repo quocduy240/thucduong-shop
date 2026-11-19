@@ -5,6 +5,7 @@ import QrCornerBadge from "@/components/QrCornerBadge";
 import { getProduct, getRelatedProducts, url } from "@/lib/data";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { getProductFlashSale } from "@/lib/flash-sale";
+import { getSeoFields } from "@/lib/seo";
 import { getSite } from "@/lib/settings";
 import { getSocialLinksConfig } from "@/lib/social-links";
 import { vnd } from "@/lib/site";
@@ -40,7 +41,21 @@ function toYoutubeEmbedUrl(raw: string): string | null {
 
 export async function generateMetadata({ params }: PageProps<"/san-pham/[category]/[product]">) {
   const p = await load(params);
-  return { title: p?.name ?? "Không tìm thấy", description: p?.summary };
+  if (!p) return { title: "Không tìm thấy" };
+  const seo = await getSeoFields("products", p.id);
+  const title = seo.seo_title || p.name;
+  const description = seo.seo_description || p.summary || undefined;
+  return {
+    title,
+    description,
+    keywords: seo.seo_keywords || undefined,
+    alternates: { canonical: url.product(p) },
+    openGraph: {
+      title,
+      description,
+      images: p.image ? [p.image] : undefined,
+    },
+  };
 }
 
 export default async function ProductPage({ params }: PageProps<"/san-pham/[category]/[product]">) {
@@ -64,8 +79,28 @@ export default async function ProductPage({ params }: PageProps<"/san-pham/[cate
   const embedUrl = toYoutubeEmbedUrl(p.video_url);
   const primaryPhone = site.hotline.split("-")[0]?.replace(/[^\d]/g, "") || "0767518592";
 
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: p.name,
+    description: p.summary || undefined,
+    image: p.image ? [p.image] : undefined,
+    sku: p.sku || undefined,
+    brand: p.brand ? { "@type": "Brand", name: p.brand } : undefined,
+    offers:
+      p.price > 0
+        ? {
+            "@type": "Offer",
+            priceCurrency: "VND",
+            price: effectiveSalePrice ?? p.price,
+            availability: p.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+          }
+        : undefined,
+  };
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
       <Breadcrumb
         items={[
           { label: "Sản phẩm", href: "/san-pham/" },
