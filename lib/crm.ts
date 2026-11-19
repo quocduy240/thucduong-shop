@@ -54,7 +54,7 @@ export async function getCrmCustomers(): Promise<CrmCustomer[]> {
       "SELECT id, code, name, phone, email, total, status, created_at FROM orders WHERE status <> 'cancelled' ORDER BY created_at DESC",
     ),
     all<{ order_id: number; name: string }>(
-      "SELECT order_id, name FROM order_items ORDER BY id DESC LIMIT 500",
+      "SELECT order_id, name FROM order_items ORDER BY rowid DESC LIMIT 500",
     ),
     all<CrmNote>("SELECT * FROM crm_notes ORDER BY created_at DESC LIMIT 300"),
   ]);
