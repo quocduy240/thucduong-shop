@@ -1,5 +1,6 @@
 import "server-only";
 import { all, one } from "./db";
+import { ensureSeoColumns } from "./seo";
 
 export const ORDER_STATUS = {
   new: "Mới",
@@ -93,19 +94,50 @@ export async function listProducts(opts: { q?: string; category?: number; stock?
 
 // ---- posts ----
 export type AdminPostRow = {
-  id: number; title: string; slug: string; cover: string | null; created_at: string;
+  id: number; title: string; slug: string; excerpt: string; cover: string | null; created_at: string;
   category_name: string; category_slug: string; section_slug: string;
+  seo_title: string; seo_description: string;
 };
-export async function listPosts(opts: { q?: string; category?: number; page: number }) {
+
+export async function getPostsOverview() {
+  await ensureSeoColumns();
+  const [agg, catRow] = await Promise.all([
+    one<{ postsTotal: number; missingCover: number; missingExcerpt: number; missingSeo: number }>(
+      `SELECT COUNT(*) AS postsTotal,
+              SUM(CASE WHEN cover IS NULL OR TRIM(cover) = '' THEN 1 ELSE 0 END) AS missingCover,
+              SUM(CASE WHEN TRIM(COALESCE(excerpt, '')) = '' THEN 1 ELSE 0 END) AS missingExcerpt,
+              SUM(CASE WHEN TRIM(COALESCE(seo_title, '')) = '' AND TRIM(COALESCE(seo_description, '')) = '' THEN 1 ELSE 0 END) AS missingSeo
+       FROM posts`,
+    ),
+    one<{ n: number }>("SELECT COUNT(*) AS n FROM post_categories"),
+  ]);
+  return {
+    postsTotal: agg?.postsTotal ?? 0,
+    missingCover: agg?.missingCover ?? 0,
+    missingExcerpt: agg?.missingExcerpt ?? 0,
+    missingSeo: agg?.missingSeo ?? 0,
+    categoriesCount: catRow?.n ?? 0,
+  };
+}
+
+export async function listPosts(opts: { q?: string; category?: number; filter?: string; page: number }) {
+  await ensureSeoColumns();
   const where: string[] = [];
   const params: (string | number)[] = [];
   if (opts.q) (where.push("po.title LIKE ?"), params.push(like(opts.q)));
   if (opts.category) (where.push("po.category_id = ?"), params.push(opts.category));
+  if (opts.filter === "no_cover") where.push("(po.cover IS NULL OR TRIM(po.cover) = '')");
+  if (opts.filter === "no_excerpt") where.push("TRIM(COALESCE(po.excerpt, '')) = ''");
+  if (opts.filter === "no_seo") {
+    where.push("TRIM(COALESCE(po.seo_title, '')) = '' AND TRIM(COALESCE(po.seo_description, '')) = ''");
+  }
   const w = where.length ? "WHERE " + where.join(" AND ") : "";
   const [totalRow, rows] = await Promise.all([
     one<{ n: number }>(`SELECT COUNT(*) AS n FROM posts po ${w}`, ...params),
     all<AdminPostRow>(
-      `SELECT po.id, po.title, po.slug, po.cover, po.created_at, pc.name AS category_name, pc.slug AS category_slug, pc.section_slug
+      `SELECT po.id, po.title, po.slug, COALESCE(po.excerpt, '') AS excerpt, po.cover, po.created_at,
+              pc.name AS category_name, pc.slug AS category_slug, pc.section_slug,
+              COALESCE(po.seo_title, '') AS seo_title, COALESCE(po.seo_description, '') AS seo_description
        FROM posts po JOIN post_categories pc ON pc.id = po.category_id ${w}
        ORDER BY po.created_at DESC, po.id DESC LIMIT ? OFFSET ?`,
       ...params, PAGE_SIZE, offset(opts.page),
