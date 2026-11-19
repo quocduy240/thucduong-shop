@@ -106,11 +106,16 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
       },
       {
         id: "flash-sale",
-        title: "2. Thiết lập Giờ vàng săn sale (/admin/flash-sale/)",
+        title: "2. Thiết lập Giờ vàng săn sale 3 Tab (/admin/flash-sale/)",
+        badge: "Mới",
         items: [
           {
-            heading: "Chọn khung giờ & sản phẩm giảm sốc",
-            body: "Vào mục '⚡ Giờ vàng săn sale' để bật chương trình, chọn thời gian kết thúc đếm ngược và mức giá ưu đãi riêng cho từng sản phẩm.",
+            heading: "3 Tab rõ ràng: Deal Săn Sale · Khung Giờ · Cấu hình",
+            body: "Mặc định mở thẳng Tab '🔥 Sản phẩm Săn Sale' kèm bộ lọc nhanh theo từng khung giờ và khung '+ Thêm nhanh sản phẩm' thu gọn. Tab '⏰ Khung Giờ Vàng' dùng để chỉnh giờ (11h-14h, 19h-22h...) và % giảm chuẩn; Tab '⚙️ Cấu hình' để bật/tắt 24/7 và reset mỗi ngày.",
+          },
+          {
+            heading: "Tạo Deal tự động 1 chạm (-15%)",
+            body: "Bấm nút '⚡ Tự động phân bổ Deal (-15%)' ngay trên thanh Tab để hệ thống tự chọn sản phẩm nổi bật còn hàng chia đều vào các khung giờ.",
           },
         ],
       },
@@ -284,6 +289,10 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
         title: "1. Vận hành Tư vấn nhanh AI & Đọc kết quả Xét nghiệm",
         items: [
           {
+            heading: "Quy trình 3 bước ngoài /tu-van-nhanh/ (Mới)",
+            body: "Trang khách /tu-van-nhanh/ hoạt động theo 3 bước: Bước 1 (Đối tượng, hồ sơ & tự tính chỉ số BMI), Bước 2 (Nhu cầu, tình trạng & khẩu phần 24h tuỳ chọn), Bước 3 (Chọn mô hình Chuyên gia AI & thanh tiến trình 4 giai đoạn). Admin xem và duyệt hồ sơ tại /admin/quick-consult/.",
+          },
+          {
             heading: "Theo dõi & Phản hồi hồ sơ tư vấn",
             body: "Xem câu hỏi/triệu chứng khách gửi từ /tu-van-nhanh/, chỉnh sửa phác đồ gợi ý của AI trước khi gửi Email hoặc gọi điện chốt đơn qua SĐT.",
           },
@@ -305,6 +314,21 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
     icon: "📝",
     label: "Bài viết, Video, Tài liệu & Soạn thảo AI",
     topics: [
+      {
+        id: "posts-list-seo",
+        title: "0. Danh sách Bài viết, Thẻ KPI & Lọc lỗi SEO (/admin/posts/)",
+        badge: "Mới",
+        items: [
+          {
+            heading: "4 Thẻ KPI & Bộ lọc nhanh 1 chạm",
+            body: "Đầu trang hiển thị tổng bài viết, số bài thiếu ảnh bìa, số bài chưa tối ưu SEO và số chuyên mục. Bấm trực tiếp vào thẻ KPI hoặc nút Pill lọc nhanh ('Thiếu ảnh', 'Thiếu mô tả', 'Chưa tối ưu SEO') để lọc ngay bài cần hoàn thiện.",
+          },
+          {
+            heading: "Thao tác nhanh trên từng dòng",
+            body: "Bấm vào huy hiệu chuyên mục để lọc nhanh theo chuyên mục đó, hoặc dùng nút '👁️ Xem', '✏️ Sửa', '🗑️ Xoá' ngay trên bảng.",
+          },
+        ],
+      },
       {
         id: "content-editor",
         title: "1. Trình soạn thảo ContentEditor & Trợ lý viết bài AI",
@@ -346,6 +370,32 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
           {
             heading: "Xem nhanh & Chuyển SP/Bài viết hàng loạt + SEO Danh mục",
             body: "Bấm vào số '📦 X SP' hoặc '📝 X bài' để xổ danh sách bên trong, tick chọn nhiều mục để chuyển sang danh mục khác (hoặc '? Chưa phân loại'). Bấm '📝 SEO & Mô tả' để nhập Meta Title và đoạn giới thiệu đầu trang danh mục.",
+          },
+        ],
+      },
+      {
+        id: "videos-manager",
+        title: "4. Thư viện Video YouTube & Đồng bộ tự động (/admin/videos/)",
+        badge: "Mới",
+        items: [
+          {
+            heading: "Thanh Đồng bộ gọn & Thêm nhanh nhiều link",
+            body: "Khối Đồng bộ YouTube thu gọn thành 1 dòng (tự bung khi có video chờ duyệt), có nút '🔍 Quét kênh ngay'. Bấm '🎬 + Thêm nhanh Video từ YouTube' để dán hàng loạt link YouTube.",
+          },
+          {
+            heading: "Sửa nhanh từng video",
+            body: "Danh sách hiển thị gọn thumbnail, tiêu đề và chuyên đề (bấm chuyên đề để lọc). Cần chỉnh sửa tiêu đề, thứ tự hoặc mô tả thì bấm '✏️ Sửa nhanh thông tin video' ngay dưới thẻ.",
+          },
+        ],
+      },
+      {
+        id: "documents-manager",
+        title: "5. Kho Tài liệu, Slide & Khách mở khoá (/admin/documents/)",
+        badge: "Mới",
+        items: [
+          {
+            heading: "2 Tab tách bạch & Bộ lọc 1 chạm",
+            body: "Tab '📚 Kho Tài liệu & Sách' dùng lọc nhanh theo Định dạng (PDF/Word/Slide/Sách), Cơ chế tải (Miễn phí/Khảo sát/Tặng kèm/Trả phí/Affiliate) hoặc bấm thẳng vào tên thư mục Drive. Tab '📋 Khách hàng Khảo sát / Mở khoá' hiển thị riêng danh sách Leads thu được.",
           },
         ],
       },
@@ -491,8 +541,12 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
             body: "Đổi bộ màu sắc, font chữ, cỡ chữ dễ đọc cho khách hàng lớn tuổi ngay trong Admin.",
           },
           {
-            heading: "Cài đặt chung & SMTP (/admin/settings/)",
-            body: "Cấu hình tên shop, hotline, widget Zalo/Messenger nổi, email nhận thông báo đơn mới và tài khoản SMTP Gmail để gửi mail tự động.",
+            heading: "Cài đặt chung & SMTP Gmail (/admin/settings/)",
+            body: "Cấu hình tên shop, hotline, widget Zalo/Messenger nổi, email nhận đơn mới và tài khoản SMTP Gmail (Host: smtp.gmail.com, Port: 465, dùng Mật khẩu ứng dụng 16 ký tự từ Google Security → 2-Step Verification → App Passwords). Bấm '✉ Lưu & Gửi email thử' để kiểm tra ngay.",
+          },
+          {
+            heading: "Hệ thống SEO tổng thể (SERP Preview + JSON-LD Schema)",
+            body: "Ngoài /admin/sitemaps/, mỗi Sản phẩm (/admin/products/[id]/) và Bài viết (/admin/posts/[id]/) đều có hộp '🔍 Tối ưu SEO Google' chấm điểm 0–100, tự gợi ý tiêu đề/mô tả chuẩn độ dài và tự xuất Schema.org Product/Article JSON-LD ra trang ngoài.",
           },
         ],
       },
