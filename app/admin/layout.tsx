@@ -13,7 +13,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const [site, stats] = await Promise.all([getSite(), getStats()]);
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 md:flex-row">
-      <aside className="shrink-0 border-b bg-white p-3 md:flex md:w-60 md:flex-col md:border-b-0 md:border-r md:p-4">
+      <aside className="shrink-0 border-b bg-white p-3 md:flex md:w-64 md:flex-col md:overflow-y-auto md:border-b-0 md:border-r md:p-4">
         <div className="mb-3 flex items-center justify-between md:mb-6 md:block">
           <div>
             <div className="text-lg font-bold text-brand">{site.name}</div>
