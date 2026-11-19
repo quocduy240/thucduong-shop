@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { CrmCustomer, RfmSegment } from "@/lib/crm";
 import { vnd } from "@/lib/site";
+import CrmGuideDrawer from "./CrmGuideDrawer";
 
 const SEGMENT_META: Record<RfmSegment, { label: string; badge: string; hint: string }> = {
   refill_due: {
@@ -99,11 +100,14 @@ export default function CrmDashboardClient({ initialCustomers }: { initialCustom
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border bg-white p-5 shadow-2xs">
-        <h1 className="text-xl font-extrabold text-gray-900">💎 CRM 360° — Chăm sóc Khách hàng Cũ &amp; Mới</h1>
-        <p className="mt-1 text-xs text-gray-500">
-          Tự động phân khúc khách theo chu kỳ mua hàng (RFM), gợi ý khách sắp hết sản phẩm và lưu nhật ký tư vấn.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-white p-5 shadow-2xs">
+        <div>
+          <h1 className="text-xl font-extrabold text-gray-900">💎 CRM 360° — Chăm sóc Khách hàng Cũ &amp; Mới</h1>
+          <p className="mt-1 text-xs text-gray-500">
+            Tự động phân khúc khách theo chu kỳ mua hàng (RFM), gợi ý khách sắp hết sản phẩm và lưu nhật ký tư vấn.
+          </p>
+        </div>
+        <CrmGuideDrawer />
       </div>
 
       {/* Segment Filter Pills */}
