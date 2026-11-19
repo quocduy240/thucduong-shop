@@ -1,4 +1,3 @@
-import * as cheerio from "cheerio";
 import { NextResponse } from "next/server";
 import { currentAdmin } from "@/lib/auth";
 import { callGeminiGenerateContent, resolveGeminiApiKey } from "@/lib/gemini-key";
@@ -61,116 +60,153 @@ function isBlockedExternalUrl(href: string, blockedDomains: string[]): boolean {
   return /^https?:\/\//i.test(href) && host.includes(".");
 }
 
+function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+}
+
+function stripTags(html: string): string {
+  return decodeHtmlEntities(html.replace(/<[^>]+>/g, " "))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function cleanProductDescriptionHtml(
   rawHtml: string,
   opts: CleanOptions,
 ): { cleanedHtml: string; plainText: string; images: { src: string; alt: string }[]; stats: CleanStats } {
   const stats: CleanStats = { removedPhones: 0, removedButtons: 0, removedDomains: 0 };
-  const $ = cheerio.load(`<div id="td-clean-root">${rawHtml || ""}</div>`);
-  const root = $("#td-clean-root");
+  let html = String(rawHtml || "");
 
-  root.find("script, style, iframe[src*='facebook'], form").remove();
+  // Remove unsafe/irrelevant embedded blocks
+  html = html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<form\b[^>]*>[\s\S]*?<\/form>/gi, "");
 
   // 1. Remove buy/order buttons & CTA blocks from source site
   if (opts.stripBuyButtons) {
-    root.find("button, input[type='button'], input[type='submit'], a.btn, a.button, .btn-buy, .add-to-cart, .buy-now").each((_, el) => {
-      $(el).remove();
+    html = html.replace(/<button\b[^>]*>[\s\S]*?<\/button>/gi, () => {
       stats.removedButtons++;
+      return "";
     });
-
-    root.find("a, div, p, span").each((_, el) => {
-      const $el = $(el);
-      const txt = $el.text().replace(/\s+/g, " ").trim();
-      const cls = ($el.attr("class") || "").toLowerCase();
-      const href = ($el.attr("href") || "").toLowerCase();
+    html = html.replace(/<input\b[^>]*type=["']?(?:button|submit)["']?[^>]*>/gi, () => {
+      stats.removedButtons++;
+      return "";
+    });
+    html = html.replace(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi, (full, attrs: string, inner: string) => {
+      const clsMatch = attrs.match(/\bclass=["']([^"']*)["']/i);
+      const hrefMatch = attrs.match(/\bhref=["']([^"']*)["']/i);
+      const cls = (clsMatch?.[1] || "").toLowerCase();
+      const href = (hrefMatch?.[1] || "").toLowerCase();
+      const txt = stripTags(inner);
       const isBuyHref =
         href.includes("cart") ||
         href.includes("checkout") ||
         href.includes("dat-hang") ||
         href.includes("zalo.me") ||
         href.startsWith("tel:");
-      const isShortCtaText = txt.length > 0 && txt.length <= 60 && BUY_BUTTON_REGEX.test(txt);
-
-      if (
-        (el.tagName === "a" && (isBuyHref || isShortCtaText)) ||
-        (cls.includes("buy") || cls.includes("cart") || cls.includes("hotline") || cls.includes("zalo")) ||
-        (isShortCtaText && $el.children("p, h2, h3, ul, table").length === 0)
-      ) {
-        $el.remove();
+      const isBuyCls = /\b(btn|button|buy|cart|hotline|zalo)\b/i.test(cls);
+      const isShortCta = txt.length > 0 && txt.length <= 60 && BUY_BUTTON_REGEX.test(txt);
+      if (isBuyHref || isBuyCls || isShortCta) {
         stats.removedButtons++;
+        return "";
       }
+      return full;
+    });
+    html = html.replace(/<(?:p|div|span)\b([^>]*)>([\s\S]*?)<\/(?:p|div|span)>/gi, (full, attrs: string, inner: string) => {
+      if (/<(?:p|h[1-6]|ul|ol|table|img)\b/i.test(inner)) return full;
+      const txt = stripTags(inner);
+      const clsMatch = attrs.match(/\bclass=["']([^"']*)["']/i);
+      const cls = (clsMatch?.[1] || "").toLowerCase();
+      if (
+        (/\b(btn-buy|add-to-cart|buy-now|hotline|zalo-box)\b/i.test(cls)) ||
+        (txt.length > 0 && txt.length <= 60 && BUY_BUTTON_REGEX.test(txt))
+      ) {
+        stats.removedButtons++;
+        return "";
+      }
+      return full;
     });
   }
 
-  // 2. Remove external links & external domains
+  // 2. Remove external links
   if (opts.stripExternalDomains) {
-    root.find("a").each((_, el) => {
-      const $el = $(el);
-      const href = ($el.attr("href") || "").trim();
-      if (isBlockedExternalUrl(href, opts.blockedDomains)) {
-        stats.removedDomains++;
-        const text = $el.text().trim();
-        if (!text || /https?:\/\/|www\.|\.[a-z]{2,6}\b/i.test(text) || BUY_BUTTON_REGEX.test(text)) {
-          $el.remove();
-        } else {
-          $el.replaceWith(text);
-        }
+    html = html.replace(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi, (full, attrs: string, inner: string) => {
+      const hrefMatch = attrs.match(/\bhref=["']([^"']*)["']/i);
+      const href = (hrefMatch?.[1] || "").trim();
+      if (!isBlockedExternalUrl(href, opts.blockedDomains)) return full;
+      stats.removedDomains++;
+      const text = stripTags(inner);
+      if (!text || /https?:\/\/|www\.|\.[a-z]{2,6}\b/i.test(text) || BUY_BUTTON_REGEX.test(text)) {
+        return "";
       }
+      return text;
     });
   }
 
-  // 3. Remove tel: links and phone numbers in text nodes
+  // 3. Remove tel: links
   if (opts.stripPhones) {
-    root.find("a[href^='tel:']").each((_, el) => {
-      $(el).remove();
+    html = html.replace(/<a\b[^>]*href=["']tel:[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, () => {
       stats.removedPhones++;
+      return "";
     });
   }
 
-  // Collect clean product images (skip tiny icons / external buy buttons)
+  // 4. Collect clean product images & strip button-like images
   const images: { src: string; alt: string }[] = [];
   const seenImg = new Set<string>();
-  root.find("img").each((_, el) => {
-    const src = ($(el).attr("src") || "").trim();
-    const alt = ($(el).attr("alt") || "").trim();
-    if (!src || src.startsWith("data:")) return;
+  html = html.replace(/<img\b([^>]*)>/gi, (full, attrs: string) => {
+    const srcMatch = attrs.match(/\bsrc=["']([^"']+)["']/i);
+    const altMatch = attrs.match(/\balt=["']([^"']*)["']/i);
+    const src = (srcMatch?.[1] || "").trim();
+    const alt = (altMatch?.[1] || "").trim();
+    if (!src || src.startsWith("data:")) return full;
     if (opts.stripBuyButtons && /buy|cart|zalo|hotline|icon|button/i.test(`${src} ${alt}`)) {
-      $(el).remove();
       stats.removedButtons++;
-      return;
+      return "";
     }
     if (!seenImg.has(src)) {
       seenImg.add(src);
       images.push({ src, alt });
     }
+    return full;
   });
 
-  let cleanedHtml = root.html() || "";
-
+  // 5. Strip phone numbers & labels in text
   if (opts.stripPhones) {
-    cleanedHtml = cleanedHtml.replace(PHONE_REGEX, () => {
+    html = html.replace(PHONE_REGEX, () => {
       stats.removedPhones++;
       return "";
     });
-    cleanedHtml = cleanedHtml.replace(
+    html = html.replace(
       /(?:hotline|sđt|điện\s*thoại|zalo|liên\s*hệ)\s*[:\-–]?\s*(?=<\/|[\n\r]|$)/gi,
       "",
     );
   }
 
+  // 6. Strip blocked domain strings & bare external URLs outside HTML attributes
   if (opts.stripExternalDomains) {
     for (const domain of opts.blockedDomains) {
       if (!domain || OWN_SAFE_DOMAINS.has(domain)) continue;
       const escaped = domain.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const re = new RegExp(`(?:https?:\\/\\/)?(?:www\\.)?${escaped}(?:\\/[^\\s<"']*)?`, "gi");
-      cleanedHtml = cleanedHtml.replace(re, () => {
+      html = html.replace(re, (m, offset: number, whole: string) => {
+        // Preserve src="..." of clean <img>
+        const before = whole.slice(Math.max(0, offset - 8), offset);
+        if (/src=["']$/i.test(before)) return m;
         stats.removedDomains++;
         return "";
       });
     }
-    // Strip any remaining bare URLs in text (outside img src attributes)
-    cleanedHtml = cleanedHtml.replace(/(^|[\s(>])https?:\/\/[^\s<"')]+/gi, (full, prefix) => {
-      if (isBlockedExternalUrl(full.trim(), opts.blockedDomains)) {
+    html = html.replace(/(^|[\s(>])https?:\/\/[^\s<"')]+/gi, (full, prefix: string) => {
+      const urlOnly = full.slice(prefix.length).trim();
+      if (isBlockedExternalUrl(urlOnly, opts.blockedDomains)) {
         stats.removedDomains++;
         return prefix;
       }
@@ -178,18 +214,15 @@ function cleanProductDescriptionHtml(
     });
   }
 
-  const $final = cheerio.load(`<div id="td-clean-final">${cleanedHtml}</div>`);
-  $final("#td-clean-final p, #td-clean-final li, #td-clean-final span").each((_, el) => {
-    const $el = $final(el);
-    if ($el.find("img").length === 0 && !$el.text().replace(/\s+/g, "").trim()) {
-      $el.remove();
-    }
-  });
+  // Remove empty paragraphs/spans left over after stripping
+  html = html.replace(/<(p|span|li)\b[^>]*>(?:\s|&nbsp;|<br\s*\/?>)*<\/\1>/gi, "");
 
-  const finalHtml = $final("#td-clean-final").html() || "";
-  const plainText = $final("#td-clean-final").text().replace(/\s+/g, " ").trim();
-
-  return { cleanedHtml: finalHtml, plainText, images, stats };
+  return {
+    cleanedHtml: html.trim(),
+    plainText: stripTags(html),
+    images,
+    stats,
+  };
 }
 
 function buildStylePrompt(style: StylePreset): string {
@@ -373,7 +406,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Post-sanitize AI output to guarantee 0 phone numbers / buy buttons / external domains leak through
     const postCleaned = cleanProductDescriptionHtml(rewrittenHtml, cleanOpts);
 
     return NextResponse.json({

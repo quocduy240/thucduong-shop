@@ -5,6 +5,7 @@ import { sanitizeHtml } from "@/lib/sanitize-html";
 import { vnd } from "@/lib/site";
 import AiImageRegenerateModal from "./AiImageRegenerateModal";
 import EditorColorPopover from "./EditorColorPopover";
+import ProductDescriptionAiPanel from "./ProductDescriptionAiPanel";
 
 export type EditorProductItem = {
   id: number;
@@ -45,12 +46,16 @@ export default function ContentEditor({
   products = [],
   defaultComboIds = "",
   defaultComboTitle = "",
+  sourceUrl = "",
+  enableProductAiRewrite = false,
 }: {
   name: string;
   defaultValue: string;
   products?: EditorProductItem[];
   defaultComboIds?: string;
   defaultComboTitle?: string;
+  sourceUrl?: string;
+  enableProductAiRewrite?: boolean;
 }) {
   const [html, setHtml] = useState(defaultValue);
   const [mode, setMode] = useState<"visual" | "split" | "html">("visual");
@@ -2000,6 +2005,15 @@ export default function ContentEditor({
             </div>
           )}
         </div>
+
+        {(enableProductAiRewrite || name === "description") && (
+          <div className="border-t border-indigo-100 bg-indigo-50/20 px-4 py-3">
+            <ProductDescriptionAiPanel
+              targetName={name}
+              sourceUrl={sourceUrl}
+            />
+          </div>
+        )}
 
         {(statusMsg || err) && (
           <div

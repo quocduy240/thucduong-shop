@@ -62,7 +62,7 @@ export default function ProductDescriptionAiPanel({
       const currentHtml = readFieldValue(targetName);
       setUndoHtml(currentHtml);
 
-      const res = await fetch("/api/admin/products/ai-rewrite", {
+      const res = await fetch("/api/admin/products/ai-rewrite/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

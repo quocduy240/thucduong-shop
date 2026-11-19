@@ -259,6 +259,10 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
             heading: "Xét nghiệm AI (/admin/lab-analysis/)",
             body: "Quản lý danh sách phiếu xét nghiệm khách tải lên, xem bản phân tích AI và chỉ số sức khoẻ để tư vấn thực dưỡng phù hợp.",
           },
+          {
+            heading: "Block Miễn trừ trách nhiệm Y khoa 3 văn phong (Mới)",
+            body: "Trong Cấu hình Chuyên gia tại /admin/quick-consult/, chọn 1 trong 3 văn phong chuẩn (Gemini Khoa học, Ân cần cho người lớn tuổi, hoặc Pháp lý chặt chẽ NĐ 15/2018) cùng vị trí hiển thị. Block sẽ tự động xuất hiện ở /tu-van-nhanh/, Hồ sơ PDF (/ho-so-tu-van/[token]/), bản xem trước Admin và Email gửi bệnh nhân.",
+          },
         ],
       },
     ],

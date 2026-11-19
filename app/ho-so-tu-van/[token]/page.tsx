@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
+import MedicalDisclaimerBlock from "@/components/MedicalDisclaimerBlock";
 import PrintPdfButton from "@/components/PrintPdfButton";
-import { computeBmi, getQuickConsultByToken, type ExpertProfileConfig } from "@/lib/quick-consult";
+import { computeBmi, getExpertProfileConfig, getQuickConsultByToken, type ExpertProfileConfig } from "@/lib/quick-consult";
+import { resolveDisclaimerContent } from "@/lib/medical-disclaimer";
 import { getSite } from "@/lib/settings";
 
 export const metadata = {
@@ -35,13 +37,18 @@ export default async function PatientConsultReportPage({
   const sp = await searchParams;
   const autoPrint = sp.print === "1";
 
-  const [row, site] = await Promise.all([getQuickConsultByToken(token), getSite()]);
+  const [row, site, defaultExpertCfg] = await Promise.all([
+    getQuickConsultByToken(token),
+    getSite(),
+    getExpertProfileConfig(),
+  ]);
   if (!row) notFound();
 
   const { bmi, label: bmiLabel } = computeBmi(row.height_cm, row.weight_kg);
   const needs = parseArr(row.needs_json);
   const conditions = parseArr(row.conditions_json);
-  const cfg = parseExpertCfg(row.expert_config_json);
+  const cfg = { ...defaultExpertCfg, ...parseExpertCfg(row.expert_config_json) };
+  const disclaimer = resolveDisclaimerContent(cfg);
   const reportHtml = row.expert_report_html || row.article_html;
 
   return (
@@ -125,11 +132,19 @@ export default async function PatientConsultReportPage({
             </section>
           )}
 
+          {(disclaimer.position === "top" || disclaimer.position === "both") && (
+            <MedicalDisclaimerBlock config={cfg} />
+          )}
+
           {/* Report Body */}
           <div
             className="prose-content max-w-none text-sm leading-relaxed md:text-base"
             dangerouslySetInnerHTML={{ __html: reportHtml }}
           />
+
+          {(disclaimer.position === "bottom" || disclaimer.position === "both") && (
+            <MedicalDisclaimerBlock config={cfg} />
+          )}
         </article>
       </div>
     </div>

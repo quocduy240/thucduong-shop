@@ -1,5 +1,6 @@
 import FrontendEditButton from "@/components/FrontendEditButton";
 import QuickConsultClient from "@/components/QuickConsultClient";
+import { getExpertProfileConfig } from "@/lib/quick-consult";
 import { getSite, getWidgetSettings } from "@/lib/settings";
 
 export const metadata = {
@@ -9,7 +10,11 @@ export const metadata = {
 };
 
 export default async function QuickConsultPage() {
-  const [site, widget] = await Promise.all([getSite(), getWidgetSettings()]);
+  const [site, widget, expertCfg] = await Promise.all([
+    getSite(),
+    getWidgetSettings(),
+    getExpertProfileConfig(),
+  ]);
   const hotline = [widget.widget_hotline, widget.widget_hotline_2].filter(Boolean).join(" - ") || site.hotline || "0767.518.592 - 0858.816.070";
   const zaloUrl = widget.widget_zalo || "";
 
@@ -35,7 +40,15 @@ export default async function QuickConsultPage() {
         </p>
       </div>
 
-      <QuickConsultClient hotline={hotline} zaloUrl={zaloUrl} />
+      <QuickConsultClient
+        hotline={hotline}
+        zaloUrl={zaloUrl}
+        disclaimerConfig={{
+          disclaimerStyle: expertCfg.disclaimerStyle,
+          disclaimerPosition: expertCfg.disclaimerPosition,
+          disclaimerCustomText: expertCfg.disclaimerCustomText,
+        }}
+      />
     </div>
   );
 }

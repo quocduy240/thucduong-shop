@@ -2,6 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import {
+  resolveDisclaimerContent,
+  type MedicalDisclaimerConfig,
+} from "@/lib/medical-disclaimer";
+import MedicalDisclaimerBlock from "./MedicalDisclaimerBlock";
 import RotatingHotline from "./RotatingHotline";
 import {
   CONSULT_AUDIENCES,
@@ -52,10 +57,13 @@ function calcBmi(h: number, w: number) {
 export default function QuickConsultClient({
   hotline,
   zaloUrl,
+  disclaimerConfig,
 }: {
   hotline: string;
   zaloUrl: string;
+  disclaimerConfig?: MedicalDisclaimerConfig;
 }) {
+  const disclaimer = resolveDisclaimerContent(disclaimerConfig);
   const [audience, setAudience] = useState<string>("truong_thanh");
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
@@ -546,9 +554,14 @@ export default function QuickConsultClient({
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-          <p className="text-xs text-gray-500">
-            ✨ Hệ thống AI Y khoa – Thực dưỡng – Đông Tây y sẽ tổng hợp bài tư vấn + video + tài liệu + bộ sản phẩm phù hợp nhất.
-          </p>
+          <div className="space-y-1">
+            <p className="text-xs text-gray-500">
+              ✨ Hệ thống AI Y khoa – Thực dưỡng – Đông Tây y sẽ tổng hợp bài tư vấn + video + tài liệu + bộ sản phẩm phù hợp nhất.
+            </p>
+            <p className="text-[11px] font-medium text-amber-800">
+              ⚕️ Lưu ý: Kết quả chỉ mang tính tham khảo dinh dưỡng thực dưỡng, không thay thế chẩn đoán hay đơn thuốc của bác sĩ.
+            </p>
+          </div>
           <button
             type="button"
             disabled={busy}
@@ -575,10 +588,16 @@ export default function QuickConsultClient({
                 </h2>
               </div>
             </div>
+            {(disclaimer.position === "top" || disclaimer.position === "both") && (
+              <MedicalDisclaimerBlock config={disclaimerConfig} />
+            )}
             <div
               className="prose-content max-w-none text-sm leading-relaxed md:text-base"
               dangerouslySetInnerHTML={{ __html: result.articleHtml }}
             />
+            {(disclaimer.position === "bottom" || disclaimer.position === "both") && (
+              <MedicalDisclaimerBlock config={disclaimerConfig} />
+            )}
           </article>
 
           {/* Product Blocks by Category */}

@@ -1,6 +1,7 @@
 import { currentAdmin } from "@/lib/auth";
 import { sendEmail } from "@/lib/mail";
-import { computeBmi, getQuickConsultById } from "@/lib/quick-consult";
+import { renderDisclaimerEmailHtml, resolveDisclaimerContent } from "@/lib/medical-disclaimer";
+import { computeBmi, getExpertProfileConfig, getQuickConsultById, type ExpertProfileConfig } from "@/lib/quick-consult";
 import { getSite } from "@/lib/settings";
 
 export async function POST(req: Request) {
@@ -23,13 +24,28 @@ export async function POST(req: Request) {
       return Response.json({ error: "Vui lòng nhập địa chỉ Email hợp lệ của bệnh nhân." }, { status: 400 });
     }
 
-    const [row, site] = await Promise.all([getQuickConsultById(id), getSite()]);
+    const [row, site, defaultExpertCfg] = await Promise.all([
+      getQuickConsultById(id),
+      getSite(),
+      getExpertProfileConfig(),
+    ]);
     if (!row) return Response.json({ error: "Không tìm thấy hồ sơ bệnh nhân." }, { status: 404 });
 
     const reportHtml = row.expert_report_html || row.article_html;
     if (!reportHtml) {
       return Response.json({ error: "Hồ sơ chưa có nội dung phân tích để gửi." }, { status: 400 });
     }
+
+    let mergedCfg: Partial<ExpertProfileConfig> = defaultExpertCfg;
+    try {
+      if (row.expert_config_json) {
+        mergedCfg = { ...defaultExpertCfg, ...(JSON.parse(row.expert_config_json) as Partial<ExpertProfileConfig>) };
+      }
+    } catch {
+      /* ignore */
+    }
+    const disclaimerMeta = resolveDisclaimerContent(mergedCfg);
+    const disclaimerEmailHtml = renderDisclaimerEmailHtml(mergedCfg);
 
     const { bmi, label } = computeBmi(row.height_cm, row.weight_kg);
     const origin = (body.origin || "").replace(/\/$/, "");
@@ -47,7 +63,9 @@ export async function POST(req: Request) {
             <div><strong>Mã hồ sơ:</strong> #${row.id} ${row.age_sex ? `· ${row.age_sex}` : ""}</div>
             <div><strong>Chiều cao / Cân nặng:</strong> ${row.height_cm ? `${row.height_cm} cm` : "—"} · ${row.weight_kg ? `${row.weight_kg} kg` : "—"} ${bmi ? `(BMI: ${bmi} — ${label})` : ""}</div>
           </div>
+          ${disclaimerMeta.position === "top" || disclaimerMeta.position === "both" ? disclaimerEmailHtml : ""}
           ${reportHtml}
+          ${disclaimerMeta.position === "bottom" || disclaimerMeta.position === "both" ? disclaimerEmailHtml : ""}
           ${
             shareUrl
               ? `<div style="margin-top:24px;text-align:center;">

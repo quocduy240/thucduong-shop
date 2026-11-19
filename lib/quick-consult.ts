@@ -1,6 +1,7 @@
 import "server-only";
 import crypto from "node:crypto";
 import { all, one, run } from "./db";
+import type { DisclaimerPosition, DisclaimerStyleId } from "./medical-disclaimer";
 import { escapeHtml, guardUserPromptInput, sanitizeAiHtml } from "./security";
 import {
   getDocuments,
@@ -42,6 +43,9 @@ export type ExpertProfileConfig = {
   schoolOfThought: string;
   focusAreas: string;
   customDirective: string;
+  disclaimerStyle?: DisclaimerStyleId;
+  disclaimerPosition?: DisclaimerPosition;
+  disclaimerCustomText?: string;
 };
 
 export const DEFAULT_EXPERT_CONFIG: ExpertProfileConfig = {
@@ -53,6 +57,9 @@ export const DEFAULT_EXPERT_CONFIG: ExpertProfileConfig = {
     "Đánh giá chỉ số BMI, chuyển hoá đường-mỡ, hệ tiêu hoá, giấc ngủ và phối hợp Thức ăn – Trợ phương – Dược thảo",
   customDirective:
     "Luôn phân tích sát với chiều cao, cân nặng, chỉ số BMI, độ tuổi và bệnh lý nền; đưa ra thực đơn sáng/trưa/tối cụ thể, thói quen sinh hoạt theo giờ và liệt kê rõ từng sản phẩm cần bổ sung.",
+  disclaimerStyle: "gemini_standard",
+  disclaimerPosition: "bottom",
+  disclaimerCustomText: "",
 };
 
 export type MatchedProductCard = {

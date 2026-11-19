@@ -1,6 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import MedicalDisclaimerBlock from "@/components/MedicalDisclaimerBlock";
+import {
+  MEDICAL_DISCLAIMER_PRESETS,
+  resolveDisclaimerContent,
+  type DisclaimerPosition,
+  type DisclaimerStyleId,
+} from "@/lib/medical-disclaimer";
 import type { ExpertProfileConfig, QuickConsultRow } from "@/lib/quick-consult";
 
 const FOLLOWUP_LABELS: Record<string, { label: string; cls: string }> = {
@@ -202,6 +209,61 @@ export default function AdminQuickConsultClient({
                 className="w-full rounded-lg border px-3 py-2 text-sm"
               />
             </div>
+
+            <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50/40 p-3.5 space-y-3">
+              <div className="text-xs font-extrabold text-amber-950">
+                ⚕️ Cấu hình Block Miễn trừ trách nhiệm Y khoa (Frontend · Hồ sơ PDF · Backend · Email)
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-gray-700">
+                    Chọn văn phong Miễn trừ trách nhiệm (3 tùy chọn chuẩn)
+                  </label>
+                  <select
+                    value={cfg.disclaimerStyle ?? "gemini_standard"}
+                    onChange={(e) => setCfg({ ...cfg, disclaimerStyle: e.target.value as DisclaimerStyleId })}
+                    className="w-full cursor-pointer rounded-lg border bg-white px-3 py-2 text-xs font-semibold text-gray-800"
+                  >
+                    {Object.values(MEDICAL_DISCLAIMER_PRESETS).map((preset) => (
+                      <option key={preset.id} value={preset.id}>
+                        {preset.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-gray-700">
+                    Vị trí hiển thị trong báo cáo
+                  </label>
+                  <select
+                    value={cfg.disclaimerPosition ?? "bottom"}
+                    onChange={(e) => setCfg({ ...cfg, disclaimerPosition: e.target.value as DisclaimerPosition })}
+                    className="w-full cursor-pointer rounded-lg border bg-white px-3 py-2 text-xs font-semibold text-gray-800"
+                  >
+                    <option value="bottom">Cuối báo cáo (Khuyên dùng)</option>
+                    <option value="top">Đầu báo cáo (Ngay trước nội dung phân tích)</option>
+                    <option value="both">Cả đầu &amp; cuối báo cáo</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-gray-700">
+                  Nội dung tuỳ chỉnh riêng (để trống nếu dùng văn bản chuẩn của tùy chọn đã chọn)
+                </label>
+                <textarea
+                  rows={2}
+                  value={cfg.disclaimerCustomText ?? ""}
+                  onChange={(e) => setCfg({ ...cfg, disclaimerCustomText: e.target.value })}
+                  placeholder="Để trống để sử dụng nguyên văn mẫu chuẩn đã chọn ở trên..."
+                  className="w-full rounded-lg border bg-white px-3 py-2 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="text-[11px] font-bold text-gray-600">Xem trước Block Miễn trừ trách nhiệm:</div>
+                <MedicalDisclaimerBlock config={cfg} compact />
+              </div>
+            </div>
+
             <div className="sm:col-span-2 flex justify-end">
               <button
                 type="button"
@@ -383,21 +445,40 @@ export default function AdminQuickConsultClient({
                 )}
 
                 {/* Collapsible Report Preview */}
-                {hasReport && (
-                  <details className="rounded-xl border border-gray-200 bg-gray-50/40 p-3">
-                    <summary className="cursor-pointer text-xs font-bold text-brand">
-                      {r.expert_report_html
-                        ? "📄 Xem Báo cáo Phân tích Chuyên gia Cá nhân hoá (Bản xuất PDF)"
-                        : "📄 Xem Bài Tư vấn Nhanh ban đầu"}
-                    </summary>
-                    <div
-                      className="prose-content mt-3 max-w-none rounded-lg bg-white p-4 text-xs"
-                      dangerouslySetInnerHTML={{
-                        __html: r.expert_report_html || r.article_html,
-                      }}
-                    />
-                  </details>
-                )}
+                {hasReport && (() => {
+                  let rowCfg = cfg;
+                  try {
+                    if (r.expert_config_json) {
+                      rowCfg = { ...cfg, ...(JSON.parse(r.expert_config_json) as Partial<ExpertProfileConfig>) };
+                    }
+                  } catch {
+                    /* ignore */
+                  }
+                  const disc = resolveDisclaimerContent(rowCfg);
+                  return (
+                    <details className="rounded-xl border border-gray-200 bg-gray-50/40 p-3">
+                      <summary className="cursor-pointer text-xs font-bold text-brand">
+                        {r.expert_report_html
+                          ? "📄 Xem Báo cáo Phân tích Chuyên gia Cá nhân hoá (Bản xuất PDF)"
+                          : "📄 Xem Bài Tư vấn Nhanh ban đầu"}
+                      </summary>
+                      <div className="mt-3 space-y-3 rounded-lg bg-white p-4">
+                        {(disc.position === "top" || disc.position === "both") && (
+                          <MedicalDisclaimerBlock config={rowCfg} compact />
+                        )}
+                        <div
+                          className="prose-content max-w-none text-xs"
+                          dangerouslySetInnerHTML={{
+                            __html: r.expert_report_html || r.article_html,
+                          }}
+                        />
+                        {(disc.position === "bottom" || disc.position === "both") && (
+                          <MedicalDisclaimerBlock config={rowCfg} compact />
+                        )}
+                      </div>
+                    </details>
+                  );
+                })()}
               </div>
             );
           })}
