@@ -44,6 +44,20 @@ export async function getStats() {
   };
 }
 
+/** Lightweight query for AdminLayout sidebar badges (avoids 15-query getStats() on every admin page). */
+export async function getNavBadges() {
+  const [ordersRow, crmRow] = await Promise.all([
+    one<{ n: number }>("SELECT COUNT(*) AS n FROM orders WHERE status = 'new'"),
+    one<{ n: number }>(
+      "SELECT COUNT(DISTINCT customer_key) AS n FROM crm_notes WHERE followup_done = 0 AND next_followup_date IS NOT NULL AND next_followup_date <> '' AND next_followup_date <= date('now', '+7 hours')",
+    ),
+  ]);
+  return {
+    ordersNew: ordersRow?.n ?? 0,
+    crmFollowupsDue: crmRow?.n ?? 0,
+  };
+}
+
 // ---- products ----
 export type AdminProductRow = {
   id: number; name: string; slug: string; price: number; sale_price: number | null;

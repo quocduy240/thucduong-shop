@@ -7,7 +7,7 @@ import CoverImageStudio from "@/components/admin/CoverImageStudio";
 import ProductEditTabs from "@/components/admin/ProductEditTabs";
 import ProductGalleryStudio from "@/components/admin/ProductGalleryStudio";
 import ProductSourceNoteBanner from "@/components/admin/ProductSourceNoteBanner";
-import { getProductById, getProductCategories, getProducts, url } from "@/lib/data";
+import { getProductById, getProductCategories, url } from "@/lib/data";
 import { one } from "@/lib/db";
 import { deleteProductAction, saveProductAction } from "../../actions";
 
@@ -25,10 +25,9 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
   const saved = sp.saved === "1";
   const id = rawId === "new" ? 0 : Number(rawId);
   if (rawId !== "new" && !Number.isInteger(id)) notFound();
-  const [p, categories, productsRaw, sourceRow] = await Promise.all([
+  const [p, categories, sourceRow] = await Promise.all([
     id ? getProductById(id) : Promise.resolve(undefined),
     getProductCategories(),
-    getProducts(200),
     id
       ? one<{ source_url?: string | null; source_note?: string | null }>(
           "SELECT source_url, source_note FROM products WHERE id = ?",
@@ -37,11 +36,6 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
       : Promise.resolve(undefined),
   ]);
   if (id && !p) notFound();
-
-  const products = productsRaw.map((item) => ({
-    ...item,
-    href: url.product(item),
-  }));
 
   return (
     <div className="mx-auto max-w-6xl pb-20 space-y-5">
@@ -299,7 +293,6 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
           <ContentEditor
             name="description"
             defaultValue={p?.description ?? ""}
-            products={products}
             sourceUrl={sourceRow?.source_url ?? ""}
             enableProductAiRewrite
             variant="product"

@@ -217,30 +217,49 @@ export default function ContentEditor({
     };
   }, []);
 
+  const blocksLoadedRef = useRef(false);
+  const qrLoadedRef = useRef(false);
+
   useEffect(() => {
-    fetch("/api/admin/blocks")
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d.items)) setReusableBlocks(d.items);
-      })
-      .catch(() => {});
+    if (!isProductMode) {
+      fetch("/api/admin/ai-motifs")
+        .then((r) => r.json())
+        .then((d) => {
+          if (Array.isArray(d.items) && d.items.length > 0) {
+            setAiMotifList(d.items);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isProductMode]);
 
-    fetch("/api/admin/qr")
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d.items)) setQrBlocks(d.items);
-      })
-      .catch(() => {});
+  useEffect(() => {
+    if ((!isProductMode || blockModalOpen) && !blocksLoadedRef.current) {
+      blocksLoadedRef.current = true;
+      fetch("/api/admin/blocks")
+        .then((r) => r.json())
+        .then((d) => {
+          if (Array.isArray(d.items)) setReusableBlocks(d.items);
+        })
+        .catch(() => {
+          blocksLoadedRef.current = false;
+        });
+    }
+  }, [isProductMode, blockModalOpen]);
 
-    fetch("/api/admin/ai-motifs")
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d.items) && d.items.length > 0) {
-          setAiMotifList(d.items);
-        }
-      })
-      .catch(() => {});
-  }, []);
+  useEffect(() => {
+    if ((!isProductMode || qrModalOpen) && !qrLoadedRef.current) {
+      qrLoadedRef.current = true;
+      fetch("/api/admin/qr")
+        .then((r) => r.json())
+        .then((d) => {
+          if (Array.isArray(d.items)) setQrBlocks(d.items);
+        })
+        .catch(() => {
+          qrLoadedRef.current = false;
+        });
+    }
+  }, [isProductMode, qrModalOpen]);
 
   function selectMotifFromDropdown(motifId: string) {
     setAiMotif(motifId);
