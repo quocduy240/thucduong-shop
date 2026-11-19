@@ -14,6 +14,7 @@ export default function YoutubeSyncPanel({
   const router = useRouter();
   const [cfg, setCfg] = useState<YoutubeSyncConfig>(initialConfig);
   const [pending, setPending] = useState<YoutubePendingVideo[]>(initialPending);
+  const [expanded, setExpanded] = useState(initialPending.length > 0);
   const [busy, setBusy] = useState<"save" | "scan" | "approve" | null>(null);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
@@ -108,26 +109,60 @@ export default function YoutubeSyncPanel({
   }
 
   return (
-    <div className="mb-6 rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
-        <div>
-          <h2 className="text-base font-bold text-gray-900">
-            🔄 Tự Động Quét &amp; Cập Nhật Video Mới Từ Kênh YouTube Duy Vo
+    <div className="mb-4 rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm space-y-4">
+      <div className={`flex flex-wrap items-center justify-between gap-2 ${expanded ? "border-b pb-3" : ""}`}>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-sm font-bold text-gray-900">
+            🔄 Đồng bộ YouTube ({cfg.channelHandle})
           </h2>
-          <p className="text-xs text-gray-500">
-            Hệ thống tự động kiểm tra kênh định kỳ theo số ngày cấu hình để phát hiện video mới &amp; danh mục phát mới.
-          </p>
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+              cfg.enabled ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-600"
+            }`}
+          >
+            {cfg.enabled ? `Tự động · mỗi ${cfg.intervalDays} ngày` : "Đang tắt"}
+          </span>
+          {pending.length > 0 && (
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
+              ⏳ {pending.length} video chờ duyệt
+            </span>
+          )}
         </div>
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-900">
-          <input
-            type="checkbox"
-            checked={cfg.enabled}
-            onChange={(e) => setCfg({ ...cfg, enabled: e.target.checked })}
-            className="accent-brand"
-          />
-          <span>{cfg.enabled ? "Đang bật tự động quét" : "Đang tắt"}</span>
-        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={busy !== null}
+            onClick={() => void scanNow()}
+            className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50 cursor-pointer"
+          >
+            {busy === "scan" ? "Đang quét..." : "🔍 Quét kênh ngay"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-brand hover:text-brand cursor-pointer"
+          >
+            {expanded ? "Thu gọn ▴" : "⚙️ Cấu hình ▾"}
+          </button>
+        </div>
       </div>
+
+      {expanded && (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-gray-500">
+              Hệ thống tự động kiểm tra kênh định kỳ theo số ngày cấu hình để phát hiện video mới &amp; danh mục phát mới.
+            </p>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-900">
+              <input
+                type="checkbox"
+                checked={cfg.enabled}
+                onChange={(e) => setCfg({ ...cfg, enabled: e.target.checked })}
+                className="accent-brand"
+              />
+              <span>{cfg.enabled ? "Đang bật tự động quét" : "Đang tắt"}</span>
+            </label>
+          </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
@@ -291,6 +326,8 @@ export default function YoutubeSyncPanel({
             ))}
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

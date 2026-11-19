@@ -69,77 +69,80 @@ export default async function VideosAdminPage({
 
       <YoutubeSyncPanel initialConfig={syncConfig} initialPending={pendingVideos} />
 
-      {/* Quick Add Video Box — only requires pasting YouTube URL */}
-      <form action={addVideoAction} className={`${ui.card} mb-6 p-5 border-green-200 bg-green-50/30`}>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-base font-bold text-brand">🎬 Thêm nhanh Video từ YouTube</h2>
+      {/* Quick Add Video Box — collapsible to keep video list front-and-center */}
+      <details className={`${ui.card} mb-5 border-green-200 bg-green-50/30 p-4`}>
+        <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 text-sm font-bold text-brand select-none">
+          <span>🎬 + Thêm nhanh Video từ YouTube (hỗ trợ dán nhiều link)</span>
+          <span className="text-xs font-medium text-gray-500">Bấm để mở khung nhập ▾</span>
+        </summary>
+        <form action={addVideoAction} className="mt-4 space-y-3 border-t border-green-200/70 pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-gray-600">
-              Chỉ cần dán link video YouTube (hoặc dán nhiều link, mỗi dòng 1 link) — hệ thống sẽ tự động lấy ảnh thu nhỏ và tiêu đề từ YouTube!
+              Dán link video YouTube (mỗi dòng 1 link) — hệ thống tự động lấy ảnh thu nhỏ và tiêu đề từ YouTube.
             </p>
+            <div className="flex gap-2 text-xs">
+              <a
+                href="https://www.youtube.com/@quocduy2401/videos"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-brand/30 bg-white px-2.5 py-1 font-medium text-brand hover:bg-green-50"
+              >
+                Mở kênh Duy Vo ↗
+              </a>
+              <a
+                href="https://www.youtube.com/@quocduy2401/playlists"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-brand/30 bg-white px-2.5 py-1 font-medium text-brand hover:bg-green-50"
+              >
+                Danh sách phát ↗
+              </a>
+            </div>
           </div>
-          <div className="flex gap-2 text-xs">
-            <a
-              href="https://www.youtube.com/@quocduy2401/videos"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg border border-brand/30 bg-white px-2.5 py-1 font-medium text-brand hover:bg-green-50"
-            >
-              Mở kênh Duy Vo (@quocduy2401) ↗
-            </a>
-            <a
-              href="https://www.youtube.com/@quocduy2401/playlists"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-lg border border-brand/30 bg-white px-2.5 py-1 font-medium text-brand hover:bg-green-50"
-            >
-              Mở Danh sách phát ↗
-            </a>
-          </div>
-        </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="md:col-span-2">
-            <label className={ui.label}>Link Video YouTube * (có thể dán nhiều link, mỗi dòng 1 link)</label>
-            <textarea
-              name="youtube_url"
-              required
-              rows={2}
-              placeholder="VD: https://www.youtube.com/watch?v=UQdCQHr4cAg"
-              className={ui.input}
-            />
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="md:col-span-2">
+              <label className={ui.label}>Link Video YouTube * (mỗi dòng 1 link)</label>
+              <textarea
+                name="youtube_url"
+                required
+                rows={2}
+                placeholder="VD: https://www.youtube.com/watch?v=UQdCQHr4cAg"
+                className={ui.input}
+              />
+            </div>
+            <div>
+              <label className={ui.label}>Chuyên đề (Danh sách phát)</label>
+              <select name="topic" defaultValue={topic || DEFAULT_TOPICS[0]} className={ui.input}>
+                {allTopicNames.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <input
+                name="custom_topic"
+                placeholder="Hoặc nhập tên chuyên đề mới..."
+                className={`${ui.input} mt-1.5 text-xs`}
+              />
+            </div>
           </div>
-          <div>
-            <label className={ui.label}>Chuyên đề (Danh sách phát)</label>
-            <select name="topic" defaultValue={topic || DEFAULT_TOPICS[0]} className={ui.input}>
-              {allTopicNames.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-            <input
-              name="custom_topic"
-              placeholder="Hoặc nhập tên chuyên đề mới..."
-              className={`${ui.input} mt-1.5 text-xs`}
-            />
-          </div>
-        </div>
 
-        <div className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-          <div>
-            <label className={ui.label}>Tiêu đề (để trống sẽ tự lấy từ YouTube)</label>
-            <input name="title" placeholder="Tự động lấy tiêu đề gốc trên YouTube nếu để trống" className={ui.input} />
+          <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+            <div>
+              <label className={ui.label}>Tiêu đề (để trống sẽ tự lấy từ YouTube)</label>
+              <input name="title" placeholder="Tự động lấy tiêu đề gốc trên YouTube nếu để trống" className={ui.input} />
+            </div>
+            <div>
+              <label className={ui.label}>Mô tả ngắn (tuỳ chọn)</label>
+              <input name="description" placeholder="Tóm tắt nội dung bài giảng..." className={ui.input} />
+            </div>
+            <div className="flex items-end">
+              <button className={`${ui.primary} whitespace-nowrap py-2.5 cursor-pointer`}>+ Thêm vào thư viện</button>
+            </div>
           </div>
-          <div>
-            <label className={ui.label}>Mô tả ngắn (tuỳ chọn)</label>
-            <input name="description" placeholder="Tóm tắt nội dung bài giảng..." className={ui.input} />
-          </div>
-          <div className="flex items-end">
-            <button className={`${ui.primary} whitespace-nowrap py-2.5`}>+ Thêm vào thư viện</button>
-          </div>
-        </div>
-      </form>
+        </form>
+      </details>
 
       {/* Filter Bar */}
       <form className="mb-4 flex flex-wrap items-center gap-2">
@@ -159,35 +162,78 @@ export default async function VideosAdminPage({
         </select>
         <button className={ui.secondary}>Lọc</button>
         {(q || topic) && (
-          <Link href="/admin/videos/" className={ui.secondary}>
+          <Link href="/admin/videos/" prefetch={false} className={ui.secondary}>
             Bỏ lọc
           </Link>
         )}
       </form>
 
-      {/* Video List */}
-      <div className="space-y-3">
+      {/* Video List (Clean scannable cards with inline Edit drawer) */}
+      <div className="space-y-2.5">
         {rows.map((v) => (
-          <div key={v.id} className={`${ui.card} p-4`}>
-            <div className="flex flex-col gap-4 md:flex-row md:items-start">
-              <a
-                href={v.youtube_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="relative block w-full shrink-0 overflow-hidden rounded-lg border md:w-48"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`https://i.ytimg.com/vi/${v.video_id}/hqdefault.jpg`}
-                  alt={v.title}
-                  className="aspect-video w-full object-cover"
-                />
-                <span className="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1.5 py-0.5 font-mono text-[10px] text-white">
-                  {v.video_id}
-                </span>
-              </a>
+          <div key={v.id} className={`${ui.card} p-3.5`}>
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <a
+                  href={v.youtube_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="relative block w-32 shrink-0 overflow-hidden rounded-lg border sm:w-40"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`https://i.ytimg.com/vi/${v.video_id}/hqdefault.jpg`}
+                    alt={v.title}
+                    loading="lazy"
+                    className="aspect-video w-full object-cover"
+                  />
+                  <span className="absolute bottom-1 right-1 rounded bg-black/75 px-1.5 py-0.5 font-mono text-[10px] text-white">
+                    {v.video_id}
+                  </span>
+                </a>
 
-              <form action={updateVideoAction} className="grid flex-1 gap-2.5 sm:grid-cols-12">
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Link
+                      href={`/admin/videos/?topic=${encodeURIComponent(v.topic)}`}
+                      prefetch={false}
+                      className="rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100"
+                    >
+                      {v.topic}
+                    </Link>
+                    <span className="rounded bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
+                      Thứ tự: {v.sort}
+                    </span>
+                  </div>
+                  <a
+                    href={v.youtube_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-sm font-bold text-gray-900 hover:text-brand line-clamp-2"
+                  >
+                    {v.title}
+                  </a>
+                  {v.description && (
+                    <p className="text-xs text-gray-500 line-clamp-1">{v.description}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2 self-end md:self-center">
+                <form action={deleteVideoAction}>
+                  <input type="hidden" name="id" value={v.id} />
+                  <ConfirmButton message="Xoá video này khỏi thư viện?" className={ui.danger}>
+                    Xoá
+                  </ConfirmButton>
+                </form>
+              </div>
+            </div>
+
+            <details className="mt-2.5 border-t border-gray-100 pt-2">
+              <summary className="cursor-pointer text-xs font-bold text-brand hover:underline select-none">
+                ✏️ Sửa nhanh thông tin video
+              </summary>
+              <form action={updateVideoAction} className="mt-2.5 grid gap-2.5 sm:grid-cols-12">
                 <input type="hidden" name="id" value={v.id} />
                 <div className="sm:col-span-6">
                   <label className="mb-0.5 block text-xs font-medium text-gray-500">Tiêu đề video</label>
@@ -209,20 +255,13 @@ export default async function VideosAdminPage({
                   <label className="mb-0.5 block text-xs font-medium text-gray-500">Mô tả ngắn</label>
                   <input name="description" defaultValue={v.description} className={ui.input} />
                 </div>
-                <div className="flex items-end justify-end gap-2 sm:col-span-2">
-                  <button className="rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white hover:bg-brand-dark">
-                    Lưu
+                <div className="flex items-end justify-end sm:col-span-2">
+                  <button className="w-full rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white hover:bg-brand-dark cursor-pointer">
+                    💾 Lưu
                   </button>
                 </div>
               </form>
-
-              <form action={deleteVideoAction} className="self-end md:self-center">
-                <input type="hidden" name="id" value={v.id} />
-                <ConfirmButton message="Xoá video này khỏi thư viện?" className={ui.danger}>
-                  Xoá
-                </ConfirmButton>
-              </form>
-            </div>
+            </details>
           </div>
         ))}
         {rows.length === 0 && (
