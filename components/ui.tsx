@@ -38,9 +38,13 @@ export function Price({ p, big = false }: { p: Pick<Product, "price" | "sale_pri
     return <span className={`font-bold text-accent ${big ? "text-2xl" : ""}`}>Liên hệ</span>;
   }
   return (
-    <div className={big ? "flex items-baseline gap-3" : "flex items-baseline gap-2"}>
-      <span className={`font-bold text-accent ${big ? "text-2xl" : ""}`}>{vnd(p.sale_price ?? p.price)}</span>
-      {p.sale_price != null && <span className="text-sm text-gray-400 line-through">{vnd(p.price)}</span>}
+    <div className={big ? "flex flex-wrap items-baseline gap-x-3 gap-y-0.5" : "flex flex-col leading-tight"}>
+      <span className={`font-bold text-accent ${big ? "text-2xl" : "text-[15px]"}`}>{vnd(p.sale_price ?? p.price)}</span>
+      {p.sale_price != null && (
+        <span className={`${big ? "text-sm" : "mt-0.5 text-xs"} text-gray-400 line-through`}>
+          {vnd(p.price)}
+        </span>
+      )}
     </div>
   );
 }
