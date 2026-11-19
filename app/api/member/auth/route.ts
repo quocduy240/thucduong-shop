@@ -6,6 +6,8 @@ import {
   startMemberSession,
   verifyMemberLogin,
 } from "@/lib/member-auth";
+import { resolveOnLoginOrRegister } from "@/lib/loyalty";
+import { attachReferralByCode, awardSignupBonus } from "@/lib/loyalty-events";
 
 export async function GET() {
   const [member, coupons] = await Promise.all([currentMember(), getActiveCoupons()]);
@@ -33,7 +35,19 @@ export async function POST(req: Request) {
     }
     await startMemberSession(res.memberId);
     const member = await currentMember();
-    return Response.json({ ok: true, member });
+    if (member) {
+      const profile = await resolveOnLoginOrRegister({
+        userId: member.id,
+        phone: member.phone,
+        email: member.email,
+        fullName: member.name,
+      });
+      await awardSignupBonus(profile.id);
+      if (b.referralCode) {
+        await attachReferralByCode(profile.id, String(b.referralCode));
+      }
+    }
+    return Response.json({ ok: true, member: await currentMember() });
   }
 
   if (action === "login") {
@@ -43,7 +57,15 @@ export async function POST(req: Request) {
     }
     await startMemberSession(id);
     const member = await currentMember();
-    return Response.json({ ok: true, member });
+    if (member) {
+      await resolveOnLoginOrRegister({
+        userId: member.id,
+        phone: member.phone,
+        email: member.email,
+        fullName: member.name,
+      });
+    }
+    return Response.json({ ok: true, member: await currentMember() });
   }
 
   return Response.json({ error: "Hành động không hợp lệ." }, { status: 400 });

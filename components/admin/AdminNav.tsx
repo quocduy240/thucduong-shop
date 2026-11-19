@@ -16,9 +16,11 @@ const ITEMS = [
   { href: "/admin/videos/", label: "Video bài giảng", icon: "🎬" },
   { href: "/admin/documents/", label: "Tài liệu & Sách", icon: "📚" },
   { href: "/admin/members/", label: "Thành viên & Email", icon: "👥" },
+  { href: "/admin/loyalty/", label: "Tích điểm & Quà", icon: "🎁" },
   { href: "/admin/comments/", label: "Bình luận", icon: "💬" },
   { href: "/admin/pages/", label: "Trang tĩnh", icon: "📄" },
   { href: "/admin/categories/", label: "Danh mục", icon: "🗂️" },
+  { href: "/admin/sitemaps/", label: "Sitemaps SEO", icon: "🗺️" },
   { href: "/admin/themes/", label: "Giao diện & Cỡ chữ", icon: "🎨" },
   { href: "/admin/settings/", label: "Cài đặt", icon: "⚙️" },
 ];

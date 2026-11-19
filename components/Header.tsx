@@ -90,20 +90,28 @@ export default async function Header() {
                 {m.children && <span className="ml-1 text-[10px]">▼</span>}
               </Link>
               {m.children && (
-                <ul className="invisible absolute left-0 top-full z-50 min-w-60 bg-white py-1 text-gray-800 opacity-0 shadow-lg transition group-hover:visible group-hover:opacity-100">
+                <ul
+                  className={
+                    m.label === "Sản phẩm"
+                      ? "invisible absolute left-0 top-full z-50 grid w-[520px] grid-cols-2 gap-1 rounded-b-xl border border-gray-100 bg-white p-2 text-gray-800 opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100"
+                      : "invisible absolute left-0 top-full z-50 min-w-60 bg-white py-1 text-gray-800 opacity-0 shadow-lg transition group-hover:visible group-hover:opacity-100"
+                  }
+                >
                   {m.children.map((c) => (
-                    <li key={c.href}>
+                    <li key={c.href} className={c.featured && m.label === "Sản phẩm" ? "col-span-2" : undefined}>
                       <Link
                         href={c.href}
                         className={
                           c.featured
-                            ? "flex items-center justify-between gap-2 border-b border-emerald-200 bg-gradient-to-r from-emerald-50 via-green-50 to-amber-50 px-4 py-2.5 font-bold text-brand hover:from-emerald-100 hover:to-amber-100"
-                            : "block px-4 py-2 hover:bg-green-50 hover:text-brand"
+                            ? "flex items-center justify-between gap-2 rounded-lg border-b border-emerald-200 bg-gradient-to-r from-emerald-50 via-green-50 to-amber-50 px-3.5 py-2.5 font-bold text-brand hover:from-emerald-100 hover:to-amber-100"
+                            : m.label === "Sản phẩm"
+                              ? "block truncate rounded-lg px-3.5 py-2 text-[13px] font-medium hover:bg-green-50 hover:text-brand"
+                              : "block px-4 py-2 hover:bg-green-50 hover:text-brand"
                         }
                       >
-                        <span>{c.label}</span>
+                        <span className="truncate">{c.label}</span>
                         {c.featured && (
-                          <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-extrabold uppercase text-white shadow-2xs">
+                          <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-extrabold uppercase text-white shadow-2xs">
                             Nổi bật
                           </span>
                         )}

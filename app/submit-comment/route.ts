@@ -1,7 +1,8 @@
 import { one, run } from "@/lib/db";
+import { currentMember } from "@/lib/member-auth";
+import { awardCommentOrReviewPoints } from "@/lib/loyalty-events";
 
 // POST /submit-comment  body: { product_id, name, content, rating }
-// TODO: add captcha / rate limiting before going live.
 export async function POST(req: Request) {
   const b = await req.json().catch(() => ({}));
   const id = Number(b.product_id);
@@ -9,7 +10,29 @@ export async function POST(req: Request) {
   const content = String(b.content ?? "").trim().slice(0, 2000);
   const rating = Math.min(5, Math.max(1, Math.round(Number(b.rating) || 5)));
   if (!name || !content) return Response.json({ error: "Vui lòng nhập họ tên và nội dung." }, { status: 400 });
-  if (!one("SELECT 1 FROM products WHERE id = ?", id)) return Response.json({ error: "Sản phẩm không tồn tại." }, { status: 404 });
-  run("INSERT INTO comments (product_id, name, content, rating) VALUES (?, ?, ?, ?)", id, name, content, rating);
-  return Response.json({ success: true });
+
+  const prod = await one("SELECT 1 FROM products WHERE id = ?", id);
+  if (!prod) return Response.json({ error: "Sản phẩm không tồn tại." }, { status: 404 });
+
+  const ins = await run(
+    "INSERT INTO comments (product_id, name, content, rating) VALUES (?, ?, ?, ?)",
+    id,
+    name,
+    content,
+    rating,
+  );
+
+  let pointsAwarded = 0;
+  const member = await currentMember();
+  if (member && ins.lastInsertRowid) {
+    const res = await awardCommentOrReviewPoints({
+      userId: member.id,
+      productId: id,
+      commentId: ins.lastInsertRowid,
+      content,
+    });
+    if (res.awarded) pointsAwarded = content.trim().length >= 50 ? 10 : 30;
+  }
+
+  return Response.json({ success: true, pointsAwarded });
 }

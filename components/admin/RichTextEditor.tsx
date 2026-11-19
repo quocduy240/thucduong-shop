@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { sanitizeHtml } from "@/lib/sanitize-html";
+import EditorColorPopover from "./EditorColorPopover";
 
 export default function RichTextEditor({
   name,
@@ -19,19 +20,25 @@ export default function RichTextEditor({
   const [mode, setMode] = useState<"visual" | "html" | "split">("visual");
   const [uploading, setUploading] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
+  const [colorPopover, setColorPopover] = useState<"text" | "highlight" | null>(null);
+  const [textColor, setTextColor] = useState("#1f2937");
+  const [highlightColor, setHighlightColor] = useState("#fef08a");
+  const savedRangeRef = useRef<Range | null>(null);
   const visualRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (visualRef.current && visualRef.current.innerHTML !== html) {
-      visualRef.current.innerHTML = html;
+      // nosemgrep: typescript.react.security.audit.react-unsanitized-property.react-unsanitized-property
+      visualRef.current.innerHTML = sanitizeHtml(html);
     }
   }, [mode]); // sync when switching back to visual/split mode
 
   // Initialize visualRef once on mount
   useEffect(() => {
     if (visualRef.current) {
-      visualRef.current.innerHTML = defaultValue;
+      // nosemgrep: typescript.react.security.audit.react-unsanitized-property.react-unsanitized-property
+      visualRef.current.innerHTML = sanitizeHtml(defaultValue);
     }
   }, [defaultValue]);
 
@@ -46,6 +53,52 @@ export default function RichTextEditor({
     setTimeout(() => {
       visualRef.current?.focus();
       document.execCommand(cmd, false, value);
+      syncFromVisual();
+    }, 10);
+  }
+
+  function toggleColorPopover(kind: "text" | "highlight") {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+    }
+    setColorPopover((prev) => (prev === kind ? null : kind));
+  }
+
+  function applyColor(kind: "text" | "highlight", color: string) {
+    if (mode === "html") setMode("visual");
+    setColorPopover(null);
+    if (kind === "text") setTextColor(color === "inherit" ? "#1f2937" : color);
+    else setHighlightColor(color === "transparent" ? "#fef08a" : color);
+
+    setTimeout(() => {
+      visualRef.current?.focus();
+      const sel = window.getSelection();
+      if (savedRangeRef.current && sel) {
+        sel.removeAllRanges();
+        sel.addRange(savedRangeRef.current);
+      }
+      if (color.startsWith("var(") && sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+        const range = sel.getRangeAt(0);
+        const span = document.createElement("span");
+        if (kind === "text") span.style.color = color;
+        else span.style.backgroundColor = color;
+        span.appendChild(range.extractContents());
+        range.insertNode(span);
+        syncFromVisual();
+        return;
+      }
+      try {
+        document.execCommand("styleWithCSS", false, "true");
+      } catch {
+        /* ignore */
+      }
+      if (kind === "text") {
+        document.execCommand("foreColor", false, color === "inherit" ? "inherit" : color);
+      } else {
+        const ok = document.execCommand("hiliteColor", false, color);
+        if (!ok) document.execCommand("backColor", false, color);
+      }
       syncFromVisual();
     }, 10);
   }
@@ -181,6 +234,37 @@ export default function RichTextEditor({
             <button type="button" onClick={() => execCmd("underline")} className={`${btn} underline`} title="Gạch chân">
               U
             </button>
+            <div className="relative inline-flex items-center gap-0.5">
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => toggleColorPopover("text")}
+                className="inline-flex cursor-pointer flex-col items-center justify-center rounded border border-gray-200 bg-white px-2 py-0.5 hover:border-brand"
+                title="Màu chữ (Text Color)"
+              >
+                <span className="text-xs font-extrabold leading-none text-gray-800">A</span>
+                <span className="mt-0.5 h-[3px] w-4 rounded-full" style={{ backgroundColor: textColor }} />
+              </button>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => toggleColorPopover("highlight")}
+                className="inline-flex cursor-pointer flex-col items-center justify-center rounded border border-gray-200 bg-white px-2 py-0.5 hover:border-brand"
+                title="Màu nền chữ (Highlight Color)"
+              >
+                <span className="text-[11px] leading-none">🖍️</span>
+                <span className="mt-0.5 h-[3px] w-4 rounded-full border border-gray-300/60" style={{ backgroundColor: highlightColor }} />
+              </button>
+              {colorPopover && (
+                <EditorColorPopover
+                  kind={colorPopover}
+                  currentTextColor={textColor}
+                  currentHighlightColor={highlightColor}
+                  onApply={(c) => applyColor(colorPopover, c)}
+                  onClose={() => setColorPopover(null)}
+                />
+              )}
+            </div>
             <span className="mx-0.5 text-gray-300">|</span>
             <button type="button" onClick={() => execCmd("insertUnorderedList")} className={btn} title="Danh sách chấm">
               • Danh sách

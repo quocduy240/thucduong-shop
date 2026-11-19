@@ -85,7 +85,7 @@ export default function ThemeSwitcher({ config }: { config: ThemeSettingsConfig 
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-2xl border border-gray-200 bg-white p-3 shadow-xl">
+        <div className="fixed inset-x-4 top-20 z-50 mx-auto max-w-sm rounded-2xl border border-gray-200 bg-white p-3 shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-72 sm:max-w-none sm:shadow-xl">
           <div className="mb-2 flex items-center justify-between border-b pb-2">
             <div>
               <div className="text-xs font-bold text-gray-900">🎨 Chế độ hiển thị</div>

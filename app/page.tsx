@@ -24,30 +24,81 @@ export default async function Home() {
   return (
     <div className="mx-auto max-w-6xl px-4">
       {/* Banner */}
-      <section className="my-6 grid gap-4 md:grid-cols-[1fr_280px]">
-        <div className="flex min-h-64 flex-col justify-center rounded-xl bg-gradient-to-r from-brand to-green-600 p-8 text-white">
-          <p className="text-sm uppercase tracking-widest opacity-80">{site.tagline}</p>
-          <h1 className="mt-2 text-3xl font-bold md:text-4xl">{site.name}</h1>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed opacity-95">
-            CỬA HÀNG THỰC DƯỠNG PHÚC THỌ - CUNG CẤP CÁC SẢN PHẨM THỰC DƯỠNG - THẢO DƯỢC - ĐỒ ĂN - THỨC UỐNG - GIA VỊ SẠCH HỮU CƠ SỐNG KHỎE PHÚC THỌ - TÂM AN
+      <section className="my-5 grid gap-4 md:grid-cols-[1fr_290px]">
+        <div className="flex min-h-60 flex-col justify-center rounded-2xl bg-gradient-to-br from-[#1f5a22] via-brand to-emerald-600 p-6 text-white shadow-sm md:p-8">
+          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-100">{site.tagline}</p>
+          <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight sm:text-3xl md:text-4xl">{site.name}</h1>
+          <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-emerald-50">
+            Thực phẩm Thực dưỡng – Thảo dược – Ngũ cốc &amp; Gia vị hữu cơ chuẩn mực. Cân bằng quân bình âm dương, sống khoẻ &amp; an tâm mỗi ngày.
           </p>
-          <p className="mt-2 text-xs opacity-80">
-            HỘ KINH DOANH CỬA HÀNG PHÚC THỌ · GPKD số 089185004882 cấp ngày 23/10/2025 tại Phòng Kinh Tế TP. Hồ Chí Minh.
+          <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-medium text-emerald-50">
+            <span className="rounded-full bg-white/15 px-2.5 py-1">🌿 100% Tự nhiên</span>
+            <span className="rounded-full bg-white/15 px-2.5 py-1">🩺 Tư vấn 1:1</span>
+            <span className="rounded-full bg-white/15 px-2.5 py-1">🚚 Giao toàn quốc</span>
+          </div>
+          <div className="mt-5 flex flex-wrap items-center gap-2.5">
+            <Link href="/san-pham/" className="rounded-full bg-white px-5 py-2.5 text-sm font-bold text-brand shadow-xs transition hover:bg-emerald-50">
+              🛍️ Mua sắm ngay
+            </Link>
+            <Link href="/tu-van-nhanh/" className="rounded-full border border-white/40 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20">
+              ✨ Tư vấn AI miễn phí
+            </Link>
+          </div>
+          <p className="mt-4 text-[11px] text-emerald-100/75">
+            HKD Cửa Hàng Phúc Thọ · GPKD: 089185004882 (23/10/2025 – TP.HCM)
           </p>
-          <Link href="/san-pham/" className="mt-6 w-fit rounded-full bg-white px-5 py-2 text-sm font-semibold text-brand">
-            Xem sản phẩm
-          </Link>
         </div>
-        <aside className="rounded-xl border bg-white p-4">
-          <h2 className="mb-2 font-bold text-brand">Danh mục sản phẩm</h2>
+
+        <aside className="rounded-2xl border border-gray-200 bg-white p-4 shadow-2xs">
+          <div className="mb-2.5 flex items-center justify-between border-b border-gray-100 pb-2">
+            <h2 className="text-sm font-extrabold uppercase tracking-wide text-brand">Danh mục sản phẩm</h2>
+            <Link href="/san-pham/" className="text-xs font-semibold text-gray-500 hover:text-brand">
+              Tất cả ›
+            </Link>
+          </div>
           <ul className="space-y-1 text-sm">
+            <li>
+              <Link
+                href="/canh-duong-sinh/"
+                className="flex items-center justify-between rounded-lg bg-emerald-50 px-2.5 py-1.5 font-bold text-brand hover:bg-emerald-100"
+              >
+                <span>⭐ Canh Dưỡng Sinh King Kung</span>
+                <span className="text-xs">›</span>
+              </Link>
+            </li>
             {categories.map((c) => (
               <li key={c.slug}>
-                <Link href={url.productCategory(c)} className="block rounded px-2 py-1 hover:bg-green-50 hover:text-brand">{c.name}</Link>
+                <Link
+                  href={url.productCategory(c)}
+                  className="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-gray-700 transition hover:bg-green-50 hover:text-brand"
+                >
+                  <span className="truncate">{c.name}</span>
+                  <span className="text-xs text-gray-400">›</span>
+                </Link>
               </li>
             ))}
           </ul>
         </aside>
+      </section>
+
+      {/* Quick Shortcuts Strip */}
+      <section className="my-4 flex gap-2 overflow-x-auto pb-1">
+        {[
+          { href: "/canh-duong-sinh/", label: "🌿 Canh Dưỡng Sinh" },
+          { href: "/san-pham/", label: "🛍️ Tất cả sản phẩm" },
+          { href: "/tu-van-nhanh/", label: "🩺 Tư vấn AI 1:1" },
+          { href: "/thu-vien/bai-giang-thuc-duong/", label: "🎬 Video & Tài liệu" },
+          { href: "/thanh-vien/", label: "👑 Tích điểm & Quà tặng" },
+          { href: "/so-do-trang.html", label: "🗺️ Sơ đồ trang" },
+        ].map((q) => (
+          <Link
+            key={q.href}
+            href={q.href}
+            className="shrink-0 rounded-full border border-gray-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-gray-700 shadow-2xs transition hover:border-brand hover:bg-emerald-50 hover:text-brand"
+          >
+            {q.label}
+          </Link>
+        ))}
       </section>
 
       {flashSale.config.enabled && flashSale.slots.length > 0 && (

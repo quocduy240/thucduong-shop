@@ -20,7 +20,7 @@ export function Thumb({
   if (image) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={image} alt={label} className={`aspect-square w-full object-cover ${className}`} />
+      <img src={image} alt={label} loading="lazy" className={`aspect-square w-full object-cover ${className}`} />
     );
   }
   return (
@@ -110,19 +110,31 @@ export function ProductGrid({ products }: { products: Product[] }) {
 
 export function PostCard({ p }: { p: Post }) {
   return (
-    <article className="flex gap-4 rounded-lg border bg-white p-3">
-      <Link href={url.post(p)} className="w-28 shrink-0 overflow-hidden rounded">
+    <article className="group flex gap-3.5 rounded-xl border border-gray-200/90 bg-white p-3.5 transition hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md">
+      <Link href={url.post(p)} className="w-24 shrink-0 overflow-hidden rounded-lg sm:w-28">
         {p.cover ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={p.cover} alt={p.title} className="aspect-square w-full object-cover" />
+          <img
+            src={p.cover}
+            alt={p.title}
+            loading="lazy"
+            className="aspect-square w-full object-cover transition duration-300 group-hover:scale-105"
+          />
         ) : (
           <Thumb label="Bài viết" seed={p.id + 3} className="text-xs" />
         )}
       </Link>
-      <div>
-        <Link href={url.post(p)} className="font-medium hover:text-brand">{p.title}</Link>
-        <p className="mt-1 line-clamp-2 text-sm text-gray-500">{p.excerpt}</p>
-        <p className="mt-1 text-xs text-gray-400">{p.category_name} · {p.created_at.slice(0, 10)}</p>
+      <div className="flex min-w-0 flex-1 flex-col justify-between">
+        <div>
+          <span className="inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-brand">
+            {p.category_name}
+          </span>
+          <Link href={url.post(p)} className="mt-1 line-clamp-2 block text-sm font-bold leading-snug text-gray-900 group-hover:text-brand sm:text-base">
+            {p.title}
+          </Link>
+          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-gray-500">{p.excerpt}</p>
+        </div>
+        <p className="mt-2 text-[11px] text-gray-400">📅 {p.created_at.slice(0, 10)}</p>
       </div>
     </article>
   );
@@ -130,12 +142,16 @@ export function PostCard({ p }: { p: Post }) {
 
 export function Breadcrumb({ items }: { items: { label: string; href?: string }[] }) {
   return (
-    <nav className="mx-auto max-w-6xl px-4 py-3 text-sm text-gray-500">
-      <Link href="/" className="hover:text-brand">Trang chủ</Link>
+    <nav aria-label="Breadcrumb" className="mx-auto flex max-w-6xl flex-wrap items-center gap-y-1 px-4 py-3 text-xs text-gray-500 sm:text-sm">
+      <Link href="/" className="hover:text-brand">🏠 Trang chủ</Link>
       {items.map((it) => (
-        <span key={it.label}>
-          <span className="mx-2">/</span>
-          {it.href ? <Link href={it.href} className="hover:text-brand">{it.label}</Link> : <span className="text-gray-800">{it.label}</span>}
+        <span key={it.label} className="flex items-center">
+          <span className="mx-1.5 text-gray-300">/</span>
+          {it.href ? (
+            <Link href={it.href} className="hover:text-brand">{it.label}</Link>
+          ) : (
+            <span className="line-clamp-1 font-medium text-gray-800">{it.label}</span>
+          )}
         </span>
       ))}
     </nav>

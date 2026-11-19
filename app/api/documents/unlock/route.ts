@@ -1,4 +1,6 @@
 import { one, run } from "@/lib/db";
+import { currentMember } from "@/lib/member-auth";
+import { awardDownloadDocPoints } from "@/lib/loyalty-events";
 
 export async function POST(req: Request) {
   const b = await req.json().catch(() => ({}));
@@ -70,5 +72,9 @@ export async function POST(req: Request) {
   }
 
   await run("UPDATE documents SET downloads = downloads + 1 WHERE id = ?", doc.id);
+  const member = await currentMember();
+  if (member) {
+    await awardDownloadDocPoints(member.id, doc.id, doc.title);
+  }
   return Response.json({ ok: true, downloadUrl: doc.drive_url });
 }

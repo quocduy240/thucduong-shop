@@ -122,9 +122,21 @@ export default async function Footer() {
               <span>Tư vấn &amp; Giao hàng: 08:00 – 20:30 (Tất cả các ngày)</span>
             </li>
           </ul>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-[11px] text-emerald-100/90">
-            <div className="font-bold text-white">💳 Tài khoản thanh toán</div>
-            <div className="mt-0.5">BIDV · STK: <strong className="text-amber-300">8610312888</strong></div>
+          <div className="rounded-2xl border border-amber-300/35 bg-white/10 p-4 shadow-sm">
+            <div className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-emerald-200">
+              <span>💳</span>
+              <span>Thông tin chuyển khoản</span>
+            </div>
+            <div className="mt-2 text-sm font-bold text-white">Ngân hàng BIDV</div>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="text-xs font-medium text-emerald-100/90">STK:</span>
+              <strong className="text-xl font-extrabold tracking-wider text-amber-300 tabular-nums sm:text-2xl">
+                8610312888
+              </strong>
+            </div>
+            <div className="mt-1 text-xs font-medium text-emerald-100/85">
+              Chủ TK: <span className="text-white">Hộ KD Cửa Hàng Phúc Thọ</span>
+            </div>
           </div>
         </div>
 
@@ -151,6 +163,11 @@ export default async function Footer() {
                 </Link>
               </li>
             ))}
+            <li>
+              <Link href="/so-do-trang.html" className="text-emerald-100/90 hover:text-white hover:underline">
+                🗺️ Sơ đồ trang (Sitemap)
+              </Link>
+            </li>
           </ul>
         </div>
 

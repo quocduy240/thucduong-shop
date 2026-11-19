@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { vnd } from "@/lib/site";
+import LoyaltyRewardsSection from "./LoyaltyRewardsSection";
 
 export type MemberProfile = {
   id: number;
@@ -95,6 +96,14 @@ export default function MemberPortal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [copiedCode, setCopiedCode] = useState("");
+  const [referralCode, setReferralCode] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const ref = new URLSearchParams(window.location.search).get("ref");
+      if (ref) setReferralCode(ref.trim().toUpperCase());
+    }
+  }, []);
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
@@ -103,7 +112,7 @@ export default function MemberPortal({
     try {
       const payload =
         authTab === "register"
-          ? { action: "register", name, email, phone, password }
+          ? { action: "register", name, email, phone, password, referralCode }
           : { action: "login", identifier, password };
       const res = await fetch("/api/member/auth", {
         method: "POST",
@@ -273,12 +282,22 @@ export default function MemberPortal({
                     <label className="mb-1 block text-xs font-semibold text-gray-700">Địa chỉ Email *</label>
                     <input
                       type="email"
+                      inputMode="email"
+                      autoComplete="email"
                       required
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="email@example.com"
+                      onChange={(e) => setEmail(e.target.value.replace(/\s+/g, ""))}
+                      onBlur={() => setEmail((v) => v.trim().toLowerCase())}
+                      pattern="^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$"
+                      title="Vui lòng nhập đúng định dạng email (VD: tenban@gmail.com)"
+                      placeholder="VD: tenban@gmail.com"
                       className="w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm outline-none focus:border-brand"
                     />
+                    {email && !/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$/.test(email.trim()) && (
+                      <p className="mt-1 text-[11px] text-amber-700">
+                        ⚠️ Định dạng email chưa đúng (VD: tenban@gmail.com)
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-gray-700">Số điện thoại Zalo *</label>
@@ -403,6 +422,9 @@ export default function MemberPortal({
           </div>
         </div>
       </div>
+
+      {/* Loyalty Rewards, Check-in, Referral & Ledger */}
+      <LoyaltyRewardsSection />
 
       {/* Section 1: Member Voucher Wallet */}
       <section className="space-y-3">

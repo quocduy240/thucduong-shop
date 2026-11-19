@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { vnd } from "@/lib/site";
 import AiImageRegenerateModal from "./AiImageRegenerateModal";
+import EditorColorPopover from "./EditorColorPopover";
 
 export type EditorProductItem = {
   id: number;
@@ -368,8 +369,8 @@ export default function ContentEditor({
   function applyColor(kind: "text" | "highlight", color: string) {
     if (mode === "html") setMode("visual");
     setColorPopover(null);
-    if (kind === "text") setTextColor(color);
-    else if (color !== "transparent") setHighlightColor(color);
+    if (kind === "text") setTextColor(color === "inherit" ? "#1f2937" : color);
+    else setHighlightColor(color === "transparent" ? "#fef08a" : color);
 
     setTimeout(() => {
       visualRef.current?.focus();
@@ -378,12 +379,32 @@ export default function ContentEditor({
         sel.removeAllRanges();
         sel.addRange(savedRangeRef.current);
       }
+      // CSS variables (var(--brand), etc.) are not supported by execCommand("foreColor") in all browsers
+      if (color.startsWith("var(") && sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+        const range = sel.getRangeAt(0);
+        const span = document.createElement("span");
+        if (kind === "text") span.style.color = color;
+        else span.style.backgroundColor = color;
+        span.appendChild(range.extractContents());
+        range.insertNode(span);
+        sel.removeAllRanges();
+        const nextRange = document.createRange();
+        nextRange.selectNodeContents(span);
+        sel.addRange(nextRange);
+        syncFromVisual();
+        return;
+      }
       try {
         document.execCommand("styleWithCSS", false, "true");
       } catch {
         /* ignore */
       }
-      document.execCommand(kind === "text" ? "foreColor" : "hiliteColor", false, color);
+      if (kind === "text") {
+        document.execCommand("foreColor", false, color === "inherit" ? "inherit" : color);
+      } else {
+        const ok = document.execCommand("hiliteColor", false, color);
+        if (!ok) document.execCommand("backColor", false, color);
+      }
       syncFromVisual();
     }, 10);
   }
@@ -1476,60 +1497,13 @@ export default function ContentEditor({
 
             {/* Color Swatch Grid Popover */}
             {colorPopover && (
-              <div
-                onMouseDown={(e) => e.preventDefault()}
-                className="absolute left-0 top-full z-50 mt-1.5 w-56 rounded-xl border border-gray-200 bg-white p-3 shadow-xl"
-              >
-                <div className="mb-2 flex items-center justify-between border-b pb-1.5">
-                  <span className="text-[11px] font-bold text-gray-700">
-                    {colorPopover === "text" ? "🅰️ Chọn Màu Chữ" : "🖍️ Chọn Màu Nền (Highlight)"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setColorPopover(null)}
-                    className="text-xs text-gray-400 hover:text-gray-700"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    applyColor(colorPopover, colorPopover === "text" ? "#1f2937" : "transparent")
-                  }
-                  className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-100 cursor-pointer"
-                >
-                  <span>🚫</span>
-                  <span>{colorPopover === "text" ? "Màu mặc định" : "Không tô nền (Xoá màu)"}</span>
-                </button>
-
-                <div className="grid grid-cols-8 gap-1">
-                  {GOOGLE_DOCS_PALETTE.map((hex) => (
-                    <button
-                      key={hex}
-                      type="button"
-                      onClick={() => applyColor(colorPopover, hex)}
-                      title={hex}
-                      className="h-5 w-5 rounded border border-gray-300/80 transition hover:scale-110 hover:border-gray-900 cursor-pointer"
-                      style={{ backgroundColor: hex }}
-                    />
-                  ))}
-                </div>
-
-                <div className="mt-2.5 flex items-center justify-between border-t pt-2">
-                  <span className="text-[11px] font-semibold text-gray-600">Tuỳ chỉnh HEX:</span>
-                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded border border-gray-300 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-700 hover:bg-gray-100">
-                    <span>🎨 Chọn</span>
-                    <input
-                      type="color"
-                      value={colorPopover === "text" ? textColor : highlightColor}
-                      onChange={(e) => applyColor(colorPopover, e.target.value)}
-                      className="h-4 w-5 cursor-pointer border-0 bg-transparent p-0"
-                    />
-                  </label>
-                </div>
-              </div>
+              <EditorColorPopover
+                kind={colorPopover}
+                currentTextColor={textColor}
+                currentHighlightColor={highlightColor}
+                onApply={(c) => applyColor(colorPopover, c)}
+                onClose={() => setColorPopover(null)}
+              />
             )}
           </div>
 
@@ -2375,6 +2349,36 @@ export default function ContentEditor({
           );
         }}
       />
+      {/* Floating Voice-to-Text Dictation Button (bottom-right, follows scroll) */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2 print:hidden">
+        {voiceListening && (
+          <div className="max-w-xs rounded-2xl border border-red-200 bg-white/95 px-3.5 py-2.5 text-xs text-red-900 shadow-xl backdrop-blur">
+            <div className="flex items-center gap-2 font-bold text-red-600">
+              <span className="inline-block h-2.5 w-2.5 animate-ping rounded-full bg-red-600" />
+              <span>Đang nghe (Tiếng Việt)...</span>
+            </div>
+            <p className="mt-1 line-clamp-2 italic text-gray-700">
+              {voiceInterim ? `"${voiceInterim}"` : "Hãy đọc nội dung, chữ sẽ tự chèn vào vị trí con trỏ..."}
+            </p>
+          </div>
+        )}
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={toggleVoiceDictation}
+          title="Đặt con trỏ vào vị trí cần nhập rồi bấm để đọc thành văn bản tiếng Việt"
+          className={`flex cursor-pointer items-center gap-2.5 rounded-full px-5 py-3.5 text-sm font-extrabold text-white shadow-2xl transition-all duration-200 ${
+            voiceListening
+              ? "animate-pulse bg-gradient-to-r from-red-600 to-rose-600 ring-4 ring-red-300/80 hover:scale-105"
+              : "bg-gradient-to-r from-emerald-600 to-green-600 ring-4 ring-emerald-200/80 hover:scale-105 hover:from-emerald-500 hover:to-green-500"
+          }`}
+        >
+          <span className="grid h-7 w-7 place-items-center rounded-full bg-white/20 text-base">
+            {voiceListening ? "⏹️" : "🎙️"}
+          </span>
+          <span>{voiceListening ? "Dừng Micro" : "Nhập giọng nói"}</span>
+        </button>
+      </div>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
 } from "@/lib/auth";
 import { isOrderStatus } from "@/lib/admin-data";
 import { all, batch, one, run } from "@/lib/db";
+import { onOrderStatusChanged } from "@/lib/loyalty-events";
 import { sendEmail } from "@/lib/mail";
 import {
   getSite,
@@ -238,6 +239,9 @@ export async function updateOrderStatusAction(formData: FormData) {
   }
   stmts.push({ sql: "UPDATE orders SET status = ? WHERE id = ?", params: [status, id] });
   await batch(stmts);
+  if (current.status !== status) {
+    await onOrderStatusChanged(id, current.status, status);
+  }
   refresh();
   redirect(`/admin/orders/${id}/?saved=1`);
 }

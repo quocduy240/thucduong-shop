@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getPost, getPostSection } from "@/lib/data";
+import ArticleReadTracker from "@/components/ArticleReadTracker";
 import { PostDetail } from "@/components/PostViews";
 
 // URL: /<section>/<category>/<slug>.html  e.g. /thuc-duong/thuc-duong-can-ban/abc.html
@@ -22,5 +23,10 @@ export async function generateMetadata({ params }: PageProps<"/[section]/[slug]/
 export default async function PostPage({ params }: PageProps<"/[section]/[slug]/[post]">) {
   const r = await load(params);
   if (!r) notFound();
-  return <PostDetail post={r.post} section={r.section} />;
+  return (
+    <>
+      <PostDetail post={r.post} section={r.section} />
+      <ArticleReadTracker postId={r.post.id} postTitle={r.post.title} />
+    </>
+  );
 }

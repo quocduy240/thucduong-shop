@@ -64,6 +64,15 @@ export async function endMemberSession() {
   jar.delete(MEMBER_COOKIE);
 }
 
+const EMAIL_REGEX =
+  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+export function isValidEmail(raw: string): boolean {
+  const email = raw.trim().toLowerCase();
+  if (!email || email.length > 254 || email.includes("..")) return false;
+  return EMAIL_REGEX.test(email);
+}
+
 export async function registerMemberAccount(opts: {
   name: string;
   email: string;
@@ -76,7 +85,7 @@ export async function registerMemberAccount(opts: {
   const pw = opts.password;
 
   if (!name) return { error: "Vui lòng nhập họ và tên." };
-  if (!/^\S+@\S+\.\S+$/.test(email)) return { error: "Địa chỉ email không hợp lệ." };
+  if (!isValidEmail(email)) return { error: "Địa chỉ email không đúng định dạng (VD: tenban@gmail.com)." };
   if (phone && !/^0\d{9,10}$/.test(phone)) return { error: "Số điện thoại không hợp lệ." };
   if (pw.length < 6) return { error: "Mật khẩu tối thiểu 6 ký tự." };
 

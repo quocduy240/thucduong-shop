@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { vnd } from "@/lib/site";
+import SearchableSelect from "./SearchableSelect";
 
 type Opt = { code: string; name: string };
 type MemberInfo = { id: number; name: string; email: string; phone: string; tier: "bronze" | "silver" | "gold"; points: number };
@@ -24,6 +25,7 @@ export default function CheckoutForm({ subtotal = 0 }: { subtotal?: number }) {
   const [provinces, setProvinces] = useState<Opt[]>([]);
   const [wards, setWards] = useState<Opt[]>([]);
   const [province, setProvince] = useState("");
+  const [ward, setWard] = useState("");
   const [payment, setPayment] = useState<"cod" | "bank">("cod");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -42,7 +44,10 @@ export default function CheckoutForm({ subtotal = 0 }: { subtotal?: number }) {
   const [couponErr, setCouponErr] = useState("");
 
   useEffect(() => {
-    fetch("/api/v2/province").then((r) => r.json()).then((d) => setProvinces(d.items));
+    fetch("/api/v2/province")
+      .then((r) => r.json())
+      .then((d) => setProvinces(Array.isArray(d?.items) ? d.items : []))
+      .catch(() => setProvinces([]));
     fetch("/api/member/auth")
       .then((r) => r.json())
       .then((d) => {
@@ -54,12 +59,15 @@ export default function CheckoutForm({ subtotal = 0 }: { subtotal?: number }) {
         }
         if (d.coupons) setCoupons(d.coupons);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
     if (!province) return;
-    fetch(`/api/v2/province/ward?province=${province}`).then((r) => r.json()).then((d) => setWards(d.items));
+    fetch(`/api/v2/province/ward?province=${encodeURIComponent(province)}`)
+      .then((r) => r.json())
+      .then((d) => setWards(Array.isArray(d?.items) ? d.items : []))
+      .catch(() => setWards([]));
   }, [province]);
 
   async function applyCoupon(codeToTry: string) {
@@ -159,28 +167,29 @@ export default function CheckoutForm({ subtotal = 0 }: { subtotal?: number }) {
         placeholder="Email (nhận thông báo đơn hàng & tích điểm thành viên)"
         className={`${input} sm:col-span-2`}
       />
-      <select
+      <SearchableSelect
         name="province_code"
         required
+        options={provinces}
         value={province}
-        onChange={(e) => (setProvince(e.target.value), setWards([]))}
-        className={input}
-      >
-        <option value="">Chọn Tỉnh/Thành phố *</option>
-        {provinces.map((p) => (
-          <option key={p.code} value={p.code}>
-            {p.name}
-          </option>
-        ))}
-      </select>
-      <select name="ward_code" required className={input} disabled={!province}>
-        <option value="">Chọn Phường/Xã *</option>
-        {wards.map((w) => (
-          <option key={w.code} value={w.code}>
-            {w.name}
-          </option>
-        ))}
-      </select>
+        onChange={(code) => {
+          setProvince(code);
+          setWard("");
+          setWards([]);
+        }}
+        placeholder="Chọn Tỉnh/Thành phố *"
+        searchPlaceholder="Gõ tên tỉnh/thành (VD: Ho Chi Minh, Ha Noi)..."
+      />
+      <SearchableSelect
+        name="ward_code"
+        required
+        disabled={!province}
+        options={wards}
+        value={ward}
+        onChange={setWard}
+        placeholder={province ? "Chọn Phường/Xã *" : "Vui lòng chọn Tỉnh/Thành trước"}
+        searchPlaceholder="Gõ tên phường/xã (VD: Ba Dinh, Tan Binh)..."
+      />
       <input name="address" required placeholder="Số nhà, tên đường *" className={`${input} sm:col-span-2`} />
       <textarea name="note" placeholder="Ghi chú giao hàng (tuỳ chọn)" rows={2} className={`${input} sm:col-span-2`} />
 
@@ -211,11 +220,10 @@ export default function CheckoutForm({ subtotal = 0 }: { subtotal?: number }) {
                 type="button"
                 onClick={() => applyCoupon(c.code)}
                 title={c.description}
-                className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition ${
-                  appliedCode === c.code
-                    ? "border-brand bg-brand text-white"
-                    : "border-green-300 bg-white text-brand hover:bg-green-50"
-                }`}
+                className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition ${appliedCode === c.code
+                  ? "border-brand bg-brand text-white"
+                  : "border-green-300 bg-white text-brand hover:bg-green-50"
+                  }`}
               >
                 🏷️ {c.code} ({c.discount_type === "percent" ? `-${c.discount_value}%` : `-${vnd(c.discount_value)}`})
               </button>
