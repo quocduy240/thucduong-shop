@@ -1,8 +1,11 @@
 import Link from "next/link";
+import AdminStaffPanel, { type StaffMember } from "@/components/admin/AdminStaffPanel";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import { Flash, PageHeader, strParam, ui } from "@/components/admin/ui";
 import { listMembersData } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/auth";
+import { all } from "@/lib/db";
+import { normalizeRole } from "@/lib/rbac";
 import { vnd } from "@/lib/site";
 import {
   addSubscriberAction,
@@ -21,10 +24,25 @@ export default async function MembersAdminPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const sp = await searchParams;
   const q = strParam(sp.q);
-  const { members, subscribers, coupons } = await listMembersData({ q });
+  const canManageStaff = admin.role === "super_admin" || admin.role === "admin";
+  const [{ members, subscribers, coupons }, staffRows] = await Promise.all([
+    listMembersData({ q }),
+    canManageStaff
+      ? all<{ id: number; email: string; name?: string; role?: string; created_at: string }>(
+          "SELECT id, email, name, role, created_at FROM admins ORDER BY id ASC",
+        )
+      : Promise.resolve([]),
+  ]);
+  const staff: StaffMember[] = staffRows.map((r) => ({
+    id: r.id,
+    email: r.email,
+    name: r.name ?? "",
+    role: normalizeRole(r.role),
+    created_at: r.created_at,
+  }));
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 pb-12">
@@ -40,6 +58,10 @@ export default async function MembersAdminPage({
         </a>
       </PageHeader>
       <Flash saved={sp.saved} error={sp.error} />
+
+      {canManageStaff && (
+        <AdminStaffPanel initialStaff={staff} myId={admin.id} myRole={admin.role} />
+      )}
 
       {/* Search bar */}
       <form className="flex flex-wrap gap-2">

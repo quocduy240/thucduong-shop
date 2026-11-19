@@ -1,7 +1,7 @@
 import { Flash, PageHeader, ui } from "@/components/admin/ui";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import { listAdmins } from "@/lib/admin-data";
-import { requireAdmin } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { all, one, run } from "@/lib/db";
 import { isLikelyValidGeminiKey } from "@/lib/gemini-key";
 import { getMailSettings, getSite, getWidgetSettings } from "@/lib/settings";
@@ -21,7 +21,7 @@ import {
 export const metadata = { title: "Cài đặt | Quản trị" };
 
 export default async function SettingsAdmin({ searchParams }: PageProps<"/admin/settings">) {
-  const me = await requireAdmin();
+  const me = await requireRole(["super_admin", "admin"]);
   const sp = await searchParams;
   await run(`CREATE TABLE IF NOT EXISTS consultation_requests (
     id INTEGER PRIMARY KEY,

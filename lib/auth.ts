@@ -3,22 +3,30 @@ import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { one, run } from "./db";
+import { normalizeRole, type AdminRole } from "./rbac";
 
 /** Admin accounts live in D1 (tables admins / admin_sessions). Passwords: scrypt + random salt. */
 export const ADMIN_COOKIE = "admin_session";
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
 
-type Admin = { id: number; email: string };
+export type Admin = { id: number; email: string; name: string; role: AdminRole };
 
 const hash = (password: string, salt: string) => crypto.scryptSync(password, salt, 64).toString("hex");
 
 export const hasAdmin = async () => !!(await one("SELECT 1 AS x FROM admins LIMIT 1"));
 
-export async function createAdmin(email: string, password: string) {
+export async function createAdmin(
+  email: string,
+  password: string,
+  role: AdminRole = "super_admin",
+  name = "",
+) {
   const salt = crypto.randomBytes(16).toString("hex");
   const r = await run(
-    "INSERT INTO admins (email, salt, password_hash) VALUES (?, ?, ?)",
-    email,
+    "INSERT INTO admins (email, name, role, salt, password_hash) VALUES (?, ?, ?, ?, ?)",
+    email.trim().toLowerCase(),
+    name.trim(),
+    role,
     salt,
     hash(password, salt),
   );
@@ -60,18 +68,33 @@ export async function endSession() {
 export async function currentAdmin(): Promise<Admin | undefined> {
   const token = (await cookies()).get(ADMIN_COOKIE)?.value;
   if (!token) return undefined;
-  return one<Admin>(
-    `SELECT a.id, a.email FROM admin_sessions s JOIN admins a ON a.id = s.admin_id
+  const row = await one<{ id: number; email: string; name?: string; role?: string }>(
+    `SELECT a.id, a.email, a.name, a.role FROM admin_sessions s JOIN admins a ON a.id = s.admin_id
      WHERE s.token = ? AND s.expires_at > ?`,
     token,
     Math.floor(Date.now() / 1000),
   );
+  if (!row) return undefined;
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name ?? "",
+    role: normalizeRole(row.role),
+  };
 }
 
 /** Call at the top of every admin page AND every admin server action. */
 export async function requireAdmin(): Promise<Admin> {
   const a = await currentAdmin();
   if (!a) redirect("/admin/");
+  return a;
+}
+
+export async function requireRole(allowed: AdminRole[]): Promise<Admin> {
+  const a = await requireAdmin();
+  if (!allowed.includes(a.role)) {
+    redirect("/admin/?error=" + encodeURIComponent("Bạn không có quyền truy cập khu vực này."));
+  }
   return a;
 }
 

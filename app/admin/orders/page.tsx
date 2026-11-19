@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Flash, PageHeader, Pagination, StatusBadge, pageParam, strParam, ui } from "@/components/admin/ui";
 import { ORDER_STATUS, countOrdersByStatus, listOrders, type OrderSort } from "@/lib/admin-data";
-import { requireAdmin } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { vnd } from "@/lib/site";
 
 export const metadata = { title: "Đơn hàng | Quản trị" };
@@ -14,7 +14,7 @@ function isoDate(d: Date): string {
 }
 
 export default async function OrdersAdmin({ searchParams }: PageProps<"/admin/orders">) {
-  await requireAdmin();
+  await requireRole(["super_admin", "admin", "sales"]);
   const sp = await searchParams;
   const status = strParam(sp.status);
   const q = strParam(sp.q);
@@ -145,11 +145,10 @@ export default async function OrdersAdmin({ searchParams }: PageProps<"/admin/or
               <Link
                 key={p.label}
                 href={p.href}
-                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
-                  p.active
-                    ? "bg-brand text-white"
-                    : "border border-gray-200 bg-gray-50 text-gray-700 hover:border-brand hover:text-brand"
-                }`}
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${p.active
+                  ? "bg-brand text-white"
+                  : "border border-gray-200 bg-gray-50 text-gray-700 hover:border-brand hover:text-brand"
+                  }`}
               >
                 {p.label}
               </Link>

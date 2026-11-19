@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { canAccessAdminPath, type AdminRole } from "@/lib/rbac";
 
 type NavItem = { href: string; label: string; icon: string };
 type NavGroup = {
@@ -72,11 +73,18 @@ const STORAGE_KEY = "td_admin_nav_groups";
 export default function AdminNav({
   newOrders,
   crmFollowupsDue = 0,
+  role = "admin",
 }: {
   newOrders: number;
   crmFollowupsDue?: number;
+  role?: AdminRole;
 }) {
   const path = usePathname().replace(/\/?$/, "/");
+  const visibleFlatItems = FLAT_ITEMS.filter((it) => canAccessAdminPath(role, it.href));
+  const visibleGroups = GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((it) => canAccessAdminPath(role, it.href)),
+  })).filter((g) => g.items.length > 0);
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({
     sales: true,
     ai: true,
@@ -150,7 +158,7 @@ export default function AdminNav({
     <>
       {/* Mobile: compact horizontal scrollable pills */}
       <nav className="flex gap-1 overflow-x-auto pb-1 md:hidden">
-        {FLAT_ITEMS.map((it) => {
+        {visibleFlatItems.map((it) => {
           const active = it.href === "/admin/" ? path === "/admin/" : path.startsWith(it.href);
           return (
             <Link
@@ -200,7 +208,7 @@ export default function AdminNav({
         </Link>
 
         {/* Functional Collapsible Groups */}
-        {GROUPS.map((g) => {
+        {visibleGroups.map((g) => {
           const isOpen = Boolean(openMap[g.id]);
           const groupBadge =
             g.id === "sales" && !isOpen ? newOrders + crmFollowupsDue : 0;
