@@ -93,6 +93,25 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
           },
         ],
       },
+      {
+        id: "product-import",
+        title: "3. Nhập Sản phẩm từ Link & Làm sạch Thương hiệu (/admin/products/import/)",
+        badge: "Mới",
+        items: [
+          {
+            heading: "Bước 1 & 2: Dán Link lấy dữ liệu → Xem trước → Nhập SP",
+            body: "Vào /admin/products/ bấm '🌐 Nhập SP từ Link'. Dán URL sản phẩm (hoặc HTML dự phòng nếu site chặn bot), hệ thống tự lấy thông tin, chuyển đổi theo motif chuẩn của shop, cảnh báo trùng link và hiển thị danh sách dấu vết trang cũ (SĐT, Email, link ngoài, ảnh).",
+          },
+          {
+            heading: "Bước 3: Chỉnh sửa Thủ công hoặc Tự động chạy ngầm",
+            body: "Sau khi bấm '📥 Nhập sản phẩm vào trang', chọn Cách 1 (sửa thủ công theo gợi ý) hoặc Cách 2 (Tự động chạy ngầm qua Idle Worker: làm sạch văn bản + dùng AI Vision phát hiện và vẽ lại ảnh dính SĐT/Email/Watermark trang cũ).",
+          },
+          {
+            heading: "Bước 4: Lịch sử cập nhật & Xoá note nguồn",
+            body: "Mọi link đã lấy được lưu trong Lịch sử kèm nút '🔄 Cập nhật nguồn'. Khi sản phẩm đã sạch hoàn toàn, bấm '🧹 Xoá note nguồn' để xoá link nguồn khỏi hồ sơ sản phẩm.",
+          },
+        ],
+      },
     ],
   },
   {

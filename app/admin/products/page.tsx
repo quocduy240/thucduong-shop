@@ -31,6 +31,9 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader title="Sản phẩm">
+        <Link href="/admin/products/import/" className={ui.secondary}>
+          🌐 Nhập SP từ Link
+        </Link>
         <Link href="/admin/products/new/" className={ui.primary}>+ Thêm sản phẩm</Link>
       </PageHeader>
       <Flash saved={sp.saved} error={sp.error} />

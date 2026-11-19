@@ -5,7 +5,9 @@ import ConfirmButton from "@/components/admin/ConfirmButton";
 import ContentEditor from "@/components/admin/ContentEditor";
 import CoverImageStudio from "@/components/admin/CoverImageStudio";
 import ProductGalleryStudio from "@/components/admin/ProductGalleryStudio";
+import ProductSourceNoteBanner from "@/components/admin/ProductSourceNoteBanner";
 import { getProductById, getProductCategories, getProducts, url } from "@/lib/data";
+import { one } from "@/lib/db";
 import { deleteProductAction, saveProductAction } from "../../actions";
 
 export const metadata = { title: "Sản phẩm | Quản trị" };
@@ -22,10 +24,16 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
   const saved = sp.saved === "1";
   const id = rawId === "new" ? 0 : Number(rawId);
   if (rawId !== "new" && !Number.isInteger(id)) notFound();
-  const [p, categories, productsRaw] = await Promise.all([
+  const [p, categories, productsRaw, sourceRow] = await Promise.all([
     id ? getProductById(id) : Promise.resolve(undefined),
     getProductCategories(),
     getProducts(200),
+    id
+      ? one<{ source_url?: string | null; source_note?: string | null }>(
+          "SELECT source_url, source_note FROM products WHERE id = ?",
+          id,
+        ).catch(() => undefined)
+      : Promise.resolve(undefined),
   ]);
   if (id && !p) notFound();
 
@@ -85,6 +93,14 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-sm font-medium text-emerald-800">
           ✓ Đã lưu thông tin sản phẩm thành công!
         </div>
+      )}
+
+      {p && (sourceRow?.source_url || sourceRow?.source_note) && (
+        <ProductSourceNoteBanner
+          productId={p.id}
+          sourceUrl={sourceRow.source_url}
+          sourceNote={sourceRow.source_note}
+        />
       )}
 
       <form action={saveProductAction} className="space-y-6">
