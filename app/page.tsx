@@ -24,11 +24,11 @@ export default async function Home() {
   return (
     <div className="mx-auto max-w-6xl px-4">
       {/* Banner */}
-      <section className="my-5 grid gap-4 md:grid-cols-[1fr_290px]">
+      <section className="my-5">
         <div className="flex min-h-60 flex-col justify-center rounded-2xl bg-gradient-to-br from-[#1f5a22] via-brand to-emerald-600 p-6 text-white shadow-sm md:p-8">
           <p className="text-xs font-semibold uppercase tracking-widest text-emerald-100">{site.tagline}</p>
           <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight sm:text-3xl md:text-4xl">{site.name}</h1>
-          <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-emerald-50">
+          <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-emerald-50">
             Thực phẩm Thực dưỡng – Thảo dược – Ngũ cốc &amp; Gia vị hữu cơ chuẩn mực. Cân bằng quân bình âm dương, sống khoẻ &amp; an tâm mỗi ngày.
           </p>
           <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-medium text-emerald-50">
@@ -48,37 +48,6 @@ export default async function Home() {
             HKD Cửa Hàng Phúc Thọ · GPKD: 089185004882 (23/10/2025 – TP.HCM)
           </p>
         </div>
-
-        <aside className="rounded-2xl border border-gray-200 bg-white p-4 shadow-2xs">
-          <div className="mb-2.5 flex items-center justify-between border-b border-gray-100 pb-2">
-            <h2 className="text-sm font-extrabold uppercase tracking-wide text-brand">Danh mục sản phẩm</h2>
-            <Link href="/san-pham/" className="text-xs font-semibold text-gray-500 hover:text-brand">
-              Tất cả ›
-            </Link>
-          </div>
-          <ul className="space-y-1 text-sm">
-            <li>
-              <Link
-                href="/canh-duong-sinh/"
-                className="flex items-center justify-between rounded-lg bg-emerald-50 px-2.5 py-1.5 font-bold text-brand hover:bg-emerald-100"
-              >
-                <span>⭐ Canh Dưỡng Sinh King Kung</span>
-                <span className="text-xs">›</span>
-              </Link>
-            </li>
-            {categories.map((c) => (
-              <li key={c.slug}>
-                <Link
-                  href={url.productCategory(c)}
-                  className="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-gray-700 transition hover:bg-green-50 hover:text-brand"
-                >
-                  <span className="truncate">{c.name}</span>
-                  <span className="text-xs text-gray-400">›</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </aside>
       </section>
 
       {/* Quick Shortcuts Strip */}
