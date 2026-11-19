@@ -19,11 +19,11 @@ export default async function QuickConsultPage() {
   const zaloUrl = widget.widget_zalo || "";
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 space-y-6">
-      <div className="rounded-2xl bg-gradient-to-r from-brand to-emerald-700 p-6 text-white shadow-sm md:p-8">
+    <div className="mx-auto max-w-6xl px-4 py-5 md:py-7 space-y-5">
+      <div className="rounded-2xl bg-gradient-to-r from-brand to-emerald-700 p-5 text-white shadow-sm md:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">
-            🌿 Trợ Lý Chuyên Gia Thực Dưỡng AI
+            🌿 Trợ Lý Chuyên Gia Thực Dưỡng AI · 3 Bước Nhanh
           </span>
           <FrontendEditButton
             resource="quick_consult"
@@ -32,11 +32,11 @@ export default async function QuickConsultPage() {
             variant="pill"
           />
         </div>
-        <h1 className="mt-2 text-2xl font-bold md:text-3xl">
+        <h1 className="mt-2 text-xl font-bold md:text-2xl">
           Tư Vấn Nhanh Thực Dưỡng Cá Nhân Hoá
         </h1>
-        <p className="mt-2 max-w-3xl text-sm text-emerald-50">
-          Chỉ cần chọn nhu cầu, tình trạng sức khoẻ và mô hình chuyên gia phù hợp — hệ thống sẽ phân tích toàn diện và gợi ý bài viết tư vấn, video, tài liệu cùng bộ sản phẩm (Thức ăn, Trợ phương, Dược thảo) dành riêng cho bạn.
+        <p className="mt-1.5 max-w-3xl text-xs md:text-sm text-emerald-50">
+          Hoàn thành 3 bước ngắn để nhận bài tư vấn chuyên sâu từ Hội đồng AI Thực dưỡng kèm video, tài liệu và bộ sản phẩm phù hợp nhất.
         </p>
       </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   resolveDisclaimerContent,
   type MedicalDisclaimerConfig,
@@ -83,9 +83,26 @@ export default function QuickConsultClient({
   const [motifId, setMotifId] = useState<string>(CONSULT_MOTIFS[0].id);
   const [customNote, setCustomNote] = useState("");
 
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [showDietRecall, setShowDietRecall] = useState(false);
+  const [aiStage, setAiStage] = useState(0);
+
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [result, setResult] = useState<ConsultResult | null>(null);
+
+  useEffect(() => {
+    if (!busy) {
+      setAiStage(0);
+      return;
+    }
+    const t = setInterval(() => {
+      setAiStage((s) => (s < 3 ? s + 1 : 3));
+    }, 3200);
+    return () => clearInterval(t);
+  }, [busy]);
+
+  const liveBmi = calcBmi(Number(heightCm), Number(weightKg));
 
   // History / Re-examination tracking by phone
   const [historyItems, setHistoryItems] = useState<HistoryItem[] | null>(null);
@@ -219,19 +236,22 @@ export default function QuickConsultClient({
     }
   }
 
+  function goToStep(next: 1 | 2 | 3) {
+    setStep(next);
+    setTimeout(() => {
+      document.getElementById("quick-consult-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
+
   return (
-    <div className="space-y-8">
-      {/* 5-Step Scientific Consultation Process (NERCI Standard) */}
-      <section className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 md:p-5">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-bold text-emerald-900">
-            🧭 Quy Trình Tư Vấn 5 Bước Chuẩn Y Khoa – Thực Dưỡng – Đông Tây Y Kết Hợp
-          </h2>
-          <span className="text-[11px] font-semibold text-emerald-700">
-            AI Gemini 2.5 Flash + Đội ngũ Chuyên gia
-          </span>
-        </div>
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="space-y-6">
+      {/* Collapsible 5-Step Scientific Consultation Process */}
+      <details className="rounded-2xl border border-emerald-200 bg-emerald-50/40 px-4 py-3">
+        <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 text-xs font-bold text-emerald-900 select-none">
+          <span>🧭 Xem Quy Trình Tư Vấn 5 Bước Chuẩn Y Khoa – Thực Dưỡng – Đông Tây Y Kết Hợp</span>
+          <span className="text-[11px] font-semibold text-emerald-700">AI Gemini 2.5 Flash + Hội đồng Chuyên gia ▾</span>
+        </summary>
+        <div className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
           {CONSULT_PROCESS_STEPS.map((s) => (
             <div key={s.step} className="rounded-xl border border-emerald-200/80 bg-white p-3 shadow-2xs">
               <div className="text-xs font-extrabold text-brand">Bước {s.step}</div>
@@ -240,10 +260,52 @@ export default function QuickConsultClient({
             </div>
           ))}
         </div>
-      </section>
+      </details>
 
-      {/* Step 1: Intake Form */}
-      <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm md:p-7 space-y-6">
+      {/* 3-Step Intake Wizard */}
+      <section id="quick-consult-form" className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm md:p-6 space-y-5">
+        {/* Stepper Header */}
+        <div className="grid gap-2 border-b border-gray-100 pb-4 sm:grid-cols-3">
+          {[
+            { num: 1 as const, title: "Đối tượng & Hồ sơ", sub: customerName.trim() || CONSULT_AUDIENCES.find((a) => a.id === audience)?.label || "Chọn đối tượng" },
+            { num: 2 as const, title: "Nhu cầu & Tình trạng", sub: `Đã chọn ${needs.length} nhu cầu${conditions.length ? `, ${conditions.length} biểu hiện` : ""}` },
+            { num: 3 as const, title: "Chuyên gia AI & Kết quả", sub: CONSULT_MOTIFS.find((m) => m.id === motifId)?.name || "Chọn mô hình AI" },
+          ].map((item) => {
+            const active = step === item.num;
+            const done = step > item.num;
+            return (
+              <button
+                key={item.num}
+                type="button"
+                onClick={() => setStep(item.num)}
+                className={`flex items-center gap-3 rounded-xl border p-3 text-left transition cursor-pointer ${
+                  active
+                    ? "border-brand bg-green-50/70 ring-1 ring-brand/20"
+                    : done
+                      ? "border-emerald-200 bg-emerald-50/30 hover:border-brand/50"
+                      : "border-gray-200 bg-gray-50/60 hover:border-gray-300"
+                }`}
+              >
+                <span
+                  className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-extrabold ${
+                    active ? "bg-brand text-white" : done ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-600"
+                  }`}
+                >
+                  {done ? "✓" : item.num}
+                </span>
+                <div className="min-w-0">
+                  <div className={`text-xs font-extrabold ${active ? "text-brand" : "text-gray-900"}`}>
+                    Bước {item.num}: {item.title}
+                  </div>
+                  <div className="truncate text-[11px] text-gray-500">{item.sub}</div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* STEP 1: Audience & Basic Info */}
+        <div className={step === 1 ? "space-y-5" : "hidden"}>
         {/* Audience Group Selector */}
         <div className="space-y-2.5">
           <h2 className="text-sm font-bold text-gray-900">
@@ -342,6 +404,16 @@ export default function QuickConsultClient({
             </div>
           </div>
 
+          {liveBmi !== null && (
+            <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-900">
+              <span>📊 Chỉ số BMI ước tính:</span>
+              <span className="font-extrabold text-brand">{liveBmi}</span>
+              <span className="text-[11px] text-emerald-700">
+                ({liveBmi < 18.5 ? "Nhẹ cân" : liveBmi < 23 ? "Cân đối" : liveBmi < 25 ? "Hơi thừa cân" : "Cần kiểm soát cân nặng"})
+              </span>
+            </div>
+          )}
+
           {historyItems !== null && (
             <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-xs">
               <div className="font-bold text-blue-900">
@@ -372,51 +444,76 @@ export default function QuickConsultClient({
           )}
         </div>
 
-        {/* 24-Hour Dietary Recall */}
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4 space-y-3">
+        <div className="flex items-center justify-end border-t pt-4">
+          <button
+            type="button"
+            onClick={() => goToStep(2)}
+            className="rounded-full bg-brand px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-brand-dark cursor-pointer"
+          >
+            Tiếp tục Bước 2: Chọn Nhu cầu &amp; Tình trạng →
+          </button>
+        </div>
+        </div>
+
+        {/* STEP 2: Needs, Conditions, Habits & Optional 24h Diet */}
+        <div className={step === 2 ? "space-y-5" : "hidden"}>
+        {/* 24-Hour Dietary Recall (Collapsible for cleaner Step 2) */}
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/40 p-3.5 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="text-sm font-bold text-amber-950">
-                🍽️ Khai thác Khẩu phần Ăn 24h Gần Nhất (Giúp AI phân tích &amp; Đổi món chính xác)
-              </h2>
-              <p className="text-[11px] text-amber-800">
-                Nhập ngắn gọn những gì bạn (hoặc bé) đã ăn hôm qua/hôm nay:
-              </p>
-            </div>
             <button
               type="button"
-              onClick={fillSampleDiet}
-              className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 cursor-pointer"
+              onClick={() => setShowDietRecall((v) => !v)}
+              className="text-left text-xs font-bold text-amber-950 cursor-pointer"
             >
-              ✨ Điền ví dụ mẫu
+              🍽️ Khai thác Khẩu phần Ăn 24h (Tuỳ chọn — giúp AI đổi món chính xác hơn) {showDietRecall ? "▴" : "▾"}
             </button>
+            <div className="flex items-center gap-2">
+              {showDietRecall && (
+                <button
+                  type="button"
+                  onClick={fillSampleDiet}
+                  className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 cursor-pointer"
+                >
+                  ✨ Điền ví dụ mẫu
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowDietRecall((v) => !v)}
+                className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-900 hover:bg-amber-100 cursor-pointer"
+              >
+                {showDietRecall ? "Thu gọn" : "+ Nhập khẩu phần 24h"}
+              </button>
+            </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <input
-              value={breakfast}
-              onChange={(e) => setBreakfast(e.target.value)}
-              placeholder="Bữa sáng (VD: Phở, xôi...)"
-              className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs"
-            />
-            <input
-              value={lunch}
-              onChange={(e) => setLunch(e.target.value)}
-              placeholder="Bữa trưa (VD: Cơm trắng, thịt...)"
-              className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs"
-            />
-            <input
-              value={dinner}
-              onChange={(e) => setDinner(e.target.value)}
-              placeholder="Bữa tối (VD: Cơm, canh, cá...)"
-              className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs"
-            />
-            <input
-              value={snacks}
-              onChange={(e) => setSnacks(e.target.value)}
-              placeholder="Bữa phụ / Đồ uống (VD: Trà sữa...)"
-              className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs"
-            />
-          </div>
+          {showDietRecall && (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <input
+                value={breakfast}
+                onChange={(e) => setBreakfast(e.target.value)}
+                placeholder="Bữa sáng (VD: Phở, xôi...)"
+                className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs"
+              />
+              <input
+                value={lunch}
+                onChange={(e) => setLunch(e.target.value)}
+                placeholder="Bữa trưa (VD: Cơm trắng, thịt...)"
+                className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs"
+              />
+              <input
+                value={dinner}
+                onChange={(e) => setDinner(e.target.value)}
+                placeholder="Bữa tối (VD: Cơm, canh, cá...)"
+                className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs"
+              />
+              <input
+                value={snacks}
+                onChange={(e) => setSnacks(e.target.value)}
+                placeholder="Bữa phụ / Đồ uống (VD: Trà sữa...)"
+                className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs"
+              />
+            </div>
+          )}
         </div>
 
         {/* Checkboxes 1: Nhu cầu chính */}
@@ -503,6 +600,26 @@ export default function QuickConsultClient({
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+          <button
+            type="button"
+            onClick={() => goToStep(1)}
+            className="rounded-full border border-gray-300 bg-white px-5 py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-50 cursor-pointer"
+          >
+            ← Quay lại Bước 1
+          </button>
+          <button
+            type="button"
+            onClick={() => goToStep(3)}
+            className="rounded-full bg-brand px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-brand-dark cursor-pointer"
+          >
+            Tiếp tục Bước 3: Chọn Chuyên gia AI →
+          </button>
+        </div>
+        </div>
+
+        {/* STEP 3: Motif Selector, Custom Note & Submit */}
+        <div className={step === 3 ? "space-y-5" : "hidden"}>
         {/* Motif Expert Model Selector */}
         <div className="space-y-2.5">
           <h2 className="text-sm font-bold text-gray-900">
@@ -553,6 +670,38 @@ export default function QuickConsultClient({
           </div>
         )}
 
+        {busy && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 space-y-2.5">
+            <div className="flex items-center justify-between text-xs font-bold text-emerald-900">
+              <span className="flex items-center gap-2">
+                <span className="inline-block h-2.5 w-2.5 animate-ping rounded-full bg-brand" />
+                <span>Hội đồng Chuyên gia AI đang phân tích hồ sơ của bạn...</span>
+              </span>
+              <span className="text-[11px] text-emerald-700">Ước tính ~10–15 giây</span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-4 text-[11px]">
+              {[
+                "1. Đọc hồ sơ & BMI",
+                "2. Đối chiếu Thực dưỡng & Y khoa",
+                "3. Chọn Sản phẩm & Video",
+                "4. Hoàn thiện bài tư vấn",
+              ].map((label, idx) => (
+                <div
+                  key={label}
+                  className={`rounded-lg border px-2.5 py-1.5 font-semibold transition ${
+                    aiStage >= idx
+                      ? "border-brand bg-white text-brand shadow-2xs"
+                      : "border-emerald-100 bg-white/50 text-gray-400"
+                  }`}
+                >
+                  {aiStage > idx ? "✓ " : aiStage === idx ? "⏳ " : "• "}
+                  {label}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <div className="space-y-1">
             <p className="text-xs text-gray-500">
@@ -562,15 +711,26 @@ export default function QuickConsultClient({
               ⚕️ Lưu ý: Kết quả chỉ mang tính tham khảo dinh dưỡng thực dưỡng, không thay thế chẩn đoán hay đơn thuốc của bác sĩ.
             </p>
           </div>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={runQuickConsult}
-            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand to-emerald-600 px-7 py-3.5 text-sm font-bold text-white shadow-md transition hover:opacity-95 disabled:opacity-60 cursor-pointer"
-          >
-            <span>{busy ? "⏳" : "🌿"}</span>
-            <span>{busy ? "Hội đồng AI đang phân tích hồ sơ..." : "Tư Vấn Nhanh Ngay"}</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => goToStep(2)}
+              className="rounded-full border border-gray-300 bg-white px-5 py-3 text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
+            >
+              ← Quay lại Bước 2
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={runQuickConsult}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand to-emerald-600 px-7 py-3.5 text-sm font-bold text-white shadow-md transition hover:opacity-95 disabled:opacity-60 cursor-pointer"
+            >
+              <span>{busy ? "⏳" : "🌿"}</span>
+              <span>{busy ? "Đang phân tích hồ sơ..." : "Tư Vấn Nhanh Ngay"}</span>
+            </button>
+          </div>
+        </div>
         </div>
       </section>
 
