@@ -138,8 +138,8 @@ const TOPICS: GuideTopic[] = [
         body: "Khách mua bằng SĐT dù chưa có tài khoản vẫn được tích điểm tự động. Khi chăm sóc qua Zalo, hãy nhắn họ vào mục Thành viên đăng ký bằng đúng SĐT/Email đó — hệ thống sẽ tự động gộp toàn bộ điểm cũ sang tài khoản mới.",
       },
       {
-        heading: "Điều chỉnh điểm tri ân",
-        body: "Trong mục '🎁 Tích điểm & Quà', quản trị viên có thể cộng điểm thưởng sinh nhật hoặc quà xin lỗi khi đơn có sự cố (mọi biến động đều lưu minh bạch trong sổ cái).",
+        heading: "Liên kết 2 chiều Loyalty ↔ CRM (Mới)",
+        body: "Hồ sơ CRM hiển thị ngay quà khách đủ điểm đổi, quà sắp chạm mốc và mã voucher đã đổi chưa dùng, kèm nút '+20đ tri ân' / '+50đ giữ khách' ghi thẳng vào sổ cái điểm. Đặc biệt, khi khách đổi quà hiện vật trên web, CRM tự động tạo lịch '🔔 Cần gọi hôm nay' để nhân viên xác nhận gửi quà kèm đơn mới!",
       },
     ],
   },

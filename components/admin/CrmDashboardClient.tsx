@@ -134,11 +134,17 @@ export default function CrmDashboardClient({
 
   function buildZaloTemplate(c: CrmCustomer) {
     const prod = c.lastProducts[0] ? ` (${c.lastProducts[0]})` : "";
-    const ptsText =
-      c.points > 0
-        ? ` Hiện anh/chị đang có ${c.points} điểm thưởng có thể đổi quà/voucher tại Thực Dưỡng Phúc Thọ.`
-        : "";
-    return `Dạ chào anh/chị ${c.name}, em bên Thực Dưỡng Phúc Thọ ạ. Không biết anh/chị dùng sản phẩm${prod} vừa rồi thấy hợp và dễ dùng không ạ? Nếu cần tư vấn thêm thực đơn hoặc đặt lại định kỳ, em hỗ trợ mình ngay nhé.${ptsText}`;
+    let loyaltyHook = "";
+    if (c.unusedRedemptionCodes.length > 0) {
+      const u = c.unusedRedemptionCodes[0];
+      loyaltyHook = ` Đặc biệt, anh/chị đang có mã quà tặng ${u.code} (${u.rewardName}) chưa sử dụng — đặt đơn mới em áp mã giảm ngay cho mình nhé!`;
+    } else if (c.availableRewards.length > 0) {
+      const rw = c.availableRewards[c.availableRewards.length - 1];
+      loyaltyHook = ` Hiện anh/chị đang có ${c.points} điểm thưởng (đủ đổi "${rw.name}" ngay hôm nay tại Thực Dưỡng Phúc Thọ).`;
+    } else if (c.nextRewardGap) {
+      loyaltyHook = ` Hiện anh/chị đang có ${c.points} điểm (chỉ thiếu ${c.nextRewardGap.missing} điểm nữa là đổi được "${c.nextRewardGap.name}").`;
+    }
+    return `Dạ chào anh/chị ${c.name}, em bên Thực Dưỡng Phúc Thọ ạ. Không biết anh/chị dùng sản phẩm${prod} vừa rồi thấy hợp và dễ dùng không ạ? Nếu cần tư vấn thêm thực đơn hoặc đặt lại định kỳ, em hỗ trợ mình ngay nhé.${loyaltyHook}`;
   }
 
   async function saveNote(e: React.FormEvent) {
@@ -378,6 +384,76 @@ export default function CrmDashboardClient({
                         </button>
                       </div>
                     )}
+                  </div>
+
+                  {/* Loyalty <-> CRM Bridge Box */}
+                  <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/50 p-3 text-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-bold text-amber-900">🎁 Liên kết Tích điểm &amp; Quà tặng</span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() =>
+                            postCrm(
+                              {
+                                action: "grant_bonus",
+                                customerKey: selected.customerKey,
+                                phone: selected.phone,
+                                email: selected.email,
+                                name: selected.name,
+                                points: 20,
+                                reason: "Tặng điểm tri ân khi tư vấn",
+                              },
+                              `✓ Đã tặng +20 điểm cho ${selected.name}!`,
+                            )
+                          }
+                          className="cursor-pointer rounded-lg border border-amber-300 bg-white px-2 py-0.5 text-[11px] font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                        >
+                          +20đ tri ân
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() =>
+                            postCrm(
+                              {
+                                action: "grant_bonus",
+                                customerKey: selected.customerKey,
+                                phone: selected.phone,
+                                email: selected.email,
+                                name: selected.name,
+                                points: 50,
+                                reason: "Tặng điểm giữ chân khách thân thiết",
+                              },
+                              `✓ Đã tặng +50 điểm cho ${selected.name}!`,
+                            )
+                          }
+                          className="cursor-pointer rounded-lg bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-amber-600 disabled:opacity-50"
+                        >
+                          +50đ giữ khách
+                        </button>
+                      </div>
+                    </div>
+
+                    {selected.unusedRedemptionCodes.length > 0 && (
+                      <div className="rounded-lg bg-white px-2.5 py-1.5 border border-emerald-200 text-emerald-800">
+                        🎫 <strong>Mã đã đổi chưa dùng:</strong>{" "}
+                        {selected.unusedRedemptionCodes.map((u) => `${u.code} (${u.rewardName})`).join(", ")}
+                      </div>
+                    )}
+
+                    {selected.availableRewards.length > 0 ? (
+                      <div className="text-emerald-800">
+                        ✓ <strong>Đủ điểm đổi ngay:</strong>{" "}
+                        {selected.availableRewards.map((r) => `${r.name} (${r.pointsCost}đ)`).join(" · ")}
+                      </div>
+                    ) : selected.nextRewardGap ? (
+                      <div className="text-gray-700">
+                        ⚡ Chỉ thiếu <strong className="text-accent">{selected.nextRewardGap.missing}đ</strong> nữa là đổi được{" "}
+                        <strong>{selected.nextRewardGap.name}</strong>.
+                      </div>
+                    ) : null}
                   </div>
 
                   {/* Tags Section */}

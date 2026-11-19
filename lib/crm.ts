@@ -1,6 +1,16 @@
 import "server-only";
 import { all, run } from "./db";
-import { normalizeEmail, normalizePhone, todayHoChiMinh, type MemberProfile } from "./loyalty";
+import {
+  awardPoints,
+  normalizeEmail,
+  normalizePhone,
+  resolveGuestProfile,
+  TIER_ORDER,
+  todayHoChiMinh,
+  type LoyaltyTier,
+  type MemberProfile,
+  type RewardItem,
+} from "./loyalty";
 import { sendEmail } from "./mail";
 
 export type RfmSegment = "vip" | "refill_due" | "at_risk" | "new_buyer" | "lead";
@@ -17,11 +27,12 @@ export type CrmNote = {
 
 export type CrmCustomer = {
   customerKey: string;
+  profileId: number | null;
   name: string;
   phone: string;
   email: string;
   isRegistered: boolean;
-  tier: string;
+  tier: LoyaltyTier;
   points: number;
   ordersCount: number;
   totalSpent: number;
@@ -34,6 +45,9 @@ export type CrmCustomer = {
   tags: string[];
   followupDue: boolean;
   nextFollowupDate: string | null;
+  availableRewards: { id: number; name: string; pointsCost: number }[];
+  nextRewardGap: { name: string; pointsCost: number; missing: number } | null;
+  unusedRedemptionCodes: { code: string; rewardName: string }[];
   notes: CrmNote[];
 };
 
@@ -77,7 +91,7 @@ export async function getCrmDashboardData(): Promise<{
   automationQueue: AutomationQueueItem[];
   allTags: string[];
 }> {
-  const [profiles, orders, orderItems, notes, tagRows, sentLogs] = await Promise.all([
+  const [profiles, orders, orderItems, notes, tagRows, sentLogs, rewards, redemptions, usedCouponRows] = await Promise.all([
     all<MemberProfile>("SELECT * FROM member_profiles WHERE status = 'active'"),
     all<{
       id: number;
@@ -97,6 +111,16 @@ export async function getCrmDashboardData(): Promise<{
     all<CrmNote>("SELECT * FROM crm_notes ORDER BY created_at DESC LIMIT 500"),
     all<{ customer_key: string; tag: string }>("SELECT customer_key, tag FROM crm_customer_tags ORDER BY created_at ASC"),
     all<{ order_id: number; step_code: string }>("SELECT order_id, step_code FROM crm_automation_logs"),
+    all<RewardItem>(
+      "SELECT * FROM reward_catalog WHERE is_active = 1 AND (stock IS NULL OR stock > 0) ORDER BY points_cost ASC",
+    ),
+    all<{ member_id: number; coupon_code: string | null; reward_name: string }>(
+      `SELECT rr.member_id, rr.coupon_code, rc.name AS reward_name
+       FROM reward_redemptions rr
+       JOIN reward_catalog rc ON rc.id = rr.reward_id
+       WHERE rr.coupon_code IS NOT NULL AND rr.fulfillment_status = 'delivered'`,
+    ),
+    all<{ coupon_code: string }>("SELECT DISTINCT UPPER(coupon_code) AS coupon_code FROM orders WHERE coupon_code <> ''"),
   ]);
 
   const itemsByOrder = new Map<number, string[]>();
@@ -140,6 +164,7 @@ export async function getCrmDashboardData(): Promise<{
 
       cur = {
         customerKey: key,
+        profileId: null,
         name: name.trim() || "Khách hàng",
         phone,
         email,
@@ -157,6 +182,9 @@ export async function getCrmDashboardData(): Promise<{
         tags: tagsByKey.get(key) ?? [],
         followupDue: Boolean(nextDate && nextDate <= todayVn),
         nextFollowupDate: nextDate,
+        availableRewards: [],
+        nextRewardGap: null,
+        unusedRedemptionCodes: [],
         notes: custNotes,
       };
       map.set(key, cur);
@@ -166,6 +194,7 @@ export async function getCrmDashboardData(): Promise<{
 
   for (const p of profiles) {
     const c = ensureEntry(p.phone, p.email, p.full_name);
+    c.profileId = p.id;
     c.isRegistered = p.user_id !== null;
     c.tier = p.tier;
     c.points = p.current_points;
@@ -226,10 +255,34 @@ export async function getCrmDashboardData(): Promise<{
     }
   }
 
-  const customers = Array.from(map.values()).map((c) => ({
-    ...c,
-    segment: classifyRfm(c.ordersCount, c.totalSpent, c.daysSinceLastOrder),
-  }));
+  const usedCoupons = new Set(usedCouponRows.map((u) => u.coupon_code));
+  const unusedByMemberId = new Map<number, { code: string; rewardName: string }[]>();
+  for (const r of redemptions) {
+    if (!r.coupon_code || usedCoupons.has(r.coupon_code.toUpperCase())) continue;
+    const arr = unusedByMemberId.get(r.member_id) ?? [];
+    arr.push({ code: r.coupon_code, rewardName: r.reward_name });
+    unusedByMemberId.set(r.member_id, arr);
+  }
+
+  const customers = Array.from(map.values()).map((c) => {
+    const tierOrder = TIER_ORDER[c.tier] ?? 0;
+    const eligible = rewards.filter((rw) => (TIER_ORDER[rw.min_tier] ?? 0) <= tierOrder);
+    const availableRewards = eligible
+      .filter((rw) => c.points >= rw.points_cost)
+      .map((rw) => ({ id: rw.id, name: rw.name, pointsCost: rw.points_cost }));
+    const nextRw = eligible.find((rw) => rw.points_cost > c.points);
+    const nextRewardGap = nextRw
+      ? { name: nextRw.name, pointsCost: nextRw.points_cost, missing: nextRw.points_cost - c.points }
+      : null;
+
+    return {
+      ...c,
+      segment: classifyRfm(c.ordersCount, c.totalSpent, c.daysSinceLastOrder),
+      availableRewards,
+      nextRewardGap,
+      unusedRedemptionCodes: c.profileId ? (unusedByMemberId.get(c.profileId) ?? []) : [],
+    };
+  });
 
   customers.sort((a, b) => {
     if (a.followupDue !== b.followupDue) return a.followupDue ? -1 : 1;
@@ -314,6 +367,48 @@ export async function markAutomationSent(orderId: number, stepCode: string, chan
     channel,
     recipient,
   );
+}
+
+export async function grantLoyaltyBonusFromCrm(params: {
+  customerKey: string;
+  phone?: string;
+  email?: string;
+  name?: string;
+  adminEmail: string;
+  adminRole: string;
+  points: number;
+  reason: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const pts = Math.round(Number(params.points) || 0);
+  if (pts <= 0) return { ok: false, error: "Số điểm tặng phải lớn hơn 0." };
+  if (params.adminRole === "sales" && pts > 100) {
+    return { ok: false, error: "Nhân viên bán hàng chỉ được tặng tối đa 100 điểm/lần." };
+  }
+
+  const profile = await resolveGuestProfile({
+    phone: params.phone || (params.customerKey.startsWith("0") ? params.customerKey : null),
+    email: params.email || (params.customerKey.includes("@") ? params.customerKey : null),
+    fullName: params.name,
+  });
+  if (!profile) return { ok: false, error: "Cần SĐT hoặc Email hợp lệ để cộng điểm." };
+
+  const reason = params.reason.trim() || "Tặng điểm tri ân từ CRM chăm sóc";
+  await awardPoints({
+    memberId: profile.id,
+    source: "admin_adjust",
+    amount: pts,
+    description: `[CRM] ${reason}`,
+    metadata: { admin_email: params.adminEmail },
+  });
+
+  await run(
+    "INSERT INTO crm_notes (customer_key, admin_email, note, followup_done) VALUES (?, ?, ?, 1)",
+    params.customerKey,
+    params.adminEmail,
+    `🎁 Đã tặng +${pts} điểm thưởng: ${reason}`,
+  );
+
+  return { ok: true };
 }
 
 export async function runCrmEmailAutomation(): Promise<{ processed: number; sent: number; skipped: number }> {

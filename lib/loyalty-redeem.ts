@@ -3,8 +3,11 @@ import crypto from "node:crypto";
 import { one, run } from "./db";
 import {
   getMemberProfileByUserId,
+  normalizeEmail,
+  normalizePhone,
   spendPoints,
   TIER_ORDER,
+  todayHoChiMinh,
   type RewardItem,
 } from "./loyalty";
 
@@ -110,6 +113,20 @@ export async function redeemReward(userId: number, rewardId: number): Promise<{
     fulfillmentStatus,
     reward.value || "{}",
   );
+
+  // Auto-create a CRM follow-up reminder for physical gifts / cash credits
+  if (reward.type === "gift_item" || reward.type === "cash_credit") {
+    const customerKey = normalizePhone(profile.phone) || normalizeEmail(profile.email) || "";
+    if (customerKey) {
+      await run(
+        `INSERT INTO crm_notes (customer_key, admin_email, note, next_followup_date, followup_done)
+         VALUES (?, 'system@loyalty', ?, ?, 0)`,
+        customerKey,
+        `🎁 Khách vừa đổi quà "${reward.name}" (-${reward.points_cost} điểm). Gọi xác nhận giao quà (gửi kèm đơn mới nếu khách cần đặt thêm).`,
+        todayHoChiMinh(),
+      );
+    }
+  }
 
   return {
     ok: true,

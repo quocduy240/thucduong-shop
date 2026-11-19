@@ -4,6 +4,7 @@ import {
   addCrmNote,
   addCustomerTag,
   getCrmDashboardData,
+  grantLoyaltyBonusFromCrm,
   markAutomationSent,
   markFollowupsDone,
   removeCustomerTag,
@@ -44,6 +45,18 @@ export async function POST(req: Request) {
       String(b.channel ?? "zalo_manual"),
       String(b.recipient ?? ""),
     );
+  } else if (action === "grant_bonus") {
+    const res = await grantLoyaltyBonusFromCrm({
+      customerKey: String(b.customerKey ?? "").trim(),
+      phone: String(b.phone ?? ""),
+      email: String(b.email ?? ""),
+      name: String(b.name ?? ""),
+      adminEmail: admin.email,
+      adminRole: admin.role,
+      points: Number(b.points),
+      reason: String(b.reason ?? ""),
+    });
+    if (!res.ok) return NextResponse.json({ error: res.error }, { status: 400 });
   } else if (action === "run_email_automation") {
     const res = await runCrmEmailAutomation();
     return NextResponse.json({ ok: true, emailResult: res, ...(await getCrmDashboardData()) });
