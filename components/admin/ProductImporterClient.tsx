@@ -8,6 +8,7 @@ import type {
   LegacyTraceWarning,
   ParsedProductDraft,
   ProductImportJobRow,
+  UncleanedProductItem,
 } from "@/lib/product-importer";
 
 type CategoryOption = { id: number; name: string; slug: string };
@@ -34,14 +35,18 @@ function fmtEta(seconds: number): string {
 export default function ProductImporterClient({
   initialJobs,
   initialSummary,
+  initialUncleaned,
   categories,
 }: {
   initialJobs: ProductImportJobRow[];
   initialSummary: IdleWorkerSummary;
+  initialUncleaned: UncleanedProductItem[];
   categories: CategoryOption[];
 }) {
   const [jobs, setJobs] = useState<ProductImportJobRow[]>(initialJobs);
   const [summary, setSummary] = useState<IdleWorkerSummary>(initialSummary);
+  const [uncleaned, setUncleaned] = useState<UncleanedProductItem[]>(initialUncleaned);
+  const [selectedUncleanedIds, setSelectedUncleanedIds] = useState<number[]>([]);
   const [activeJobId, setActiveJobId] = useState<number | null>(initialJobs[0]?.id ?? null);
 
   // Input mode: single vs bulk
@@ -147,6 +152,7 @@ export default function ProductImporterClient({
           const d = await res.json();
           if (Array.isArray(d.jobs)) setJobs(d.jobs);
           if (d.workerSummary) setSummary(d.workerSummary);
+          if (Array.isArray(d.uncleanedProducts)) setUncleaned(d.uncleanedProducts);
         }
       } catch {
         /* ignore transient poll error */
@@ -175,6 +181,7 @@ export default function ProductImporterClient({
       }
       if (Array.isArray(d.jobs)) setJobs(d.jobs);
       if (d.workerSummary) setSummary(d.workerSummary);
+      if (Array.isArray(d.uncleanedProducts)) setUncleaned(d.uncleanedProducts);
       if (d.job?.id) setActiveJobId(d.job.id);
       if (d.duplicate) setPreCheck(d.duplicate);
       setMsg(okText);
@@ -727,6 +734,135 @@ export default function ProductImporterClient({
           </div>
         </section>
       )}
+
+      {/* 2.5 Uncleaned Imported Products Checklist */}
+      <section className="rounded-2xl border border-amber-200 bg-white p-5 shadow-2xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+          <div>
+            <h2 className="text-base font-extrabold text-gray-900">
+              🧹 Sản phẩm đã lấy nhưng CHƯA làm sạch ({uncleaned.length})
+            </h2>
+            <p className="text-xs text-gray-500">
+              Check chọn nhiều sản phẩm để Worker làm sạch tuần tự từ từ từng ảnh &amp; tự động lưu lại đúng trong danh mục cũ của từng sản phẩm.
+            </p>
+          </div>
+          {uncleaned.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border bg-gray-50 px-2.5 py-1.5 font-bold text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={selectedUncleanedIds.length > 0 && selectedUncleanedIds.length === uncleaned.length}
+                  onChange={(e) =>
+                    setSelectedUncleanedIds(e.target.checked ? uncleaned.map((u) => u.id) : [])
+                  }
+                  className="h-4 w-4 accent-brand"
+                />
+                Chọn tất cả ({uncleaned.length})
+              </label>
+              <button
+                type="button"
+                disabled={busy || selectedUncleanedIds.length === 0}
+                onClick={async () => {
+                  const res = await callApi(
+                    { action: "queue_selected_uncleaned", product_ids: selectedUncleanedIds },
+                    `✓ Đã đưa ${selectedUncleanedIds.length} sản phẩm vào hàng đợi làm sạch tuần tự (giữ nguyên danh mục cũ)!`,
+                  );
+                  if (res) setSelectedUncleanedIds([]);
+                }}
+                className="cursor-pointer rounded-xl bg-purple-700 px-4 py-2 font-extrabold text-white shadow hover:bg-purple-800 disabled:opacity-40"
+              >
+                🤖 Làm sạch tuần tự ({selectedUncleanedIds.length} SP đã chọn)
+              </button>
+            </div>
+          )}
+        </div>
+
+        {uncleaned.length === 0 ? (
+          <p className="py-4 text-center text-xs font-semibold text-emerald-700">
+            ✓ Tuyệt vời! Không còn sản phẩm nào trong kho còn tồn đọng dấu vết nguồn cũ chưa làm sạch.
+          </p>
+        ) : (
+          <div className="max-h-96 space-y-2 overflow-y-auto pr-1">
+            {uncleaned.map((item) => {
+              const checked = selectedUncleanedIds.includes(item.id);
+              return (
+                <div
+                  key={item.id}
+                  className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3 text-xs transition ${
+                    checked ? "border-purple-300 bg-purple-50/40" : "border-gray-200 bg-white"
+                  }`}
+                >
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) =>
+                        setSelectedUncleanedIds((prev) =>
+                          e.target.checked ? [...prev, item.id] : prev.filter((id) => id !== item.id),
+                        )
+                      }
+                      className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-purple-700"
+                    />
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          href={`/admin/products/${item.id}/`}
+                          className="font-bold text-gray-900 hover:text-brand"
+                        >
+                          #{item.id} — {item.name}
+                        </Link>
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
+                          📁 Lưu danh mục cũ: {item.category_name}
+                        </span>
+                      </div>
+                      <div className="truncate font-mono text-[11px] text-gray-400">
+                        {item.source_url}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {item.traces.map((tr, i) => (
+                          <span
+                            key={i}
+                            className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900"
+                          >
+                            ⚠️ {tr.label}
+                          </span>
+                        ))}
+                        {item.external_image_count > 0 && item.traces.every((t) => t.type !== "images") && (
+                          <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+                            🖼️ {item.external_image_count} ảnh nguồn ngoài
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        callApi(
+                          { action: "queue_selected_uncleaned", product_ids: [item.id] },
+                          `✓ Đã đưa "${item.name}" vào hàng đợi làm sạch (lưu danh mục: ${item.category_name}).`,
+                        )
+                      }
+                      className="cursor-pointer rounded-lg bg-brand px-3 py-1.5 font-bold text-white hover:bg-brand-dark disabled:opacity-50"
+                    >
+                      🤖 Làm sạch SP này
+                    </button>
+                    <Link
+                      href={`/admin/products/${item.id}/`}
+                      className="rounded-lg border px-2.5 py-1.5 font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      ✏️ Sửa
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* 3. Queue & History Table */}
       <section className="rounded-2xl border bg-white p-5 shadow-2xs space-y-3">

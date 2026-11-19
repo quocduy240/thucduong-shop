@@ -11,7 +11,9 @@ import {
   getImportJobById,
   importJobIntoProducts,
   listImportJobs,
+  listUncleanedImportedProducts,
   queueAutoCleanJob,
+  queueSelectedUncleanedProducts,
   recleanExistingProduct,
 } from "@/lib/product-importer";
 import { canAccessAdminPath } from "@/lib/rbac";
@@ -35,8 +37,12 @@ export async function GET(req: Request) {
     }
   }
 
-  const [jobs, workerSummary] = await Promise.all([listImportJobs(50), getIdleWorkerSummary()]);
-  return NextResponse.json({ jobs, workerSummary });
+  const [jobs, workerSummary, uncleanedProducts] = await Promise.all([
+    listImportJobs(50),
+    getIdleWorkerSummary(),
+    listUncleanedImportedProducts(100),
+  ]);
+  return NextResponse.json({ jobs, workerSummary, uncleanedProducts });
 }
 
 export async function POST(req: Request) {
@@ -147,6 +153,20 @@ export async function POST(req: Request) {
       );
       const [jobs, workerSummary] = await Promise.all([listImportJobs(50), getIdleWorkerSummary()]);
       return NextResponse.json({ ok: true, jobs, workerSummary });
+    }
+
+    if (action === "queue_selected_uncleaned") {
+      const productIds = Array.isArray(b.product_ids) ? b.product_ids.map(Number) : [];
+      if (productIds.length === 0) {
+        return NextResponse.json({ error: "Vui lòng chọn ít nhất 1 sản phẩm." }, { status: 400 });
+      }
+      const res = await queueSelectedUncleanedProducts(productIds);
+      const [jobs, workerSummary, uncleanedProducts] = await Promise.all([
+        listImportJobs(50),
+        getIdleWorkerSummary(),
+        listUncleanedImportedProducts(100),
+      ]);
+      return NextResponse.json({ ok: true, ...res, jobs, workerSummary, uncleanedProducts });
     }
 
     if (action === "check_update") {

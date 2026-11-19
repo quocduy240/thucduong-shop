@@ -107,6 +107,10 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
             body: "Khung trên cùng hiển thị trạng thái Rảnh việc (kèm gợi ý giao việc tồn đọng) hoặc Đang chạy ngầm (% tiến độ, bước xử lý từng ảnh, ETA đếm ngược). Hỗ trợ dán hàng loạt tối đa 20 link cùng lúc để Worker tự chạy tuần tự.",
           },
           {
+            heading: "Danh sách SP đã lấy chưa làm sạch & Làm sạch tuần tự",
+            body: "Mục '🧹 Sản phẩm đã lấy nhưng CHƯA làm sạch' liệt kê các SP còn dấu vết trang cũ hoặc ảnh ngoài. Bạn có thể bấm '🤖 Làm sạch SP này' hoặc check chọn nhiều SP rồi bấm 'Làm sạch tuần tự' — hệ thống sẽ chạy ngầm từ từ và tự động lưu giữ nguyên danh mục cũ.",
+          },
+          {
             heading: "Lịch sử cập nhật & Xoá note nguồn",
             body: "Mọi link đã lấy được lưu trong Lịch sử kèm nút '🔄 Cập nhật nguồn'. Khi sản phẩm đã sạch hoàn toàn, bấm '🧹 Xoá note nguồn' để xoá link nguồn khỏi hồ sơ sản phẩm.",
           },

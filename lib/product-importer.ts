@@ -101,6 +101,19 @@ export type IdleWorkerSummary = {
   };
 };
 
+export type UncleanedProductItem = {
+  id: number;
+  name: string;
+  category_id: number;
+  category_name: string;
+  source_url: string;
+  source_domain: string;
+  traces: LegacyTraceWarning[];
+  image_count: number;
+  external_image_count: number;
+  job_status: string | null;
+};
+
 let ensuredImporterSchema: Promise<void> | null = null;
 
 export async function ensureProductImportSchema(): Promise<void> {
@@ -1386,4 +1399,92 @@ export async function clearProductSourceTrace(productId: number): Promise<void> 
     "UPDATE product_import_jobs SET source_cleared = 1, updated_at = datetime('now') WHERE product_id = ?",
     productId,
   );
+}
+
+export async function listUncleanedImportedProducts(limit = 100): Promise<UncleanedProductItem[]> {
+  await ensureProductImportSchema();
+  const rows = await all<{
+    id: number;
+    name: string;
+    category_id: number;
+    category_name?: string;
+    source_url: string;
+    description: string;
+    image: string | null;
+    gallery: string;
+    job_status: string | null;
+  }>(
+    `SELECT p.id, p.name, p.category_id, c.name AS category_name, p.source_url, p.description, p.image, p.gallery,
+            (SELECT j.status FROM product_import_jobs j WHERE j.product_id = p.id ORDER BY j.id DESC LIMIT 1) AS job_status
+     FROM products p
+     LEFT JOIN product_categories c ON c.id = p.category_id
+     WHERE p.source_url IS NOT NULL AND p.source_url <> ''
+     ORDER BY p.id DESC
+     LIMIT ?`,
+    limit,
+  );
+
+  const out: UncleanedProductItem[] = [];
+  for (const r of rows) {
+    if (
+      r.job_status === "cleaning_queued" ||
+      r.job_status === "cleaning_running" ||
+      r.job_status === "cleaned"
+    ) {
+      continue;
+    }
+    let domain = "";
+    try {
+      domain = new URL(r.source_url).hostname.replace(/^www\./, "");
+    } catch {
+      domain = "";
+    }
+    const imgs = [
+      ...(r.image ? [r.image] : []),
+      ...(r.gallery || "")
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ];
+    const extCount = imgs.filter(
+      (u) => u && !u.startsWith("/api/media/") && !u.startsWith("/uploads/"),
+    ).length;
+    const traces = scanLegacyTraces(r.description || "", domain, imgs);
+    if (traces.length === 0 && extCount === 0 && r.job_status !== "imported") {
+      continue;
+    }
+    out.push({
+      id: r.id,
+      name: r.name,
+      category_id: r.category_id,
+      category_name: r.category_name ?? "Chưa phân loại",
+      source_url: r.source_url,
+      source_domain: domain,
+      traces,
+      image_count: imgs.length,
+      external_image_count: extCount,
+      job_status: r.job_status,
+    });
+  }
+  return out;
+}
+
+export async function queueSelectedUncleanedProducts(productIds: number[]): Promise<{ queued: number }> {
+  await ensureProductImportSchema();
+  const cleanIds = [...new Set(productIds.map((n) => Number(n)).filter((n) => Number.isInteger(n) && n > 0))];
+  let queued = 0;
+  for (const pid of cleanIds.slice(0, 50)) {
+    const prod = await one<{ id: number; category_id: number }>(
+      "SELECT id, category_id FROM products WHERE id = ?",
+      pid,
+    );
+    if (!prod) continue;
+    await recleanExistingProduct({
+      productId: prod.id,
+      categoryId: prod.category_id,
+      mode: "auto",
+    });
+    queued++;
+  }
+  return { queued };
 }
