@@ -9,6 +9,7 @@ type CleanOptions = {
   stripPhones: boolean;
   stripBuyButtons: boolean;
   stripExternalDomains: boolean;
+  stripOldImages: boolean;
   blockedDomains: string[];
 };
 
@@ -16,6 +17,7 @@ type CleanStats = {
   removedPhones: number;
   removedButtons: number;
   removedDomains: number;
+  removedImages: number;
 };
 
 const OWN_SAFE_DOMAINS = new Set([
@@ -79,17 +81,41 @@ function stripTags(html: string): string {
 function cleanProductDescriptionHtml(
   rawHtml: string,
   opts: CleanOptions,
-): { cleanedHtml: string; plainText: string; images: { src: string; alt: string }[]; stats: CleanStats } {
-  const stats: CleanStats = { removedPhones: 0, removedButtons: 0, removedDomains: 0 };
+  stripFormatting = true,
+): { cleanedHtml: string; plainText: string; stats: CleanStats } {
+  const stats: CleanStats = {
+    removedPhones: 0,
+    removedButtons: 0,
+    removedDomains: 0,
+    removedImages: 0,
+  };
   let html = String(rawHtml || "");
 
   // Remove unsafe/irrelevant embedded blocks
   html = html
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, "")
+    .replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, "")
     .replace(/<form\b[^>]*>[\s\S]*?<\/form>/gi, "");
 
-  // 1. Remove buy/order buttons & CTA blocks from source site
+  // 1. Strip ALL old images / figures / pictures if enabled
+  if (opts.stripOldImages) {
+    html = html.replace(/<figure\b[^>]*>[\s\S]*?<\/figure>/gi, () => {
+      stats.removedImages++;
+      return "";
+    });
+    html = html.replace(/<picture\b[^>]*>[\s\S]*?<\/picture>/gi, () => {
+      stats.removedImages++;
+      return "";
+    });
+    html = html.replace(/<img\b[^>]*>/gi, () => {
+      stats.removedImages++;
+      return "";
+    });
+  }
+
+  // 2. Remove buy/order buttons & CTA blocks from source site
   if (opts.stripBuyButtons) {
     html = html.replace(/<button\b[^>]*>[\s\S]*?<\/button>/gi, () => {
       stats.removedButtons++;
@@ -119,23 +145,26 @@ function cleanProductDescriptionHtml(
       }
       return full;
     });
-    html = html.replace(/<(?:p|div|span)\b([^>]*)>([\s\S]*?)<\/(?:p|div|span)>/gi, (full, attrs: string, inner: string) => {
-      if (/<(?:p|h[1-6]|ul|ol|table|img)\b/i.test(inner)) return full;
-      const txt = stripTags(inner);
-      const clsMatch = attrs.match(/\bclass=["']([^"']*)["']/i);
-      const cls = (clsMatch?.[1] || "").toLowerCase();
-      if (
-        (/\b(btn-buy|add-to-cart|buy-now|hotline|zalo-box)\b/i.test(cls)) ||
-        (txt.length > 0 && txt.length <= 60 && BUY_BUTTON_REGEX.test(txt))
-      ) {
-        stats.removedButtons++;
-        return "";
-      }
-      return full;
-    });
+    html = html.replace(
+      /<(?:p|div|span)\b([^>]*)>([\s\S]*?)<\/(?:p|div|span)>/gi,
+      (full, attrs: string, inner: string) => {
+        if (/<(?:p|h[1-6]|ul|ol|table|img)\b/i.test(inner)) return full;
+        const txt = stripTags(inner);
+        const clsMatch = attrs.match(/\bclass=["']([^"']*)["']/i);
+        const cls = (clsMatch?.[1] || "").toLowerCase();
+        if (
+          /\b(btn-buy|add-to-cart|buy-now|hotline|zalo-box)\b/i.test(cls) ||
+          (txt.length > 0 && txt.length <= 60 && BUY_BUTTON_REGEX.test(txt))
+        ) {
+          stats.removedButtons++;
+          return "";
+        }
+        return full;
+      },
+    );
   }
 
-  // 2. Remove external links
+  // 3. Remove external links
   if (opts.stripExternalDomains) {
     html = html.replace(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi, (full, attrs: string, inner: string) => {
       const hrefMatch = attrs.match(/\bhref=["']([^"']*)["']/i);
@@ -150,7 +179,7 @@ function cleanProductDescriptionHtml(
     });
   }
 
-  // 3. Remove tel: links
+  // 4. Remove tel: links
   if (opts.stripPhones) {
     html = html.replace(/<a\b[^>]*href=["']tel:[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, () => {
       stats.removedPhones++;
@@ -158,27 +187,14 @@ function cleanProductDescriptionHtml(
     });
   }
 
-  // 4. Collect clean product images & strip button-like images
-  const images: { src: string; alt: string }[] = [];
-  const seenImg = new Set<string>();
-  html = html.replace(/<img\b([^>]*)>/gi, (full, attrs: string) => {
-    const srcMatch = attrs.match(/\bsrc=["']([^"']+)["']/i);
-    const altMatch = attrs.match(/\balt=["']([^"']*)["']/i);
-    const src = (srcMatch?.[1] || "").trim();
-    const alt = (altMatch?.[1] || "").trim();
-    if (!src || src.startsWith("data:")) return full;
-    if (opts.stripBuyButtons && /buy|cart|zalo|hotline|icon|button/i.test(`${src} ${alt}`)) {
-      stats.removedButtons++;
-      return "";
-    }
-    if (!seenImg.has(src)) {
-      seenImg.add(src);
-      images.push({ src, alt });
-    }
-    return full;
-  });
+  // 5. Strip old HTML/CSS formatting attributes & wrapper tags when pre-cleaning input
+  if (stripFormatting) {
+    html = html
+      .replace(/\s(?:style|class|id|width|height|bgcolor|align|valign|border|cellpadding|cellspacing|data-[a-z0-9_-]+)=["'][^"']*["']/gi, "")
+      .replace(/<\/?(?:font|span|section|article|header|footer|aside|nav|div)\b[^>]*>/gi, "\n");
+  }
 
-  // 5. Strip phone numbers & labels in text
+  // 6. Strip phone numbers & labels in text
   if (opts.stripPhones) {
     html = html.replace(PHONE_REGEX, () => {
       stats.removedPhones++;
@@ -190,16 +206,13 @@ function cleanProductDescriptionHtml(
     );
   }
 
-  // 6. Strip blocked domain strings & bare external URLs outside HTML attributes
+  // 7. Strip blocked domain strings & bare external URLs
   if (opts.stripExternalDomains) {
     for (const domain of opts.blockedDomains) {
       if (!domain || OWN_SAFE_DOMAINS.has(domain)) continue;
       const escaped = domain.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const re = new RegExp(`(?:https?:\\/\\/)?(?:www\\.)?${escaped}(?:\\/[^\\s<"']*)?`, "gi");
-      html = html.replace(re, (m, offset: number, whole: string) => {
-        // Preserve src="..." of clean <img>
-        const before = whole.slice(Math.max(0, offset - 8), offset);
-        if (/src=["']$/i.test(before)) return m;
+      html = html.replace(re, () => {
         stats.removedDomains++;
         return "";
       });
@@ -214,56 +227,56 @@ function cleanProductDescriptionHtml(
     });
   }
 
-  // Remove empty paragraphs/spans left over after stripping
   html = html.replace(/<(p|span|li)\b[^>]*>(?:\s|&nbsp;|<br\s*\/?>)*<\/\1>/gi, "");
 
   return {
     cleanedHtml: html.trim(),
     plainText: stripTags(html),
-    images,
     stats,
   };
 }
 
 function buildStylePrompt(style: StylePreset): string {
   if (style === "seo_sales") {
-    return "Viết theo phong cách chuẩn SEO thương mại điện tử và tối ưu chuyển đổi: mở đầu đánh trúng nhu cầu sức khoẻ, trình bày bullet lợi ích nổi bật, bảng hoặc danh sách thông số rõ ràng, lời khuyên chọn mua tại Thực Dưỡng Phúc Thọ (KHÔNG tự chèn nút mua hàng HTML hay số điện thoại).";
+    return "Viết theo phong cách chuẩn SEO thương mại điện tử và tối ưu chuyển đổi: mở đầu đánh trúng nhu cầu sức khoẻ, trình bày các lợi ích nổi bật, bảng thông số hoặc hướng dẫn sử dụng rõ ràng, lời khuyên chọn mua chính hãng tại Thực Dưỡng Phúc Thọ (KHÔNG chèn nút mua hàng HTML hay số điện thoại).";
   }
   if (style === "senior_friendly") {
-    return "Viết theo phong cách ân cần, câu ngắn, mạch lạc, dễ hiểu cho người lớn tuổi và gia đình Việt; chia từng bước cách dùng cụ thể, lưu ý bảo quản rõ ràng.";
+    return "Viết theo phong cách ân cần, câu ngắn, cỡ chữ thoáng, mạch lạc dễ đọc cho người lớn tuổi và gia đình Việt; chia từng bước cách dùng cụ thể và lưu ý bảo quản rõ ràng.";
   }
   return "Viết theo phong cách Chuyên gia Thực dưỡng hiện đại (Đông – Tây Y kết hợp): giải thích cơ chế dinh dưỡng/thực dưỡng khách quan, có dẫn chứng khoa học chừng mực, tuân thủ nghiêm ngặt Nghị định 15/2018/NĐ-CP và Google YMYL (tuyệt đối không khẳng định thuốc chữa/trị dứt bệnh).";
 }
 
-function buildFallbackHtml(
+function buildRichStyledFallbackHtml(
   productName: string,
   brand: string,
   origin: string,
   unit: string,
-  cleanedHtml: string,
-  images: { src: string; alt: string }[],
+  plainText: string,
 ): string {
-  const specs = [
-    brand ? `<li><strong>Thương hiệu:</strong> ${brand}</li>` : "",
-    origin ? `<li><strong>Xuất xứ:</strong> ${origin}</li>` : "",
-    unit ? `<li><strong>Quy cách:</strong> ${unit}</li>` : "",
+  const specsRows = [
+    brand ? `<tr><td style="padding:8px 12px;border:1px solid #d1fae5;font-weight:700;color:#166534;">Thương hiệu</td><td style="padding:8px 12px;border:1px solid #d1fae5;">${brand}</td></tr>` : "",
+    origin ? `<tr><td style="padding:8px 12px;border:1px solid #d1fae5;font-weight:700;color:#166534;">Xuất xứ</td><td style="padding:8px 12px;border:1px solid #d1fae5;">${origin}</td></tr>` : "",
+    unit ? `<tr><td style="padding:8px 12px;border:1px solid #d1fae5;font-weight:700;color:#166534;">Quy cách</td><td style="padding:8px 12px;border:1px solid #d1fae5;">${unit}</td></tr>` : "",
   ]
     .filter(Boolean)
     .join("");
 
-  const imgHtml = images[0]
-    ? `<figure class="my-4"><img src="${images[0].src}" alt="${images[0].alt || productName}" class="w-full rounded-xl" /></figure>`
-    : "";
+  const excerptBody = plainText
+    ? `<p style="line-height:1.75;color:#374151;">${plainText.slice(0, 1200)}</p>`
+    : `<p style="line-height:1.75;color:#374151;">Sản phẩm giữ trọn dưỡng chất tự nhiên, an toàn sử dụng hàng ngày theo chế độ ăn uống quân bình.</p>`;
 
   return [
-    `<h2>Tổng quan về ${productName}</h2>`,
-    `<p><strong>${productName}</strong> là sản phẩm thực dưỡng chọn lọc được phân phối chính hãng tại <strong>Thực Dưỡng Phúc Thọ</strong>, phù hợp cho người ăn thực dưỡng, người muốn cân bằng dinh dưỡng tự nhiên và chăm sóc sức khỏe chủ động mỗi ngày.</p>`,
-    specs ? `<h3>Thông tin sản phẩm</h3><ul>${specs}</ul>` : "",
-    imgHtml,
-    `<h3>Đặc điểm &amp; Giá trị dinh dưỡng</h3>`,
-    cleanedHtml || `<p>Sản phẩm giữ trọn dưỡng chất tự nhiên, an toàn sử dụng hàng ngày theo chế độ ăn uống quân bình.</p>`,
-    `<h3>Lưu ý sử dụng</h3>`,
-    `<p>Sản phẩm là thực phẩm dinh dưỡng thực dưỡng, không phải là thuốc và không có tác dụng thay thế thuốc chữa bệnh. Vui lòng đọc kỹ hướng dẫn trên bao bì trước khi sử dụng.</p>`,
+    `<div style="background-color:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #16a34a;border-radius:12px;padding:16px;margin-bottom:18px;">`,
+    `  <p style="margin:0;color:#166534;font-weight:600;line-height:1.7;">🌿 <strong>${productName}</strong> là sản phẩm thực dưỡng chọn lọc phân phối chính hãng tại <strong style="color:#15803d;">Thực Dưỡng Phúc Thọ</strong>, hỗ trợ cân bằng dinh dưỡng tự nhiên và chăm sóc sức khoẻ chủ động mỗi ngày.</p>`,
+    `</div>`,
+    specsRows
+      ? `<h2 style="color:#15803d;font-size:20px;font-weight:800;margin-top:20px;margin-bottom:10px;">📋 Thông tin sản phẩm</h2><table style="width:100%;border-collapse:collapse;margin-bottom:18px;"><thead><tr style="background-color:#ecfdf5;"><th style="padding:8px 12px;border:1px solid #d1fae5;text-align:left;color:#166534;">Thuộc tính</th><th style="padding:8px 12px;border:1px solid #d1fae5;text-align:left;color:#166534;">Chi tiết</th></tr></thead><tbody>${specsRows}</tbody></table>`
+      : "",
+    `<h2 style="color:#15803d;font-size:20px;font-weight:800;margin-top:20px;margin-bottom:10px;">✨ Đặc điểm &amp; Giá trị dinh dưỡng</h2>`,
+    excerptBody,
+    `<div style="background-color:#fffbeb;border:1px solid #fde68a;border-left:4px solid #d97706;border-radius:12px;padding:14px;margin-top:18px;color:#92400e;">`,
+    `  <p style="margin:0;line-height:1.65;"><strong>🛡️ Lưu ý chuyên môn:</strong> Sản phẩm là thực phẩm dinh dưỡng thực dưỡng, không phải là thuốc và không có tác dụng thay thế thuốc chữa bệnh. Đọc kỹ hướng dẫn trên bao bì và bảo quản nơi khô ráo, thoáng mát.</p>`,
+    `</div>`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -288,6 +301,7 @@ export async function POST(req: Request) {
       stripPhones?: boolean;
       stripBuyButtons?: boolean;
       stripExternalDomains?: boolean;
+      stripOldImages?: boolean;
       extraBlockedDomains?: string;
     };
 
@@ -316,10 +330,12 @@ export async function POST(req: Request) {
       stripPhones: body.stripPhones !== false,
       stripBuyButtons: body.stripBuyButtons !== false,
       stripExternalDomains: body.stripExternalDomains !== false,
+      stripOldImages: body.stripOldImages !== false,
       blockedDomains: Array.from(blockedSet),
     };
 
-    const preCleaned = cleanProductDescriptionHtml(rawHtml, cleanOpts);
+    // Strip ALL old formatting, old images, and traces from source HTML before AI
+    const preCleaned = cleanProductDescriptionHtml(rawHtml, cleanOpts, true);
     if (!preCleaned.plainText && !rawHtml.trim()) {
       return NextResponse.json(
         { error: "Mô tả sản phẩm đang trống. Hãy nhập hoặc dán nội dung gốc trước khi viết lại." },
@@ -332,14 +348,9 @@ export async function POST(req: Request) {
     let usedAi = false;
 
     if (apiKey) {
-      const imageListText = preCleaned.images
-        .slice(0, 5)
-        .map((img, i) => `- Ảnh ${i + 1}: src="${img.src}" alt="${img.alt || productName}"`)
-        .join("\n");
-
       const prompt = [
-        `Bạn là Chuyên gia Biên tập Nội dung Sản phẩm Thực Dưỡng & SEO YMYL cho website Thực Dưỡng Phúc Thọ.`,
-        `Nhiệm vụ: Viết lại hoàn toàn nội dung mô tả cho sản phẩm "${productName}" thành bài viết mới 100%, chuẩn xác, thuyết phục và sạch sẽ.`,
+        `Bạn là Chuyên gia Biên tập Nội dung & Thiết kế Trình bày Bài viết Sản phẩm Thực Dưỡng cho website Thực Dưỡng Phúc Thọ.`,
+        `Nhiệm vụ: Viết lại hoàn toàn nội dung mô tả sản phẩm "${productName}" thành bài viết ĐỘC BẢN, tự định dạng CSS inline tinh tế, trang trí khối màu, icon, màu chữ nhấn và phân cấp font rõ ràng, phù hợp ngữ cảnh và trọng tâm bài viết.`,
         ``,
         `THÔNG TIN SẢN PHẨM:`,
         `- Tên sản phẩm: ${productName}`,
@@ -347,32 +358,37 @@ export async function POST(req: Request) {
         origin ? `- Xuất xứ: ${origin}` : "",
         unit ? `- Quy cách: ${unit}` : "",
         ``,
-        `CÁCH VIẾT YÊU CẦU:`,
+        `PHONG CÁCH NỘI DUNG:`,
         `- ${buildStylePrompt(stylePreset)}`,
         body.customInstruction?.trim() ? `- Yêu cầu riêng của quản trị viên: ${body.customInstruction.trim()}` : "",
         ``,
-        `QUY TẮC LÀM SẠCH TUYỆT ĐỐI (BẮT BUỘC):`,
+        `QUY TẮC TRANG TRÍ & ĐỊNH DẠNG CSS CHUẨN AI MỚI (BẮT BUỘC):`,
+        `- 1. KHỐI MỞ ĐẦU NỔI BẬT (Hero Callout): Mở đầu bài bằng 1 hộp <div style="background-color:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #16a34a;border-radius:12px;padding:16px;margin-bottom:18px;"> nhấn mạnh giá trị cốt lõi của sản phẩm với <strong style="color:#15803d;">.`,
+        `- 2. TIÊU ĐỀ PHÂN CẤP KÈM ICON NGỮ CẢNH: Các thẻ <h2 style="color:#15803d;font-size:20px;font-weight:800;margin-top:22px;margin-bottom:10px;"> và <h3 style="color:#166534;font-size:16px;font-weight:700;margin-top:16px;margin-bottom:8px;"> phải tự động gắn 1 icon phù hợp ngữ cảnh (VD: 🌿, ✨, 🔬, 📋, 🥣, 💡, 🎯, 🛡️).`,
+        `- 3. BẢNG THÔNG SỐ / HƯỚNG DẪN SỬ DỤNG: Nếu có thông số, thành phần hoặc hướng dẫn pha chế/sử dụng, hãy trình bày bằng <table style="width:100%;border-collapse:collapse;margin:14px 0;"> với header nền #ecfdf5, viền #d1fae5.`,
+        `- 4. NHẤN MÀU CHỮ & TRỌNG TÂM: Dùng <p style="line-height:1.75;color:#374151;margin-bottom:10px;">, danh sách <ul><li> rõ ý với icon ✓ ở đầu ý chính, tô màu nhấn <strong style="color:#15803d;"> hoặc <strong style="color:#b45309;"> cho từ khoá trọng tâm (giữ tối đa 2-3 tông màu hài hoà: xanh lá thực dưỡng, hổ phách ấm, xám đậm).`,
+        `- 5. KHỐI LƯU Ý & BẢO QUẢN CUỐI BÀI: Kết thúc bằng hộp <div style="background-color:#fffbeb;border:1px solid #fde68a;border-left:4px solid #d97706;border-radius:12px;padding:14px;margin-top:18px;color:#92400e;"> nêu lưu ý sử dụng/bảo quản và tuân thủ YMYL.`,
+        ``,
+        `QUY TẮC LÀM SẠCH TUYỆT ĐỐI:`,
+        cleanOpts.stripOldImages ? `- TUYỆT ĐỐI KHÔNG chèn bất kỳ thẻ <img>, <figure> hay link ảnh cũ nào vào bài viết.` : "",
         cleanOpts.stripPhones ? `- TUYỆT ĐỐI KHÔNG chứa bất kỳ số điện thoại, hotline, Zalo nào.` : "",
-        cleanOpts.stripBuyButtons ? `- TUYỆT ĐỐI KHÔNG chèn nút bấm mua hàng, nút đặt hàng, nút thêm giỏ hàng hay lời kêu gọi bấm nút.` : "",
+        cleanOpts.stripBuyButtons ? `- TUYỆT ĐỐI KHÔNG chèn nút bấm mua hàng, nút đặt hàng hay lời kêu gọi bấm nút.` : "",
         cleanOpts.stripExternalDomains
-          ? `- TUYỆT ĐỐI KHÔNG nhắc tên miền, URL, tên cửa hàng hay liên kết của bất kỳ trang web nào khác${cleanOpts.blockedDomains.length ? ` (đặc biệt cấm: ${cleanOpts.blockedDomains.join(", ")})` : ""}.`
+          ? `- TUYỆT ĐỐI KHÔNG nhắc tên miền, URL, tên cửa hàng hay liên kết của bất kỳ trang web nào khác${cleanOpts.blockedDomains.length ? ` (cấm: ${cleanOpts.blockedDomains.join(", ")})` : ""}.`
           : "",
         `- Tuân thủ Luật Quảng cáo & Nghị định 15/2018/NĐ-CP Việt Nam + Google YMYL: không dùng từ khẳng định 'chữa khỏi', 'đặc trị', 'thay thế thuốc'.`,
-        imageListText
-          ? `- Hãy chèn lại các ảnh sản phẩm sạch sau vào đúng các mục thích hợp bằng thẻ <figure class="my-4"><img src="..." alt="..." class="w-full rounded-xl" /></figure>:\n${imageListText}`
-          : "",
         ``,
-        `NỘI DUNG GỐC ĐÃ LỌC SƠ BỘ ĐỂ THAM KHẢO THÔNG TIN:`,
+        `NỘI DUNG THÔ ĐÃ TẨY ĐỊNH DẠNG CŨ ĐỂ THAM KHẢO:`,
         preCleaned.plainText.slice(0, 12000),
         ``,
-        `CHỈ TRẢ VỀ ĐOẠN MÃ HTML SẠCH (chỉ dùng h2, h3, p, ul, li, strong, table, figure, img; không markdown \`\`\`html, không <html>/<body>).`,
+        `CHỈ TRẢ VỀ MÃ HTML SẠCH (không dùng markdown \`\`\`html, không <html>/<body>/<script>).`,
       ]
         .filter(Boolean)
         .join("\n");
 
       const res = await callGeminiGenerateContent(apiKey, {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.55, maxOutputTokens: 4096 },
+        generationConfig: { temperature: 0.6, maxOutputTokens: 4096 },
       });
 
       if (res.ok) {
@@ -396,23 +412,24 @@ export async function POST(req: Request) {
     }
 
     if (!rewrittenHtml) {
-      rewrittenHtml = buildFallbackHtml(
+      rewrittenHtml = buildRichStyledFallbackHtml(
         productName,
         brand,
         origin,
         unit,
-        preCleaned.cleanedHtml,
-        preCleaned.images,
+        preCleaned.plainText,
       );
     }
 
-    const postCleaned = cleanProductDescriptionHtml(rewrittenHtml, cleanOpts);
+    // Post-sanitize preserving AI's new inline CSS styling while ensuring 0 old images/phones/buttons/domains
+    const postCleaned = cleanProductDescriptionHtml(rewrittenHtml, cleanOpts, false);
 
     return NextResponse.json({
       ok: true,
       usedAi,
       html: postCleaned.cleanedHtml || rewrittenHtml,
       stats: {
+        removedImages: preCleaned.stats.removedImages + postCleaned.stats.removedImages,
         removedPhones: preCleaned.stats.removedPhones + postCleaned.stats.removedPhones,
         removedButtons: preCleaned.stats.removedButtons + postCleaned.stats.removedButtons,
         removedDomains: preCleaned.stats.removedDomains + postCleaned.stats.removedDomains,

@@ -33,6 +33,7 @@ export default function ProductDescriptionAiPanel({
   const [stripPhones, setStripPhones] = useState(true);
   const [stripBuyButtons, setStripBuyButtons] = useState(true);
   const [stripExternalDomains, setStripExternalDomains] = useState(true);
+  const [stripOldImages, setStripOldImages] = useState(true);
   const [extraBlockedDomains, setExtraBlockedDomains] = useState(() => getDomainFromUrl(sourceUrl));
 
   const [busy, setBusy] = useState(false);
@@ -87,6 +88,7 @@ export default function ProductDescriptionAiPanel({
               stripPhones,
               stripBuyButtons,
               stripExternalDomains,
+              stripOldImages,
               extraBlockedDomains,
             }),
           });
@@ -95,9 +97,14 @@ export default function ProductDescriptionAiPanel({
             throw new Error(data.error || "Không thể viết lại mô tả sản phẩm.");
           }
 
-          const s = data.stats ?? { removedPhones: 0, removedButtons: 0, removedDomains: 0 };
-          const cleanSummary = `Đã lọc: ${s.removedPhones ?? 0} SĐT · ${s.removedButtons ?? 0} nút mua · ${s.removedDomains ?? 0} domain/link ngoài`;
-          const okText = `${data.usedAi ? "✨ AI đã viết lại mô tả chuẩn sạch" : "✓ Đã làm sạch & cấu trúc lại mô tả"} (${cleanSummary}). Nhớ bấm Lưu Thông Tin Sản Phẩm!`;
+          const s = data.stats ?? {
+            removedImages: 0,
+            removedPhones: 0,
+            removedButtons: 0,
+            removedDomains: 0,
+          };
+          const cleanSummary = `Đã lọc: ${s.removedImages ?? 0} ảnh cũ · ${s.removedPhones ?? 0} SĐT · ${s.removedButtons ?? 0} nút mua · ${s.removedDomains ?? 0} domain/link ngoài`;
+          const okText = `${data.usedAi ? "✨ AI đã viết lại & tự trang trí chuẩn Thực Dưỡng" : "✓ Đã làm sạch & trình bày lại mô tả"} (${cleanSummary}). Nhớ bấm Lưu Thông Tin Sản Phẩm!`;
 
           dispatchReplace(data.html, okText);
           setStatusMsg(okText);
@@ -156,7 +163,7 @@ export default function ProductDescriptionAiPanel({
         </div>
 
         <span className="text-[11px] text-gray-500">
-          Tự động lọc SĐT · nút mua hàng cũ · tên miền trang web khác
+          Mặc định: xoá ảnh &amp; HTML/CSS cũ · lọc SĐT/domain · tự trang trí khối màu &amp; icon
         </span>
       </div>
 
@@ -204,6 +211,15 @@ export default function ProductDescriptionAiPanel({
           </div>
 
           <div className="flex flex-wrap gap-4 pt-1">
+            <label className="flex cursor-pointer items-center gap-1.5 font-semibold text-gray-700">
+              <input
+                type="checkbox"
+                checked={stripOldImages}
+                onChange={(e) => setStripOldImages(e.target.checked)}
+                className="h-3.5 w-3.5 rounded accent-indigo-600"
+              />
+              <span>Bỏ hết link ảnh cũ trong mô tả</span>
+            </label>
             <label className="flex cursor-pointer items-center gap-1.5 font-semibold text-gray-700">
               <input
                 type="checkbox"

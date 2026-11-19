@@ -12,6 +12,8 @@ const ALLOWED_STYLE_PROPS = new Set([
   "font-size",
   "font-weight",
   "font-style",
+  "line-height",
+  "letter-spacing",
   "text-decoration",
   "width",
   "height",
@@ -24,7 +26,9 @@ const ALLOWED_STYLE_PROPS = new Set([
   "padding",
   "float",
   "border",
+  "border-left",
   "border-radius",
+  "border-collapse",
 ]);
 
 function sanitizeStyleAttribute(styleValue: string): string {
