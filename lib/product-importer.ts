@@ -1,5 +1,4 @@
 import "server-only";
-import * as cheerio from "cheerio";
 import { all, one, run } from "./db";
 import { callGeminiGenerateContent, resolveGeminiApiKey } from "./gemini-key";
 import { saveMediaAsset } from "./media-assets";
@@ -178,43 +177,58 @@ export function scanLegacyTraces(
   return warnings;
 }
 
+function stripTags(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getAttr(tag: string, attr: string): string {
+  const re = new RegExp(`\\b${attr}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i");
+  const m = tag.match(re);
+  return (m?.[1] ?? m?.[2] ?? m?.[3] ?? "").trim();
+}
+
 function cleanFallbackHtml(rawHtml: string, baseUrl: string): string {
-  const $ = cheerio.load(rawHtml || "");
-  $("script, style, iframe, noscript, form, button").remove();
-  $("a").each((_, el) => {
-    const text = $(el).text();
-    $(el).replaceWith(text);
-  });
-  $("*").each((_, el) => {
-    const attribs = (el as unknown as { attribs?: Record<string, string> }).attribs;
-    if (!attribs) return;
-    for (const k of Object.keys(attribs)) {
-      if (k !== "src" && k !== "alt") $(el).removeAttr(k);
-    }
-  });
-  $("img").each((_, el) => {
-    const src = $(el).attr("src") || "";
+  let out = (rawHtml || "")
+    .replace(/<(script|style|iframe|noscript|form|button)\b[^>]*>[\s\S]*?<\/\1>/gi, "")
+    .replace(/<a\b[^>]*>([\s\S]*?)<\/a>/gi, "$1");
+  out = out.replace(/<img\b[^>]*>/gi, (tag) => {
+    const src =
+      getAttr(tag, "data-src") ||
+      getAttr(tag, "data-isrc") ||
+      getAttr(tag, "data-lazy-src") ||
+      getAttr(tag, "src");
     const abs = absolutizeUrl(src, baseUrl);
-    if (!abs) $(el).remove();
-    else $(el).attr("src", abs);
+    if (!abs) return "";
+    const alt = getAttr(tag, "alt").replace(/"/g, "&quot;");
+    return `<img src="${abs}" alt="${alt}" />`;
   });
-  return ($("body").html() || $.html() || "").trim();
+  return out.trim();
 }
 
 function extractRawFromHtml(html: string, targetUrl: string): ParsedProductDraft & { raw_text: string } {
-  const $ = cheerio.load(html);
-
   let ldName = "";
   let ldPrice = 0;
-  let ldSalePrice: number | null = null;
+  const ldSalePrice: number | null = null;
   let ldDesc = "";
   let ldBrand = "";
   let ldSku = "";
   const ldImages: string[] = [];
 
-  $('script[type="application/ld+json"]').each((_, el) => {
+  const ldRegex = /<script\b[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  for (const m of html.matchAll(ldRegex)) {
     try {
-      const json = JSON.parse($(el).text() || "{}") as Record<string, unknown> | Record<string, unknown>[];
+      const json = JSON.parse((m[1] || "{}").trim()) as Record<string, unknown> | Record<string, unknown>[];
       const list = Array.isArray(json)
         ? json
         : Array.isArray((json as { "@graph"?: unknown[] })["@graph"])
@@ -247,46 +261,57 @@ function extractRawFromHtml(html: string, targetUrl: string): ParsedProductDraft
     } catch {
       /* ignore bad json-ld */
     }
-  });
+  }
 
-  const ogTitle = $('meta[property="og:title"]').attr("content")?.trim() || "";
-  const h1 = $("h1").first().text().trim();
-  const titleTag = $("title").text().trim();
+  const getMeta = (propOrName: string): string => {
+    const metaTags = html.match(/<meta\b[^>]*>/gi) || [];
+    for (const tag of metaTags) {
+      const prop = getAttr(tag, "property").toLowerCase();
+      const name = getAttr(tag, "name").toLowerCase();
+      if (prop === propOrName.toLowerCase() || name === propOrName.toLowerCase()) {
+        const c = getAttr(tag, "content");
+        if (c) return c;
+      }
+    }
+    return "";
+  };
+
+  const ogTitle = getMeta("og:title");
+  const h1Match = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
+  const h1 = h1Match ? stripTags(h1Match[1]) : "";
+  const titleMatch = html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i);
+  const titleTag = titleMatch ? stripTags(titleMatch[1]) : "";
   const name = ldName || h1 || ogTitle || titleTag || "Sản phẩm mới";
 
-  const ogDesc =
-    $('meta[property="og:description"]').attr("content")?.trim() ||
-    $('meta[name="description"]').attr("content")?.trim() ||
-    "";
+  const ogDesc = getMeta("og:description") || getMeta("description");
 
   let domPrice = ldPrice;
   if (!domPrice) {
-    const priceCandidates = [
-      $('meta[property="product:price:amount"]').attr("content"),
-      $('[itemprop="price"]').attr("content") || $('[itemprop="price"]').first().text(),
-      $(".price ins .woocommerce-Price-amount, .product-price, .price-now, .special-price").first().text(),
-      $(".price, .woocommerce-Price-amount").first().text(),
-    ];
-    for (const c of priceCandidates) {
-      const n = parsePriceNumber(c);
-      if (n >= 1000) {
-        domPrice = n;
-        break;
+    const metaPrice = parsePriceNumber(getMeta("product:price:amount"));
+    if (metaPrice >= 1000) {
+      domPrice = metaPrice;
+    } else {
+      const vndMatches = [...html.matchAll(/(\d{1,3}(?:[.,]\d{3})+)\s*(?:₫|đ|vnđ|vnd)/gi)];
+      for (const pm of vndMatches) {
+        const n = parsePriceNumber(pm[1]);
+        if (n >= 1000) {
+          domPrice = n;
+          break;
+        }
       }
     }
   }
 
   const images: string[] = [...ldImages];
-  const ogImg = absolutizeUrl($('meta[property="og:image"]').attr("content") || "", targetUrl);
+  const ogImg = absolutizeUrl(getMeta("og:image"), targetUrl);
   if (ogImg && !images.includes(ogImg)) images.push(ogImg);
 
-  $("img").each((_, el) => {
+  for (const imgTag of html.match(/<img\b[^>]*>/gi) || []) {
     const src =
-      $(el).attr("data-src") ||
-      $(el).attr("data-isrc") ||
-      $(el).attr("data-lazy-src") ||
-      $(el).attr("src") ||
-      "";
+      getAttr(imgTag, "data-src") ||
+      getAttr(imgTag, "data-isrc") ||
+      getAttr(imgTag, "data-lazy-src") ||
+      getAttr(imgTag, "src");
     const abs = absolutizeUrl(src, targetUrl);
     if (
       abs &&
@@ -296,14 +321,14 @@ function extractRawFromHtml(html: string, targetUrl: string): ParsedProductDraft
     ) {
       images.push(abs);
     }
-  });
+  }
 
-  const descNode =
-    $(
-      ".decription, .product-description, .woocommerce-Tabs-panel--description, #tab-description, [itemprop='description'], .entry-content, article, main",
-    ).first();
-  const rawDescHtml = descNode.length ? descNode.html() || "" : "";
-  const rawText = (descNode.text() || ldDesc || ogDesc || "").replace(/\s+/g, " ").trim().slice(0, 6000);
+  const mainMatch =
+    html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i) ||
+    html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i) ||
+    html.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
+  const rawDescHtml = mainMatch ? mainMatch[1].slice(0, 30000) : html.slice(0, 30000);
+  const rawText = (stripTags(rawDescHtml) || ldDesc || ogDesc).slice(0, 6000);
 
   return {
     name: name.slice(0, 200),
