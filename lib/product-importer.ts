@@ -286,7 +286,7 @@ export async function checkDuplicateProductUrl(rawUrl: string): Promise<Duplicat
   const canonicalUrl = canonicalizeProductUrl(rawUrl);
   const domain = safe.hostname.replace(/^www\./, "");
 
-  const prod = await one<{
+  type ProdRow = {
     id: number;
     name: string;
     category_id: number;
@@ -295,16 +295,36 @@ export async function checkDuplicateProductUrl(rawUrl: string): Promise<Duplicat
     description: string;
     image: string | null;
     gallery: string;
-  }>(
+  };
+
+  let prod = await one<ProdRow>(
     `SELECT p.id, p.name, p.category_id, c.name AS category_name, p.source_url, p.description, p.image, p.gallery
      FROM products p
      LEFT JOIN product_categories c ON c.id = p.category_id
-     WHERE p.source_url = ? OR p.source_url = ? OR p.source_url LIKE ?
+     WHERE p.source_url = ? OR p.source_url = ? OR p.source_url = ?
      ORDER BY p.id DESC LIMIT 1`,
     exactUrl,
     canonicalUrl,
-    `${canonicalUrl}%`,
+    `${canonicalUrl}/`,
   );
+
+  if (!prod) {
+    const candidates = await all<ProdRow>(
+      `SELECT p.id, p.name, p.category_id, c.name AS category_name, p.source_url, p.description, p.image, p.gallery
+       FROM products p
+       LEFT JOIN product_categories c ON c.id = p.category_id
+       WHERE p.source_url IS NOT NULL AND p.source_url <> '' AND INSTR(p.source_url, ?) > 0
+       ORDER BY p.id DESC LIMIT 200`,
+      domain,
+    );
+    prod = candidates.find((row) => {
+      try {
+        return canonicalizeProductUrl(row.source_url) === canonicalUrl;
+      } catch {
+        return false;
+      }
+    });
+  }
 
   const queued = await one<{
     id: number;
