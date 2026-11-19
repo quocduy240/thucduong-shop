@@ -85,7 +85,14 @@ export default function ThemeSwitcher({ config }: { config: ThemeSettingsConfig 
       </button>
 
       {open && (
-        <div className="fixed inset-x-4 top-20 z-50 mx-auto max-w-sm rounded-2xl border border-gray-200 bg-white p-3 shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-72 sm:max-w-none sm:shadow-xl">
+        <div
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4 backdrop-blur-xs sm:static sm:block sm:bg-transparent sm:p-0 sm:backdrop-blur-none"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-[340px] max-h-[82vh] overflow-y-auto rounded-2xl border border-gray-200 bg-white p-3.5 shadow-2xl sm:absolute sm:right-0 sm:top-full sm:z-50 sm:mt-2 sm:w-72 sm:max-w-none sm:p-3 sm:shadow-xl"
+          >
           <div className="mb-2 flex items-center justify-between border-b pb-2">
             <div>
               <div className="text-xs font-bold text-gray-900">🎨 Chế độ hiển thị</div>
@@ -144,6 +151,7 @@ export default function ThemeSwitcher({ config }: { config: ThemeSettingsConfig 
                 </button>
               );
             })}
+          </div>
           </div>
         </div>
       )}
