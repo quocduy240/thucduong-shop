@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { formatEtaText, useAiIdleQueue } from "./AiIdleQueueProvider";
 
 type StylePreset = "expert_east_west" | "seo_sales" | "senior_friendly";
 
@@ -22,6 +23,9 @@ export default function ProductDescriptionAiPanel({
   sourceUrl?: string;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const { enqueueAiTask, getTaskByKey } = useAiIdleQueue();
+  const taskKey = `product_rewrite:${targetName}`;
+  const queueTask = getTaskByKey(taskKey);
 
   const [configOpen, setConfigOpen] = useState(false);
   const [stylePreset, setStylePreset] = useState<StylePreset>("expert_east_west");
@@ -61,39 +65,46 @@ export default function ProductDescriptionAiPanel({
     try {
       const currentHtml = readFieldValue(targetName);
       setUndoHtml(currentHtml);
+      const productName = readFieldValue("name");
 
-      const res = await fetch("/api/admin/products/ai-rewrite/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productName: readFieldValue("name"),
-          brand: readFieldValue("brand"),
-          origin: readFieldValue("origin"),
-          unit: readFieldValue("unit"),
-          html: currentHtml,
-          sourceUrl,
-          stylePreset,
-          customInstruction,
-          stripPhones,
-          stripBuyButtons,
-          stripExternalDomains,
-          extraBlockedDomains,
-        }),
+      await enqueueAiTask({
+        key: taskKey,
+        kind: "product_rewrite",
+        title: `Viết lại mô tả${productName ? `: ${productName.slice(0, 24)}` : ""}`,
+        run: async () => {
+          const res = await fetch("/api/admin/products/ai-rewrite/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              productName,
+              brand: readFieldValue("brand"),
+              origin: readFieldValue("origin"),
+              unit: readFieldValue("unit"),
+              html: currentHtml,
+              sourceUrl,
+              stylePreset,
+              customInstruction,
+              stripPhones,
+              stripBuyButtons,
+              stripExternalDomains,
+              extraBlockedDomains,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(data.error || "Không thể viết lại mô tả sản phẩm.");
+          }
+
+          const s = data.stats ?? { removedPhones: 0, removedButtons: 0, removedDomains: 0 };
+          const cleanSummary = `Đã lọc: ${s.removedPhones ?? 0} SĐT · ${s.removedButtons ?? 0} nút mua · ${s.removedDomains ?? 0} domain/link ngoài`;
+          const okText = `${data.usedAi ? "✨ AI đã viết lại mô tả chuẩn sạch" : "✓ Đã làm sạch & cấu trúc lại mô tả"} (${cleanSummary}). Nhớ bấm Lưu Thông Tin Sản Phẩm!`;
+
+          dispatchReplace(data.html, okText);
+          setStatusMsg(okText);
+        },
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setErrMsg(data.error || "Không thể viết lại mô tả sản phẩm.");
-        return;
-      }
-
-      const s = data.stats ?? { removedPhones: 0, removedButtons: 0, removedDomains: 0 };
-      const cleanSummary = `Đã lọc: ${s.removedPhones ?? 0} SĐT · ${s.removedButtons ?? 0} nút mua · ${s.removedDomains ?? 0} domain/link ngoài`;
-      const okText = `${data.usedAi ? "✨ AI đã viết lại mô tả chuẩn sạch" : "✓ Đã làm sạch & cấu trúc lại mô tả"} (${cleanSummary}). Nhớ bấm Lưu Thông Tin Sản Phẩm!`;
-
-      dispatchReplace(data.html, okText);
-      setStatusMsg(okText);
-    } catch {
-      setErrMsg("Lỗi kết nối máy chủ khi gọi AI viết lại.");
+    } catch (e) {
+      setErrMsg((e as Error).message || "Lỗi kết nối máy chủ khi gọi AI viết lại.");
     } finally {
       setBusy(false);
     }
@@ -221,6 +232,22 @@ export default function ProductDescriptionAiPanel({
               <span>Lọc bỏ tên miền &amp; link trang web khác</span>
             </label>
           </div>
+        </div>
+      )}
+
+      {busy && (
+        <div className="flex items-center justify-between gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-2 text-xs font-extrabold text-white shadow-sm">
+          <span className="flex items-center gap-2">
+            <span className="inline-block h-2 w-2 animate-ping rounded-full bg-white" />
+            <span>
+              {queueTask?.status === "queued"
+                ? `⏳ Đang chờ lượt trong Idle Queue (Vị trí #${queueTask.queuePosition})`
+                : "⚡ AI đang lọc sạch & viết lại mô tả tuần tự..."}
+            </span>
+          </span>
+          <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px]">
+            Còn {formatEtaText(queueTask?.remainingSeconds ?? 10)}
+          </span>
         </div>
       )}
 

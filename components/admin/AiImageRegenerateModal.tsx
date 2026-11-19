@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatEtaText, useAiIdleQueue } from "./AiIdleQueueProvider";
 
 function suggestSeoImageName(contextTitle: string, originalUrl: string): string {
   let source = contextTitle.trim();
@@ -172,6 +173,10 @@ async function enhanceOriginalImageOnCanvas(
   return new File([blob], `${seoName || "enhanced"}.webp`, { type: "image/webp" });
 }
 
+  const { enqueueAiTask, getTaskByKey } = useAiIdleQueue();
+  const taskKey = `img:${originalUrl}`;
+  const queueTask = getTaskByKey(taskKey);
+
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [generatedUrl, setGeneratedUrl] = useState("");
@@ -214,77 +219,84 @@ async function enhanceOriginalImageOnCanvas(
     setAnalysisNote("");
     try {
       const seoName = newName.trim() || suggestSeoImageName(contextTitle, originalUrl);
-      const res = await fetch("/api/admin/ai-image-edit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          originalUrl,
-          presets: selectedPresets,
-          customPrompt,
-          newName: seoName,
-          contextTitle,
-          replaceEverywhere,
-          geminiApiKey,
-        }),
-      });
-      const data = (await res.json()) as {
-        ok?: boolean;
-        mode?: "client-studio-enhance";
-        tuning?: StudioTuning;
-        newUrl?: string;
-        syncedRows?: number;
-        error?: string;
-      };
-
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || "Không thể xử lý ảnh.");
-      }
-
-      if (data.mode === "client-studio-enhance" && data.tuning) {
-        const enhancedFile = await enhanceOriginalImageOnCanvas(originalUrl, data.tuning, seoName);
-        const fd = new FormData();
-        fd.append("file", enhancedFile);
-        const upRes = await fetch("/admin/upload", { method: "POST", body: fd });
-        const upData = (await upRes.json()) as { url?: string; error?: string };
-        if (!upRes.ok || !upData.url) {
-          throw new Error(upData.error || "Không thể lưu ảnh đã làm nét.");
-        }
-        let synced = 0;
-        if (replaceEverywhere) {
-          const sRes = await fetch("/api/admin/ai-image-edit", {
+      await enqueueAiTask({
+        key: taskKey,
+        kind: "image_edit",
+        title: `Tạo ảnh AI${contextTitle ? `: ${contextTitle.slice(0, 26)}` : ""}`,
+        run: async () => {
+          const res = await fetch("/api/admin/ai-image-edit", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              action: "sync_url",
-              oldUrl: originalUrl,
-              newUrl: upData.url,
-              replaceEverywhere: true,
+              originalUrl,
+              presets: selectedPresets,
+              customPrompt,
+              newName: seoName,
+              contextTitle,
+              replaceEverywhere,
+              geminiApiKey,
             }),
           });
-          const sData = (await sRes.json()) as { syncedRows?: number };
-          synced = sData.syncedRows ?? 0;
-        }
-        setGeneratedUrl(upData.url);
-        setSyncedRows(synced);
-        if (data.tuning.analysisNote) setAnalysisNote(data.tuning.analysisNote);
-        setVariants((prev) => [
-          { url: upData.url!, name: seoName, syncedRows: synced, note: data.tuning?.analysisNote },
-          ...prev.filter((v) => v.url !== upData.url),
-        ].slice(0, 4));
-        setBgToastVisible(true);
-        return;
-      }
+          const data = (await res.json()) as {
+            ok?: boolean;
+            mode?: "client-studio-enhance";
+            tuning?: StudioTuning;
+            newUrl?: string;
+            syncedRows?: number;
+            error?: string;
+          };
 
-      if (!data.newUrl) {
-        throw new Error(data.error || "Không thể tạo ảnh mới.");
-      }
-      setGeneratedUrl(data.newUrl);
-      setSyncedRows(data.syncedRows ?? 0);
-      setVariants((prev) => [
-        { url: data.newUrl!, name: seoName, syncedRows: data.syncedRows ?? 0 },
-        ...prev.filter((v) => v.url !== data.newUrl),
-      ].slice(0, 4));
-      setBgToastVisible(true);
+          if (!res.ok || !data.ok) {
+            throw new Error(data.error || "Không thể xử lý ảnh.");
+          }
+
+          if (data.mode === "client-studio-enhance" && data.tuning) {
+            const enhancedFile = await enhanceOriginalImageOnCanvas(originalUrl, data.tuning, seoName);
+            const fd = new FormData();
+            fd.append("file", enhancedFile);
+            const upRes = await fetch("/admin/upload", { method: "POST", body: fd });
+            const upData = (await upRes.json()) as { url?: string; error?: string };
+            if (!upRes.ok || !upData.url) {
+              throw new Error(upData.error || "Không thể lưu ảnh đã làm nét.");
+            }
+            let synced = 0;
+            if (replaceEverywhere) {
+              const sRes = await fetch("/api/admin/ai-image-edit", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  action: "sync_url",
+                  oldUrl: originalUrl,
+                  newUrl: upData.url,
+                  replaceEverywhere: true,
+                }),
+              });
+              const sData = (await sRes.json()) as { syncedRows?: number };
+              synced = sData.syncedRows ?? 0;
+            }
+            setGeneratedUrl(upData.url);
+            setSyncedRows(synced);
+            if (data.tuning.analysisNote) setAnalysisNote(data.tuning.analysisNote);
+            setVariants((prev) => [
+              { url: upData.url!, name: seoName, syncedRows: synced, note: data.tuning?.analysisNote },
+              ...prev.filter((v) => v.url !== upData.url),
+            ].slice(0, 4));
+            setBgToastVisible(true);
+            return;
+          }
+
+          if (!data.newUrl) {
+            throw new Error(data.error || "Không thể tạo ảnh mới.");
+          }
+          setGeneratedUrl(data.newUrl);
+          setSyncedRows(data.syncedRows ?? 0);
+          setVariants((prev) => [
+            { url: data.newUrl!, name: seoName, syncedRows: data.syncedRows ?? 0 },
+            ...prev.filter((v) => v.url !== data.newUrl),
+          ].slice(0, 4));
+          setBgToastVisible(true);
+        },
+      });
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -294,33 +306,28 @@ async function enhanceOriginalImageOnCanvas(
 
   return (
     <>
-      {!open && (busy || (bgToastVisible && (generatedUrl || err))) && (
-        <div className="fixed bottom-5 left-5 z-[68] flex max-w-sm items-center gap-3 rounded-2xl border border-indigo-200 bg-white/95 p-3 text-xs shadow-2xl backdrop-blur">
-          <div className="min-w-0 flex-1 space-y-1">
-            {busy ? (
-              <div className="flex items-center gap-2 font-bold text-indigo-800">
-                <span className="inline-block h-2.5 w-2.5 animate-ping rounded-full bg-indigo-600" />
-                <span>Gemini AI đang tạo ảnh chạy ngầm...</span>
-              </div>
-            ) : err ? (
-              <div className="font-bold text-red-700">⚠️ Lỗi tạo ảnh AI: {err}</div>
+      {!open && bgToastVisible && (generatedUrl || err) && (
+        <div className="fixed bottom-16 left-4 z-[68] flex max-w-sm items-center gap-3 rounded-2xl border-2 border-emerald-400 bg-emerald-600 p-3 text-xs text-white shadow-2xl">
+          <div className="min-w-0 flex-1 space-y-1.5">
+            {err ? (
+              <div className="font-bold">⚠️ Lỗi tạo ảnh AI: {err}</div>
             ) : (
               <div className="flex items-center gap-2.5">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={generatedUrl}
                   alt="Ảnh AI mới"
-                  className="h-11 w-11 shrink-0 rounded-lg border object-cover"
+                  className="h-11 w-11 shrink-0 rounded-lg border border-white/40 object-cover"
                 />
                 <div className="min-w-0">
-                  <div className="font-extrabold text-emerald-800">✨ Ảnh AI mới đã tạo xong!</div>
-                  <div className="truncate text-[11px] text-gray-500">
-                    Bấm Chọn để áp dụng ngay hoặc mở Studio để xem.
+                  <div className="font-extrabold">✨ Ảnh AI mới đã tạo xong!</div>
+                  <div className="truncate text-[11px] text-emerald-100">
+                    Bấm Dùng ngay hoặc mở Studio để xem chi tiết.
                   </div>
                 </div>
               </div>
             )}
-            <div className="flex flex-wrap gap-1.5 pt-0.5">
+            <div className="flex flex-wrap gap-1.5">
               {onReopen && (
                 <button
                   type="button"
@@ -328,32 +335,30 @@ async function enhanceOriginalImageOnCanvas(
                     setBgToastVisible(false);
                     onReopen();
                   }}
-                  className="cursor-pointer rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-800 hover:bg-indigo-100"
+                  className="cursor-pointer rounded-lg bg-white/20 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-white/30"
                 >
                   👁️ Mở Studio
                 </button>
               )}
-              {!busy && generatedUrl && (
+              {generatedUrl && (
                 <button
                   type="button"
                   onClick={() => {
                     onApply(generatedUrl, newName.trim() || contextTitle, syncedRows);
                     setBgToastVisible(false);
                   }}
-                  className="cursor-pointer rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-emerald-700"
+                  className="cursor-pointer rounded-lg bg-white px-2.5 py-1 text-[11px] font-extrabold text-emerald-800 hover:bg-emerald-50"
                 >
                   ✓ Dùng ảnh này
                 </button>
               )}
-              {!busy && (
-                <button
-                  type="button"
-                  onClick={() => setBgToastVisible(false)}
-                  className="cursor-pointer rounded-lg px-2 py-1 text-[11px] text-gray-500 hover:bg-gray-100"
-                >
-                  Ẩn
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setBgToastVisible(false)}
+                className="cursor-pointer rounded-lg px-2 py-1 text-[11px] text-emerald-100 hover:bg-white/15"
+              >
+                Ẩn
+              </button>
             </div>
           </div>
         </div>
@@ -539,8 +544,12 @@ async function enhanceOriginalImageOnCanvas(
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
-          <span className="text-[11px] text-gray-500">
-            {busy ? "💡 Có thể đóng cửa sổ ngay — AI vẫn chạy ẩn và báo kết quả khi xong." : ""}
+          <span className="text-[11px] font-semibold text-amber-800">
+            {busy
+              ? queueTask?.status === "queued"
+                ? `⏳ Đang chờ lượt (#${queueTask.queuePosition}) · Còn ${formatEtaText(queueTask.remainingSeconds)} — Có thể đóng cửa sổ để làm việc khác.`
+                : `⚡ AI đang xử lý · Còn ${formatEtaText(queueTask?.remainingSeconds ?? 15)} — Có thể đóng cửa sổ, xong sẽ báo kết quả.`
+              : ""}
           </span>
           <div className="flex flex-wrap items-center gap-2">
             <button

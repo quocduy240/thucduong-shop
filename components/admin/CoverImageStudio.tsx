@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { formatEtaText, useAiIdleQueue } from "./AiIdleQueueProvider";
 import AiImageRegenerateModal, { type AiGeneratedVariant } from "./AiImageRegenerateModal";
 
 const SIZE_PRESETS = [
@@ -50,6 +51,8 @@ export default function CoverImageStudio({
   );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { getTaskByKey } = useAiIdleQueue();
+  const imgTask = getTaskByKey(`img:${coverUrl}`);
 
   useEffect(() => {
     setCoverUrl(defaultCover);
@@ -563,18 +566,37 @@ export default function CoverImageStudio({
               </button>
 
               {(aiBgState.busy || (!trayDismissed && aiBgState.variants.length > 0)) && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-2.5 space-y-2">
+                <div
+                  className={`rounded-xl border p-2.5 space-y-2 ${
+                    aiBgState.busy
+                      ? "border-amber-300 bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md"
+                      : "border-emerald-300 bg-emerald-50 text-emerald-950"
+                  }`}
+                >
                   <div className="flex items-center justify-between gap-2 text-[11px]">
-                    <span className="font-bold text-indigo-950">
-                      {aiBgState.busy
-                        ? "⏳ Đang phân tích & tạo ảnh chạy ngầm..."
-                        : `✨ Đã tạo ${aiBgState.variants.length} ảnh AI — Chọn làm ảnh đại diện:`}
+                    <span className="flex items-center gap-1.5 font-extrabold">
+                      {aiBgState.busy ? (
+                        <>
+                          <span className="inline-block h-2 w-2 animate-ping rounded-full bg-white" />
+                          <span>
+                            {imgTask?.status === "queued"
+                              ? `⏳ Đang chờ lượt (#${imgTask.queuePosition}) · Còn ${formatEtaText(imgTask.remainingSeconds)}`
+                              : `⚡ AI đang tạo ảnh ngầm · Còn ${formatEtaText(imgTask?.remainingSeconds ?? 15)}`}
+                          </span>
+                        </>
+                      ) : (
+                        <span>✨ Đã tạo {aiBgState.variants.length} ảnh AI — Chọn làm ảnh đại diện:</span>
+                      )}
                     </span>
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => setAiModalOpen(true)}
-                        className="cursor-pointer rounded border border-indigo-200 bg-white px-2 py-0.5 font-semibold text-indigo-800 hover:bg-indigo-100"
+                        className={`cursor-pointer rounded px-2 py-0.5 font-bold ${
+                          aiBgState.busy
+                            ? "bg-white/20 text-white hover:bg-white/30"
+                            : "border border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-100"
+                        }`}
                       >
                         Mở Studio
                       </button>
@@ -582,7 +604,7 @@ export default function CoverImageStudio({
                         <button
                           type="button"
                           onClick={() => setTrayDismissed(true)}
-                          className="cursor-pointer px-1 text-gray-400 hover:text-gray-700"
+                          className="cursor-pointer px-1 text-gray-500 hover:text-gray-800"
                         >
                           ✕
                         </button>

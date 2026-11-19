@@ -85,6 +85,10 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
             heading: "Viết lại mô tả bằng AI & Lọc sạch dấu vết trang nguồn (Mới)",
             body: "Ngay cuối khung Mô tả sản phẩm có nút '✨ Viết lại bằng AI' kèm nút '⚙️ Cấu hình cách viết': tự động lọc bỏ số điện thoại/Zalo cũ, nút mua hàng web nguồn, và tên miền trang web khác (tự nhận diện domain nguồn nếu SP được nhập từ link), viết lại chuẩn Thực dưỡng & YMYL kèm nút '↩️ Hoàn tác bản cũ'.",
           },
+          {
+            heading: "Hàng đợi AI Idle Worker tuần tự & Thông báo màu nổi kèm ETA (Mới)",
+            body: "Mọi tác vụ AI chạy ngầm (tạo lại ảnh đại diện, viết lại mô tả sản phẩm...) đều tự động xếp hàng chạy tuần tự từng việc một lúc trình duyệt rảnh để tiết kiệm tài nguyên server & quota AI, hiển thị thông báo màu nổi ngay tại khu vực đang sửa và ở góc dưới trái kèm đếm ngược thời gian hoàn thành (ETA).",
+          },
         ],
       },
       {
