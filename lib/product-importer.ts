@@ -1877,3 +1877,242 @@ export async function cleanProductJobData(opts: {
     stats: { imagesProcessed, imagesRecreated, usedAiText },
   };
 }
+
+export type SourceDiffResult = {
+  jobId: number;
+  productId: number | null;
+  sourceUrl: string;
+  notFound: boolean;
+  outOfStock: boolean;
+  hasChanges: boolean;
+  priceChanged: boolean;
+  salePriceChanged: boolean;
+  imagesChanged: boolean;
+  current: {
+    name: string;
+    price: number;
+    sale_price: number | null;
+    stock: number | null;
+    imageCount: number;
+  };
+  latest: {
+    name: string;
+    price: number;
+    sale_price: number | null;
+    imageCount: number;
+    summary: string;
+    description_html: string;
+    images: string[];
+  };
+};
+
+export async function checkSourceDiffForJob(jobId: number): Promise<SourceDiffResult> {
+  await ensureProductImportSchema();
+  const job = await getImportJobById(jobId);
+  if (!job) throw new Error("Không tìm thấy lịch sử nguồn.");
+
+  const safeUrl = assertSafePublicHttpUrl(job.source_url);
+  let draft: ParsedProductDraft = {
+    name: job.product_name || "",
+    price: 0,
+    sale_price: null,
+    summary: "",
+    description_html: "",
+    brand: "",
+    origin: "",
+    unit: "",
+    sku: "",
+    images: [],
+  };
+  try {
+    draft = { ...draft, ...(JSON.parse(job.normalized_payload || "{}") as Partial<ParsedProductDraft>) };
+  } catch {
+    /* ignore */
+  }
+
+  const prod = job.product_id
+    ? await one<{
+        id: number;
+        name: string;
+        price: number;
+        sale_price: number | null;
+        stock: number;
+        image: string | null;
+        gallery: string;
+      }>("SELECT id, name, price, sale_price, stock, image, gallery FROM products WHERE id = ?", job.product_id)
+    : undefined;
+
+  const currentImgs = prod
+    ? [
+        ...(prod.image ? [prod.image] : []),
+        ...(prod.gallery || "")
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter(Boolean),
+      ]
+    : draft.images || [];
+
+  const current = {
+    name: prod?.name || draft.name,
+    price: prod ? prod.price : draft.price,
+    sale_price: prod ? prod.sale_price : draft.sale_price,
+    stock: prod ? prod.stock : null,
+    imageCount: currentImgs.length,
+  };
+
+  const res = await fetch(safeUrl.toString(), {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; ThucDuongPhucThoBot/1.0)",
+      Accept: "text/html,application/xhtml+xml",
+    },
+  });
+
+  if (res.status === 404 || res.status === 410) {
+    await run("UPDATE product_import_jobs SET updated_at = datetime('now') WHERE id = ?", jobId);
+    return {
+      jobId,
+      productId: job.product_id,
+      sourceUrl: job.source_url,
+      notFound: true,
+      outOfStock: true,
+      hasChanges: true,
+      priceChanged: false,
+      salePriceChanged: false,
+      imagesChanged: false,
+      current,
+      latest: {
+        name: current.name,
+        price: current.price,
+        sale_price: current.sale_price,
+        imageCount: current.imageCount,
+        summary: draft.summary,
+        description_html: draft.description_html,
+        images: draft.images,
+      },
+    };
+  }
+
+  if (!res.ok) {
+    throw new Error(`Không truy cập được trang nguồn (HTTP ${res.status}).`);
+  }
+
+  const html = await res.text();
+  const raw = extractRawFromHtml(html, safeUrl.toString());
+  const outOfStock = /hết\s*hàng|tạm\s*hết|ngừng\s*kinh\s*doanh|out\s*of\s*stock/i.test(
+    raw.raw_text.slice(0, 1500),
+  );
+  const priceChanged = raw.price > 0 && raw.price !== current.price;
+  const salePriceChanged = (raw.sale_price ?? null) !== (current.sale_price ?? null);
+  const imagesChanged = raw.images.length > 0 && raw.images.length !== current.imageCount;
+  const hasChanges = outOfStock || priceChanged || salePriceChanged || imagesChanged;
+
+  await run(
+    "UPDATE product_import_jobs SET raw_payload = ?, updated_at = datetime('now') WHERE id = ?",
+    JSON.stringify({
+      name: raw.name,
+      price: raw.price,
+      sale_price: raw.sale_price,
+      summary: raw.summary,
+      brand: raw.brand,
+      sku: raw.sku,
+      images: raw.images,
+      description_html: raw.description_html,
+    }),
+    jobId,
+  );
+
+  return {
+    jobId,
+    productId: job.product_id,
+    sourceUrl: job.source_url,
+    notFound: false,
+    outOfStock,
+    hasChanges,
+    priceChanged,
+    salePriceChanged,
+    imagesChanged,
+    current,
+    latest: {
+      name: raw.name,
+      price: raw.price || current.price,
+      sale_price: raw.sale_price,
+      imageCount: raw.images.length,
+      summary: raw.summary,
+      description_html: raw.description_html,
+      images: raw.images,
+    },
+  };
+}
+
+export async function applySourceUpdateForJob(opts: {
+  jobId: number;
+  mode: "price_only" | "mark_out_of_stock" | "full_reclean";
+}): Promise<ProductImportJobRow> {
+  await ensureProductImportSchema();
+  const job = await getImportJobById(opts.jobId);
+  if (!job) throw new Error("Không tìm thấy lịch sử nguồn.");
+
+  const raw = JSON.parse(job.raw_payload || "{}") as Partial<ParsedProductDraft>;
+  const draft = JSON.parse(job.normalized_payload || "{}") as ParsedProductDraft;
+
+  if (opts.mode === "mark_out_of_stock") {
+    if (job.product_id) {
+      await run("UPDATE products SET stock = 0 WHERE id = ?", job.product_id);
+    }
+    await run(
+      "UPDATE product_import_jobs SET current_step = 'Đã đặt Hết hàng (stock=0) theo nguồn', updated_at = datetime('now') WHERE id = ?",
+      job.id,
+    );
+    return (await getImportJobById(job.id))!;
+  }
+
+  if (opts.mode === "price_only") {
+    const nextPrice = Number(raw.price) > 0 ? Number(raw.price) : draft.price;
+    const nextSale = raw.sale_price !== undefined ? raw.sale_price : draft.sale_price;
+    const nextDraft: ParsedProductDraft = {
+      ...draft,
+      price: nextPrice,
+      sale_price: nextSale ?? null,
+    };
+    await run(
+      "UPDATE product_import_jobs SET normalized_payload = ?, current_step = '✓ Đã đồng bộ Giá mới từ nguồn (giữ nguyên bài & ảnh)', updated_at = datetime('now') WHERE id = ?",
+      JSON.stringify(nextDraft),
+      job.id,
+    );
+    if (job.product_id) {
+      await run(
+        "UPDATE products SET price = ?, sale_price = ? WHERE id = ?",
+        nextPrice,
+        nextSale ?? null,
+        job.product_id,
+      );
+    }
+    return (await getImportJobById(job.id))!;
+  }
+
+  // full_reclean: update draft from latest raw & run 4-step cleaner
+  const updatedDraft: ParsedProductDraft = {
+    ...draft,
+    name: raw.name || draft.name,
+    price: Number(raw.price) > 0 ? Number(raw.price) : draft.price,
+    sale_price: raw.sale_price !== undefined ? raw.sale_price : draft.sale_price,
+    summary: raw.summary || draft.summary,
+    description_html: raw.description_html || draft.description_html,
+    images: Array.isArray(raw.images) && raw.images.length > 0 ? raw.images : draft.images,
+  };
+  await run(
+    "UPDATE product_import_jobs SET normalized_payload = ?, updated_at = datetime('now') WHERE id = ?",
+    JSON.stringify(updatedDraft),
+    job.id,
+  );
+  if (job.product_id) {
+    await run(
+      "UPDATE products SET price = ?, sale_price = ? WHERE id = ?",
+      updatedDraft.price,
+      updatedDraft.sale_price,
+      job.product_id,
+    );
+  }
+  const cleaned = await cleanProductJobData({ jobId: job.id, cleanImages: true });
+  return cleaned.job;
+}

@@ -3,7 +3,9 @@ import { NextResponse } from "next/server";
 import { currentAdmin } from "@/lib/auth";
 import { all, run } from "@/lib/db";
 import {
+  applySourceUpdateForJob,
   checkDuplicateProductUrl,
+  checkSourceDiffForJob,
   cleanProductJobData,
   clearProductSourceTrace,
   enqueueBulkUrls,
@@ -197,11 +199,25 @@ export async function POST(req: Request) {
 
     if (action === "check_update") {
       const jobId = Number(b.job_id);
-      const oldJob = await getImportJobById(jobId);
-      if (!oldJob) return NextResponse.json({ error: "Không tìm thấy lịch sử nguồn." }, { status: 404 });
-      const { job, duplicate } = await fetchAndCreateImportJob({ url: oldJob.source_url });
+      if (!jobId) return NextResponse.json({ error: "Thiếu job_id." }, { status: 400 });
+      const diff = await checkSourceDiffForJob(jobId);
       const [jobs, workerSummary] = await Promise.all([listImportJobs(50), getIdleWorkerSummary()]);
-      return NextResponse.json({ ok: true, job, duplicate, jobs, workerSummary });
+      return NextResponse.json({ ok: true, diff, jobs, workerSummary });
+    }
+
+    if (action === "apply_source_update") {
+      const jobId = Number(b.job_id);
+      const mode =
+        b.mode === "mark_out_of_stock" || b.mode === "full_reclean" ? b.mode : "price_only";
+      if (!jobId) return NextResponse.json({ error: "Thiếu job_id." }, { status: 400 });
+      const job = await applySourceUpdateForJob({ jobId, mode });
+      revalidatePath("/", "layout");
+      const [jobs, workerSummary, uncleanedProducts] = await Promise.all([
+        listImportJobs(50),
+        getIdleWorkerSummary(),
+        listUncleanedImportedProducts(100),
+      ]);
+      return NextResponse.json({ ok: true, job, jobs, workerSummary, uncleanedProducts });
     }
 
     if (action === "clear_source") {

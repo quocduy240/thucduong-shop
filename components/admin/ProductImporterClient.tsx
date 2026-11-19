@@ -9,6 +9,7 @@ import type {
   LegacyTraceWarning,
   ParsedProductDraft,
   ProductImportJobRow,
+  SourceDiffResult,
   UncleanedProductItem,
 } from "@/lib/product-importer";
 import { formatEtaText, useAiIdleQueue } from "./AiIdleQueueProvider";
@@ -82,6 +83,7 @@ export default function ProductImporterClient({
   const [cleanCustomInstruction, setCleanCustomInstruction] = useState("");
   const [cleanImages, setCleanImages] = useState(true);
   const [cleaningData, setCleaningData] = useState(false);
+  const [sourceDiff, setSourceDiff] = useState<SourceDiffResult | null>(null);
 
   const activeJob = useMemo(
     () => jobs.find((j) => j.id === activeJobId) ?? jobs[0] ?? null,
@@ -1019,6 +1021,127 @@ export default function ProductImporterClient({
           📜 Hàng đợi &amp; Lịch sử Lấy Sản Phẩm ({jobs.length})
         </h2>
 
+        {sourceDiff && (
+          <div
+            className={`rounded-xl border-2 p-4 text-xs space-y-3 ${
+              sourceDiff.notFound || sourceDiff.outOfStock
+                ? "border-red-300 bg-red-50/70 text-red-950"
+                : sourceDiff.hasChanges
+                  ? "border-sky-300 bg-sky-50/70 text-sky-950"
+                  : "border-emerald-200 bg-emerald-50/70 text-emerald-950"
+            }`}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="font-extrabold">
+                {sourceDiff.notFound
+                  ? `⚠️ Link nguồn trả về 404 / Không còn tồn tại (Job #${sourceDiff.jobId})`
+                  : sourceDiff.outOfStock
+                    ? `⚠️ Nguồn báo Hết hàng / Ngừng kinh doanh (Job #${sourceDiff.jobId})`
+                    : sourceDiff.hasChanges
+                      ? `🔍 Phát hiện thay đổi từ nguồn (Job #${sourceDiff.jobId} — ${sourceDiff.current.name})`
+                      : `✓ Nguồn chưa có thay đổi mới (Job #${sourceDiff.jobId} — ${sourceDiff.current.name})`}
+              </div>
+              <button
+                type="button"
+                onClick={() => setSourceDiff(null)}
+                className="cursor-pointer rounded border bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-100"
+              >
+                Đóng
+              </button>
+            </div>
+
+            {sourceDiff.hasChanges && (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border bg-white/90 p-2.5 space-y-1">
+                    <div className="text-[11px] font-bold text-gray-500">Hiện tại trên Shop</div>
+                    <div>
+                      Giá: <strong>{sourceDiff.current.price.toLocaleString("vi-VN")}đ</strong>
+                      {sourceDiff.current.sale_price
+                        ? ` (KM: ${sourceDiff.current.sale_price.toLocaleString("vi-VN")}đ)`
+                        : ""}
+                    </div>
+                    <div>Số ảnh: <strong>{sourceDiff.current.imageCount}</strong></div>
+                  </div>
+                  <div className="rounded-lg border bg-white/90 p-2.5 space-y-1">
+                    <div className="text-[11px] font-bold text-sky-700">Mới nhất từ Link nguồn</div>
+                    <div>
+                      Giá: <strong>{sourceDiff.latest.price.toLocaleString("vi-VN")}đ</strong>
+                      {sourceDiff.latest.sale_price
+                        ? ` (KM: ${sourceDiff.latest.sale_price.toLocaleString("vi-VN")}đ)`
+                        : ""}
+                      {sourceDiff.priceChanged && (
+                        <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-900">
+                          Đổi giá
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      Số ảnh: <strong>{sourceDiff.latest.imageCount}</strong>
+                      {sourceDiff.imagesChanged && (
+                        <span className="ml-1.5 rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-900">
+                          Đổi ảnh
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {(sourceDiff.priceChanged || sourceDiff.salePriceChanged) && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={async () => {
+                        const res = await callApi(
+                          { action: "apply_source_update", job_id: sourceDiff.jobId, mode: "price_only" },
+                          "✓ Đã cập nhật Giá mới từ nguồn (giữ nguyên bài & ảnh đã cá nhân hoá)!",
+                        );
+                        if (res) setSourceDiff(null);
+                      }}
+                      className="cursor-pointer rounded-lg bg-emerald-600 px-3 py-1.5 font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      💰 Chỉ cập nhật Giá (Giữ bài &amp; ảnh sạch)
+                    </button>
+                  )}
+                  {(sourceDiff.notFound || sourceDiff.outOfStock) && sourceDiff.productId && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={async () => {
+                        const res = await callApi(
+                          { action: "apply_source_update", job_id: sourceDiff.jobId, mode: "mark_out_of_stock" },
+                          "✓ Đã đặt Hết hàng (Stock = 0) cho sản phẩm theo nguồn!",
+                        );
+                        if (res) setSourceDiff(null);
+                      }}
+                      className="cursor-pointer rounded-lg bg-red-600 px-3 py-1.5 font-bold text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      🚫 Đặt Hết hàng (Stock = 0)
+                    </button>
+                  )}
+                  {!sourceDiff.notFound && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={async () => {
+                        const res = await callApi(
+                          { action: "apply_source_update", job_id: sourceDiff.jobId, mode: "full_reclean" },
+                          "✓ Đã cập nhật toàn bộ từ nguồn & làm sạch AI lại!",
+                        );
+                        if (res) setSourceDiff(null);
+                      }}
+                      className="cursor-pointer rounded-lg bg-indigo-600 px-3 py-1.5 font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      🧹 Cập nhật toàn bộ &amp; Làm sạch AI
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {jobs.length === 0 ? (
           <p className="py-6 text-center text-xs text-gray-500">
             Chưa có lịch sử lấy sản phẩm nào. Hãy dán link sản phẩm ở khung trên để bắt đầu.
@@ -1118,15 +1241,16 @@ export default function ProductImporterClient({
                         <button
                           type="button"
                           disabled={busy}
-                          onClick={() =>
-                            callApi(
+                          onClick={async () => {
+                            const res = await callApi(
                               { action: "check_update", job_id: j.id },
-                              "✓ Đã lấy dữ liệu mới nhất từ link nguồn vào lịch sử.",
-                            )
-                          }
+                              "✓ Đã đối chiếu Smart Diff với trang nguồn.",
+                            );
+                            if (res?.diff) setSourceDiff(res.diff as SourceDiffResult);
+                          }}
                           className="cursor-pointer rounded border px-2 py-1 font-semibold text-sky-700 hover:bg-sky-50"
                         >
-                          🔄 Cập nhật nguồn
+                          🔄 Kiểm tra nguồn
                         </button>
                         {j.product_id && !j.source_cleared && (
                           <button
