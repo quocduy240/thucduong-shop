@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { MemberProfile, PointRule, RewardItem } from "@/lib/loyalty";
+import LoyaltyGuideDrawer from "./LoyaltyGuideDrawer";
 import {
   describePointRule,
   describeRewardValue,
@@ -57,6 +58,7 @@ export default function LoyaltyAdminClient({
   const [rewards, setRewards] = useState(initialRewards);
   const [redemptions, setRedemptions] = useState(initialRedemptions);
   const [profiles, setProfiles] = useState(initialProfiles);
+  const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
 
@@ -84,25 +86,39 @@ export default function LoyaltyAdminClient({
   const [adjDelta, setAdjDelta] = useState(50);
   const [adjReason, setAdjReason] = useState("");
 
+  useEffect(() => {
+    if (profiles.length > 0 && !profiles.some((p) => p.id === adjMemberId)) {
+      setAdjMemberId(profiles[0].id);
+    }
+  }, [profiles, adjMemberId]);
+
   async function postAction(payload: Record<string, unknown>, okText: string) {
+    setBusy(true);
     setMsg("");
     setErr("");
-    const res = await fetch("/api/admin/loyalty", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const d = await res.json();
-    if (!res.ok) {
-      setErr(d.error ?? "Thao tác thất bại.");
+    try {
+      const res = await fetch("/api/admin/loyalty", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErr(d.error ?? "Thao tác thất bại.");
+        return false;
+      }
+      setRules(d.rules ?? []);
+      setRewards(d.rewards ?? []);
+      setRedemptions(d.redemptions ?? []);
+      setProfiles(d.profiles ?? []);
+      setMsg(okText);
+      return true;
+    } catch {
+      setErr("Lỗi kết nối máy chủ, vui lòng thử lại.");
       return false;
+    } finally {
+      setBusy(false);
     }
-    setRules(d.rules);
-    setRewards(d.rewards);
-    setRedemptions(d.redemptions);
-    setProfiles(d.profiles);
-    setMsg(okText);
-    return true;
   }
 
   function resetRewardForm() {
@@ -144,11 +160,14 @@ export default function LoyaltyAdminClient({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border bg-white p-5 shadow-2xs">
-        <h1 className="text-xl font-extrabold text-gray-900">🎁 Quản trị Tích điểm &amp; Đổi quà (Loyalty)</h1>
-        <p className="mt-1 text-xs text-gray-500">
-          Thiết lập công thức tích điểm theo hạng thành viên, quản lý kho quà tặng, duyệt đơn đổi quà và cộng/trừ điểm thủ công.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-white p-5 shadow-2xs">
+        <div>
+          <h1 className="text-xl font-extrabold text-gray-900">🎁 Quản trị Tích điểm &amp; Đổi quà (Loyalty)</h1>
+          <p className="mt-1 text-xs text-gray-500">
+            Thiết lập công thức tích điểm theo hạng thành viên, quản lý kho quà tặng, duyệt đơn đổi quà và cộng/trừ điểm thủ công.
+          </p>
+        </div>
+        <LoyaltyGuideDrawer />
       </div>
 
       {(msg || err) && (
@@ -195,6 +214,7 @@ export default function LoyaltyAdminClient({
                     </td>
                     <td className="px-3 py-2">
                       <select
+                        disabled={busy}
                         value={rr.fulfillment_status}
                         onChange={(e) =>
                           postAction(
@@ -202,7 +222,7 @@ export default function LoyaltyAdminClient({
                             "✓ Đã cập nhật trạng thái đổi quà.",
                           )
                         }
-                        className="rounded border px-2 py-1 text-xs"
+                        className="cursor-pointer rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 disabled:opacity-50"
                       >
                         <option value="pending">Chờ xử lý</option>
                         <option value="delivered">Đã gửi / Đã cấp mã</option>
@@ -770,15 +790,20 @@ export default function LoyaltyAdminClient({
           <div>
             <label className="mb-1 block font-semibold text-gray-700">Chọn khách hàng</label>
             <select
+              disabled={busy || profiles.length === 0}
               value={adjMemberId}
               onChange={(e) => setAdjMemberId(Number(e.target.value))}
-              className="w-full rounded-lg border px-2.5 py-2"
+              className="w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-2.5 py-2 text-gray-900 disabled:bg-gray-100"
             >
-              {profiles.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.full_name || p.phone || p.email} ({p.current_points} điểm · Hạng {TIER_LABELS[p.tier]})
-                </option>
-              ))}
+              {profiles.length === 0 ? (
+                <option value={0}>Chưa có thành viên nào trong hệ thống</option>
+              ) : (
+                profiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.full_name || p.phone || p.email} ({p.current_points} điểm · Hạng {TIER_LABELS[p.tier]})
+                  </option>
+                ))
+              )}
             </select>
           </div>
           <div>
@@ -800,8 +825,11 @@ export default function LoyaltyAdminClient({
               className="w-full rounded-lg border px-3 py-2"
             />
           </div>
-          <button className="w-full cursor-pointer rounded-xl bg-gray-900 py-2.5 font-bold text-white hover:bg-black">
-            Xác nhận cộng / trừ điểm
+          <button
+            disabled={busy || adjMemberId <= 0}
+            className="w-full cursor-pointer rounded-xl bg-gray-900 py-2.5 font-bold text-white hover:bg-black disabled:opacity-50"
+          >
+            {busy ? "Đang xử lý..." : "Xác nhận cộng / trừ điểm"}
           </button>
         </form>
       </section>

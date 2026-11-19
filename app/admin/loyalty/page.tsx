@@ -30,7 +30,7 @@ export default async function AdminLoyaltyPage() {
        LIMIT 50`,
     ),
     all<MemberProfile>(
-      "SELECT * FROM member_profiles WHERE status = 'active' ORDER BY current_points DESC, id DESC LIMIT 50",
+      "SELECT * FROM member_profiles WHERE status = 'active' ORDER BY current_points DESC, id DESC LIMIT 200",
     ),
   ]);
 
