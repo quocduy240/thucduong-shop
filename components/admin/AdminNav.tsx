@@ -16,18 +16,25 @@ type NavGroup = {
 const GROUPS: NavGroup[] = [
   {
     id: "sales",
-    label: "Bán hàng & Khách hàng",
+    label: "Bán hàng & Kho vận",
     icon: "🛍️",
     items: [
       { href: "/admin/pos/", label: "Bán hàng (POS)", icon: "🛒" },
-      { href: "/admin/orders/", label: "Đơn hàng", icon: "🧾" },
+      { href: "/admin/orders/", label: "Đơn hàng & Vận đơn", icon: "🧾" },
       { href: "/admin/inventory/", label: "Kho & Sổ quỹ", icon: "📦" },
       { href: "/admin/products/", label: "Sản phẩm", icon: "🛍️" },
-      { href: "/admin/flash-sale/", label: "Giờ vàng săn sale", icon: "⚡" },
+      { href: "/admin/kiotviet/", label: "Kết nối KiotViet", icon: "🔗" },
+    ],
+  },
+  {
+    id: "customers",
+    label: "Khách hàng & Ưu đãi",
+    icon: "👥",
+    items: [
+      { href: "/admin/members/", label: "Thành viên & Email", icon: "👥" },
       { href: "/admin/crm/", label: "CRM Chăm sóc", icon: "💎" },
       { href: "/admin/loyalty/", label: "Tích điểm & Quà", icon: "🎁" },
-      { href: "/admin/members/", label: "Thành viên & Email", icon: "👥" },
-      { href: "/admin/kiotviet/", label: "Kết nối KiotViet", icon: "🔗" },
+      { href: "/admin/flash-sale/", label: "Giờ vàng săn sale", icon: "⚡" },
     ],
   },
   {
@@ -91,6 +98,7 @@ export default function AdminNav({
   })).filter((g) => g.items.length > 0);
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({
     sales: true,
+    customers: true,
     ai: true,
     content: false,
     system: false,
@@ -100,6 +108,7 @@ export default function AdminNav({
   useEffect(() => {
     let next: Record<string, boolean> = {
       sales: true,
+      customers: true,
       ai: true,
       content: false,
       system: false,
@@ -215,7 +224,13 @@ export default function AdminNav({
         {visibleGroups.map((g) => {
           const isOpen = Boolean(openMap[g.id]);
           const groupBadge =
-            g.id === "sales" && !isOpen ? newOrders + crmFollowupsDue : 0;
+            !isOpen
+              ? g.id === "sales"
+                ? newOrders
+                : g.id === "customers"
+                  ? crmFollowupsDue
+                  : 0
+              : 0;
 
           return (
             <div key={g.id} className="rounded-xl border border-gray-100 bg-gray-50/50 p-1">
