@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type {
+  DuplicateCheckResult,
+  IdleWorkerSummary,
   LegacyTraceWarning,
   ParsedProductDraft,
   ProductImportJobRow,
@@ -11,6 +13,7 @@ import type {
 type CategoryOption = { id: number; name: string; slug: string };
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+  fetch_queued: { label: "Chờ lấy dữ liệu", cls: "bg-slate-100 text-slate-700" },
   fetched: { label: "Chờ bấm Nhập SP", cls: "bg-sky-100 text-sky-800" },
   imported: { label: "Đã nhập · Chờ làm sạch", cls: "bg-amber-100 text-amber-800" },
   cleaning_queued: { label: "Đang xếp hàng chạy ngầm", cls: "bg-purple-100 text-purple-800" },
@@ -19,22 +22,48 @@ const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   failed: { label: "Lỗi xử lý", cls: "bg-red-100 text-red-700" },
 };
 
+function fmtEta(seconds: number): string {
+  const s = Math.max(0, Math.round(seconds));
+  if (s <= 0) return "0 giây";
+  if (s < 60) return `~${s} giây`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return rem > 0 ? `~${m} phút ${rem}s` : `~${m} phút`;
+}
+
 export default function ProductImporterClient({
   initialJobs,
+  initialSummary,
   categories,
 }: {
   initialJobs: ProductImportJobRow[];
+  initialSummary: IdleWorkerSummary;
   categories: CategoryOption[];
 }) {
   const [jobs, setJobs] = useState<ProductImportJobRow[]>(initialJobs);
+  const [summary, setSummary] = useState<IdleWorkerSummary>(initialSummary);
   const [activeJobId, setActiveJobId] = useState<number | null>(initialJobs[0]?.id ?? null);
+
+  // Input mode: single vs bulk
+  const [inputMode, setInputMode] = useState<"single" | "bulk">("single");
   const [urlInput, setUrlInput] = useState("");
+  const [bulkUrls, setBulkUrls] = useState("");
+  const [bulkCategoryId, setBulkCategoryId] = useState<number>(categories[0]?.id ?? 0);
   const [showHtmlFallback, setShowHtmlFallback] = useState(false);
   const [rawHtml, setRawHtml] = useState("");
+
+  // Instant duplicate pre-check
+  const [checkingDup, setCheckingDup] = useState(false);
+  const [preCheck, setPreCheck] = useState<DuplicateCheckResult | null>(null);
+  const [recleanCategoryId, setRecleanCategoryId] = useState<number>(categories[0]?.id ?? 0);
+
+  // Import form
   const [categoryId, setCategoryId] = useState<number>(categories[0]?.id ?? 0);
   const [priceAdjustPct, setPriceAdjustPct] = useState<number>(0);
   const [holdStockZero, setHoldStockZero] = useState<boolean>(false);
-  const [duplicateInfo, setDuplicateInfo] = useState<{ id: number; name: string } | null>(null);
+
+  // Worker pause toggle & UI feedback
+  const [workerPaused, setWorkerPaused] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
@@ -62,14 +91,53 @@ export default function ProductImporterClient({
     }
   }, [activeJob]);
 
-  // Background idle worker polling when there are queued/running jobs
   const hasQueued = useMemo(
-    () => jobs.some((j) => j.status === "cleaning_queued" || j.status === "cleaning_running"),
+    () =>
+      jobs.some(
+        (j) =>
+          j.status === "fetch_queued" ||
+          j.status === "cleaning_queued" ||
+          j.status === "cleaning_running",
+      ),
     [jobs],
   );
 
+  // Instant duplicate pre-check when pasting or typing URL
   useEffect(() => {
-    if (!hasQueued) return;
+    const trimmed = urlInput.trim();
+    if (!trimmed || !/^https?:\/\/\S+\.\S+/i.test(trimmed)) {
+      setPreCheck(null);
+      return;
+    }
+    let cancelled = false;
+    setCheckingDup(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/product-import?check_url=${encodeURIComponent(trimmed)}`,
+        );
+        const d = await res.json().catch(() => null);
+        if (!cancelled && res.ok && d) {
+          setPreCheck(d as DuplicateCheckResult);
+          if (d.duplicateProduct?.category_id) {
+            setRecleanCategoryId(d.duplicateProduct.category_id);
+          }
+        }
+      } catch {
+        /* ignore pre-check error */
+      } finally {
+        if (!cancelled) setCheckingDup(false);
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [urlInput]);
+
+  // Step-by-step idle worker polling
+  useEffect(() => {
+    if (!hasQueued || workerPaused) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
@@ -78,16 +146,17 @@ export default function ProductImporterClient({
         if (res.ok && !cancelled) {
           const d = await res.json();
           if (Array.isArray(d.jobs)) setJobs(d.jobs);
+          if (d.workerSummary) setSummary(d.workerSummary);
         }
       } catch {
         /* ignore transient poll error */
       }
-    }, 1500);
+    }, 1200);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [hasQueued, jobs]);
+  }, [hasQueued, workerPaused, jobs]);
 
   async function callApi(payload: Record<string, unknown>, okText: string) {
     setBusy(true);
@@ -105,9 +174,9 @@ export default function ProductImporterClient({
         return null;
       }
       if (Array.isArray(d.jobs)) setJobs(d.jobs);
+      if (d.workerSummary) setSummary(d.workerSummary);
       if (d.job?.id) setActiveJobId(d.job.id);
-      if (d.duplicateProduct) setDuplicateInfo(d.duplicateProduct);
-      else if (payload.action === "fetch") setDuplicateInfo(null);
+      if (d.duplicate) setPreCheck(d.duplicate);
       setMsg(okText);
       return d;
     } catch {
@@ -132,85 +201,351 @@ export default function ProductImporterClient({
         </div>
       )}
 
-      {/* Step 1: Paste URL */}
-      <section className="rounded-2xl border bg-white p-5 shadow-2xs space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-base font-extrabold text-gray-900">
-              1️⃣ Dán Link sản phẩm trang thứ 3 để lấy &amp; chuyển đổi theo Motif Shop
-            </h2>
-            <p className="text-xs text-gray-500">
-              Hệ thống tự động trích xuất Tên, Giá, Ảnh, Mô tả → chuẩn hoá về bố cục Thực Dưỡng Phúc Thọ và quét dấu vết trang cũ.
-            </p>
+      {/* 0. Idle Worker & Queue Monitor Panel */}
+      <section
+        className={`rounded-2xl border p-4 shadow-2xs transition ${
+          summary.state === "busy"
+            ? "border-indigo-200 bg-gradient-to-r from-indigo-50/80 to-purple-50/50"
+            : "border-emerald-200 bg-gradient-to-r from-emerald-50/80 to-green-50/40"
+        }`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span
+              className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl text-lg ${
+                summary.state === "busy"
+                  ? "bg-indigo-600 text-white animate-pulse"
+                  : "bg-emerald-600 text-white"
+              }`}
+            >
+              {summary.state === "busy" ? "⚙️" : "🟢"}
+            </span>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-sm font-extrabold text-gray-900">
+                  {summary.state === "busy"
+                    ? `Worker đang chạy ngầm (${summary.queuedCount} việc trong hàng đợi)`
+                    : "Worker đang rảnh việc — Sẵn sàng nhận việc mới"}
+                </h2>
+                {summary.state === "busy" && (
+                  <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-[11px] font-bold text-indigo-800">
+                    Ước tính xong toàn hàng đợi: {fmtEta(summary.totalEtaSeconds)}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-600">
+                {summary.state === "busy" && summary.activeJob
+                  ? `${summary.activeJob.name}: ${summary.activeJob.current_step} (${summary.activeJob.progress_pct}% · Còn ${fmtEta(summary.activeJob.estimated_seconds)})`
+                  : "Không có tác vụ nền nào đang chiếm tài nguyên. Bạn có thể dán thêm link hoặc giao việc tồn đọng bên cạnh."}
+              </p>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowHtmlFallback((v) => !v)}
-            className="cursor-pointer text-xs font-bold text-brand hover:underline"
-          >
-            {showHtmlFallback ? "Ẩn ô HTML dự phòng" : "+ Nếu web nguồn chặn bot (dán HTML)"}
-          </button>
+
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            {summary.state === "busy" && (
+              <button
+                type="button"
+                onClick={() => setWorkerPaused((p) => !p)}
+                className="cursor-pointer rounded-xl border border-indigo-300 bg-white px-3 py-1.5 font-bold text-indigo-800 hover:bg-indigo-50"
+              >
+                {workerPaused ? "▶ Tiếp tục chạy ngầm" : "⏸️ Tạm dừng Worker"}
+              </button>
+            )}
+            {summary.suggestions.uncleanedImportedCount > 0 && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  callApi(
+                    { action: "queue_all_uncleaned" },
+                    `✓ Đã giao ${summary.suggestions.uncleanedImportedCount} sản phẩm chưa làm sạch vào hàng đợi ngầm!`,
+                  )
+                }
+                className="cursor-pointer rounded-xl bg-brand px-3 py-1.5 font-bold text-white shadow-2xs hover:bg-brand-dark disabled:opacity-50"
+              >
+                🤖 Giao làm sạch {summary.suggestions.uncleanedImportedCount} SP chờ xử lý
+              </button>
+            )}
+            {summary.suggestions.failedCount > 0 && (
+              <span className="rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 font-bold text-red-700">
+                ⚠️ {summary.suggestions.failedCount} job lỗi cần thử lại
+              </span>
+            )}
+          </div>
         </div>
 
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault();
-            const res = await callApi(
-              { action: "fetch", url: urlInput, raw_html: showHtmlFallback ? rawHtml : "" },
-              "✓ Đã lấy & chuyển đổi dữ liệu xong! Vui lòng xem trước bên dưới rồi bấm Nhập sản phẩm.",
-            );
-            if (res) {
-              setRawHtml("");
-            }
-          }}
-          className="space-y-3"
-        >
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <input
-              type="url"
-              required
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              placeholder="https://trang-khac.com/san-pham/..."
-              className="flex-1 rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm outline-none focus:border-brand"
-            />
-            <button
-              type="submit"
-              disabled={busy}
-              className="cursor-pointer rounded-xl bg-brand px-5 py-2.5 text-sm font-extrabold text-white shadow-sm hover:bg-brand-dark disabled:opacity-50"
-            >
-              {busy ? "Đang lấy dữ liệu..." : "🔍 Lấy dữ liệu"}
-            </button>
-          </div>
-
-          {showHtmlFallback && (
-            <textarea
-              rows={4}
-              value={rawHtml}
-              onChange={(e) => setRawHtml(e.target.value)}
-              placeholder="Mở trang sản phẩm trên trình duyệt → bấm Ctrl+U (hoặc Chuột phải → Xem nguồn trang) → Copy toàn bộ HTML dán vào đây nếu web kia chặn tải tự động..."
-              className="w-full rounded-xl border border-gray-300 p-3 font-mono text-xs outline-none focus:border-brand"
-            />
-          )}
-        </form>
-
-        {duplicateInfo && (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-900">
-            <span>
-              ⚠️ Link này trước đó đã được nhập thành sản phẩm:{" "}
-              <strong>#{duplicateInfo.id} — {duplicateInfo.name}</strong>
-            </span>
-            <Link
-              href={`/admin/products/${duplicateInfo.id}/`}
-              className="rounded-lg bg-amber-600 px-3 py-1 font-bold text-white hover:bg-amber-700"
-            >
-              Xem sản phẩm cũ ↗
-            </Link>
+        {/* Active Job Progress Bar */}
+        {summary.state === "busy" && summary.activeJob && (
+          <div className="mt-3 space-y-1">
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/90 border border-indigo-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 transition-all duration-500"
+                style={{ width: `${Math.max(5, Math.min(100, summary.activeJob.progress_pct))}%` }}
+              />
+            </div>
           </div>
         )}
       </section>
 
-      {/* Step 2 & 3: Preview + Import + Manual / Auto Clean */}
+      {/* 1. Paste Single URL or Bulk Queue */}
+      <section className="rounded-2xl border bg-white p-5 shadow-2xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-base font-extrabold text-gray-900">
+              1️⃣ Nhập Link sản phẩm từ trang thứ 3
+            </h2>
+            <p className="text-xs text-gray-500">
+              Tự động kiểm tra trùng lặp ngay khi dán link, chuẩn hoá theo Motif Thực Dưỡng Phúc Thọ và quét dấu vết trang cũ.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => setInputMode("single")}
+              className={`cursor-pointer rounded-lg px-3 py-1.5 font-bold ${
+                inputMode === "single" ? "bg-brand text-white" : "border bg-gray-50 text-gray-700"
+              }`}
+            >
+              🔗 1 Link chi tiết
+            </button>
+            <button
+              type="button"
+              onClick={() => setInputMode("bulk")}
+              className={`cursor-pointer rounded-lg px-3 py-1.5 font-bold ${
+                inputMode === "bulk" ? "bg-brand text-white" : "border bg-gray-50 text-gray-700"
+              }`}
+            >
+              📋 Dán hàng loạt vào Hàng đợi
+            </button>
+          </div>
+        </div>
+
+        {inputMode === "single" ? (
+          <>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const res = await callApi(
+                  { action: "fetch", url: urlInput, raw_html: showHtmlFallback ? rawHtml : "" },
+                  "✓ Đã lấy & chuyển đổi dữ liệu xong! Vui lòng xem trước bên dưới rồi bấm Nhập sản phẩm.",
+                );
+                if (res) setRawHtml("");
+              }}
+              className="space-y-3"
+            >
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="url"
+                  required
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  placeholder="https://trang-khac.com/san-pham/..."
+                  className="flex-1 rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm outline-none focus:border-brand"
+                />
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="cursor-pointer rounded-xl bg-brand px-5 py-2.5 text-sm font-extrabold text-white shadow-sm hover:bg-brand-dark disabled:opacity-50"
+                >
+                  {busy ? "Đang lấy dữ liệu..." : "🔍 Lấy dữ liệu"}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-400">
+                  {checkingDup ? "🔎 Đang kiểm tra trùng lặp link..." : "Hỗ trợ tự bỏ utm/fbclid khi đối chiếu trùng."}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowHtmlFallback((v) => !v)}
+                  className="cursor-pointer font-bold text-brand hover:underline"
+                >
+                  {showHtmlFallback ? "Ẩn ô HTML dự phòng" : "+ Nếu web nguồn chặn bot (dán HTML)"}
+                </button>
+              </div>
+
+              {showHtmlFallback && (
+                <textarea
+                  rows={4}
+                  value={rawHtml}
+                  onChange={(e) => setRawHtml(e.target.value)}
+                  placeholder="Mở trang sản phẩm trên trình duyệt → Ctrl+U → Copy HTML dán vào đây nếu web kia chặn tải tự động..."
+                  className="w-full rounded-xl border border-gray-300 p-3 font-mono text-xs outline-none focus:border-brand"
+                />
+              )}
+            </form>
+
+            {/* Instant Duplicate Warning & Re-Clean with Category Choice */}
+            {preCheck?.queuedJob && (
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs text-indigo-950">
+                ⏳ Link này đang nằm trong hàng đợi xử lý (Job #{preCheck.queuedJob.id} —{" "}
+                <strong>{preCheck.queuedJob.current_step}</strong> · {preCheck.queuedJob.progress_pct}%).
+              </div>
+            )}
+
+            {preCheck?.duplicateProduct && (
+              <div
+                className={`rounded-2xl border p-4 text-xs space-y-3 ${
+                  preCheck.duplicateProduct.hasLegacyTraces
+                    ? "border-amber-300 bg-amber-50/90 text-amber-950"
+                    : "border-emerald-200 bg-emerald-50/70 text-emerald-950"
+                }`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-extrabold">
+                      {preCheck.duplicateProduct.hasLegacyTraces
+                        ? "⚠️ Phát hiện TRÙNG link cũ & Sản phẩm vẫn còn Dấu vết trang cũ!"
+                        : "✓ Link này đã có trong kho & đã được làm sạch"}
+                    </div>
+                    <div className="mt-0.5">
+                      Sản phẩm hiện tại:{" "}
+                      <strong>
+                        #{preCheck.duplicateProduct.id} — {preCheck.duplicateProduct.name}
+                      </strong>{" "}
+                      (Danh mục hiện tại: <strong>{preCheck.duplicateProduct.category_name}</strong>)
+                    </div>
+                  </div>
+                  <Link
+                    href={`/admin/products/${preCheck.duplicateProduct.id}/`}
+                    className="rounded-lg border bg-white px-3 py-1.5 font-bold text-gray-800 hover:bg-gray-50"
+                  >
+                    Mở sản phẩm ↗
+                  </Link>
+                </div>
+
+                {preCheck.duplicateProduct.hasLegacyTraces && (
+                  <>
+                    <div className="rounded-xl border border-amber-200 bg-white/80 p-3 space-y-1">
+                      <div className="font-bold text-amber-900">
+                        Dấu vết trang cũ còn tồn tại trong kho ({preCheck.duplicateProduct.traces.length}):
+                      </div>
+                      <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-gray-700">
+                        {preCheck.duplicateProduct.traces.map((tr, i) => (
+                          <li key={i}>
+                            <strong>{tr.label}:</strong> {tr.detail}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="flex flex-wrap items-end gap-3 rounded-xl border border-amber-200 bg-white p-3">
+                      <div className="min-w-[220px] flex-1">
+                        <label className="mb-1 block font-bold text-gray-700">
+                          Giữ danh mục hiện tại hoặc Chuyển sang danh mục mới:
+                        </label>
+                        <select
+                          value={recleanCategoryId}
+                          onChange={(e) => setRecleanCategoryId(Number(e.target.value))}
+                          className="w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-900"
+                        >
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                              {c.id === preCheck.duplicateProduct?.category_id ? " (Danh mục hiện tại)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          callApi(
+                            {
+                              action: "reclean_existing",
+                              product_id: preCheck.duplicateProduct!.id,
+                              category_id: recleanCategoryId,
+                              mode: "auto",
+                            },
+                            "✓ Đã cập nhật danh mục & đưa sản phẩm vào Hàng đợi Làm sạch ngầm!",
+                          )
+                        }
+                        className="cursor-pointer rounded-xl bg-purple-700 px-4 py-2 font-extrabold text-white shadow hover:bg-purple-800 disabled:opacity-50"
+                      >
+                        🤖 Đưa vào Hàng đợi Làm sạch &amp; Lưu danh mục
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={async () => {
+                          const r = await callApi(
+                            {
+                              action: "reclean_existing",
+                              product_id: preCheck.duplicateProduct!.id,
+                              category_id: recleanCategoryId,
+                              mode: "manual",
+                            },
+                            "✓ Đã lưu danh mục! Đang mở trang sửa thủ công...",
+                          );
+                          if (r?.productId) {
+                            window.location.href = `/admin/products/${r.productId}/`;
+                          }
+                        }}
+                        className="cursor-pointer rounded-xl border border-gray-300 bg-gray-50 px-3.5 py-2 font-bold text-gray-800 hover:bg-gray-100 disabled:opacity-50"
+                      >
+                        ✏️ Lưu danh mục &amp; Sửa thủ công
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const lines = bulkUrls
+                .split(/\r?\n/)
+                .map((s) => s.trim())
+                .filter(Boolean);
+              const res = await callApi(
+                { action: "bulk_queue", urls: lines, category_id: bulkCategoryId },
+                "✓ Đã đưa danh sách link vào Hàng đợi Worker chạy ngầm!",
+              );
+              if (res?.stats) {
+                setMsg(
+                  `✓ Đã xếp hàng ${res.stats.queued} link mới (Bỏ qua ${res.stats.skippedDuplicates} link trùng, ${res.stats.invalid} link lỗi).`,
+                );
+                setBulkUrls("");
+              }
+            }}
+            className="space-y-3"
+          >
+            <textarea
+              rows={5}
+              required
+              value={bulkUrls}
+              onChange={(e) => setBulkUrls(e.target.value)}
+              placeholder={"Dán mỗi dòng 1 đường dẫn sản phẩm (tối đa 20 link/lần)...\nhttps://trang-khac.com/san-pham-1.html\nhttps://trang-khac.com/san-pham-2.html"}
+              className="w-full rounded-xl border border-gray-300 p-3 font-mono text-xs outline-none focus:border-brand"
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <select
+                value={bulkCategoryId}
+                onChange={(e) => setBulkCategoryId(Number(e.target.value))}
+                className="cursor-pointer rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-900"
+              >
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    Danh mục: {c.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                disabled={busy}
+                className="cursor-pointer rounded-xl bg-brand px-5 py-2 text-xs font-extrabold text-white shadow hover:bg-brand-dark disabled:opacity-50"
+              >
+                📥 Xếp hàng lấy &amp; làm sạch tự động
+              </button>
+            </div>
+          </form>
+        )}
+      </section>
+
+      {/* 2. Preview + Import + Clean */}
       {activeJob && activeDraft && (
         <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-2xs space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
@@ -242,7 +577,6 @@ export default function ProductImporterClient({
           </div>
 
           <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
-            {/* Preview Content */}
             <div className="space-y-3">
               <div className="rounded-xl border bg-gray-50/70 p-4 space-y-2">
                 <div className="text-base font-extrabold text-gray-900">{activeDraft.name}</div>
@@ -278,9 +612,7 @@ export default function ProductImporterClient({
               </div>
             </div>
 
-            {/* Right Control Column: Audit Traces + Import + Clean */}
             <div className="space-y-4">
-              {/* Audit Warnings */}
               <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 text-xs space-y-2">
                 <div className="font-extrabold text-amber-900">
                   🔎 Dấu vết trang cũ phát hiện ({activeTraces.length})
@@ -301,7 +633,6 @@ export default function ProductImporterClient({
                 )}
               </div>
 
-              {/* Action Box: Not imported yet vs Already imported */}
               {!activeJob.product_id ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-3 text-xs">
                   <div className="font-extrabold text-emerald-950">📥 Sẵn sàng nhập vào Website</div>
@@ -310,7 +641,7 @@ export default function ProductImporterClient({
                     <select
                       value={categoryId}
                       onChange={(e) => setCategoryId(Number(e.target.value))}
-                      className="w-full rounded-lg border bg-white px-2.5 py-2 font-semibold"
+                      className="w-full cursor-pointer rounded-lg border bg-white px-2.5 py-2 font-semibold text-gray-900"
                     >
                       {categories.map((c) => (
                         <option key={c.id} value={c.id}>
@@ -379,7 +710,7 @@ export default function ProductImporterClient({
                     onClick={() =>
                       callApi(
                         { action: "queue_auto_clean", job_id: activeJob.id },
-                        "✓ Đã đưa vào hàng chờ chạy ngầm! Hệ thống đang tự động làm sạch nội dung & tái tạo ảnh.",
+                        "✓ Đã đưa vào hàng chờ chạy ngầm! Theo dõi tiến độ ở khung Worker phía trên.",
                       )
                     }
                     className="w-full cursor-pointer rounded-xl bg-purple-700 px-3 py-2.5 font-extrabold text-white shadow hover:bg-purple-800 disabled:opacity-50"
@@ -387,12 +718,9 @@ export default function ProductImporterClient({
                     {activeJob.status === "cleaned"
                       ? "🔄 Chạy lại Tự động Làm sạch Ảnh & Nội dung"
                       : activeJob.status === "cleaning_queued" || activeJob.status === "cleaning_running"
-                        ? "⏳ Đang chạy ngầm xử lý ảnh..."
+                        ? `⏳ ${activeJob.current_step || "Đang xử lý ngầm..."} (${activeJob.progress_pct}%)`
                         : "🤖 Cách 2: Tự động Tích hợp & Xoá Watermark ngầm"}
                   </button>
-                  <p className="text-[11px] leading-relaxed text-gray-600">
-                    Chạy ngầm sẽ lọc từng ảnh: ảnh sạch sẽ tải về lưu nội bộ; ảnh có SĐT/Email/Watermark trang cũ sẽ được Gemini AI tái tạo ảnh mới sạch hoàn toàn.
-                  </p>
                 </div>
               )}
             </div>
@@ -400,18 +728,11 @@ export default function ProductImporterClient({
         </section>
       )}
 
-      {/* Step 4: Import History Table */}
+      {/* 3. Queue & History Table */}
       <section className="rounded-2xl border bg-white p-5 shadow-2xs space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-base font-extrabold text-gray-900">
-            📜 Lịch sử Lấy &amp; Cập nhật Sản phẩm từ nguồn ({jobs.length})
-          </h2>
-          {hasQueued && (
-            <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-800 animate-pulse">
-              ⚙️ Idle Worker đang chạy ngầm xử lý ảnh...
-            </span>
-          )}
-        </div>
+        <h2 className="text-base font-extrabold text-gray-900">
+          📜 Hàng đợi &amp; Lịch sử Lấy Sản Phẩm ({jobs.length})
+        </h2>
 
         {jobs.length === 0 ? (
           <p className="py-6 text-center text-xs text-gray-500">
@@ -423,7 +744,7 @@ export default function ProductImporterClient({
               <thead className="border-b bg-gray-50 uppercase text-gray-500">
                 <tr>
                   <th className="px-3 py-2.5">Sản phẩm / Nguồn</th>
-                  <th className="px-3 py-2.5">Trạng thái</th>
+                  <th className="px-3 py-2.5">Trạng thái &amp; Tiến độ</th>
                   <th className="px-3 py-2.5">Ảnh sạch / Tái tạo</th>
                   <th className="px-3 py-2.5 text-right">Thao tác</th>
                 </tr>
@@ -434,6 +755,10 @@ export default function ProductImporterClient({
                     label: j.status,
                     cls: "bg-gray-100 text-gray-700",
                   };
+                  const isQueueItem =
+                    j.status === "fetch_queued" ||
+                    j.status === "cleaning_queued" ||
+                    j.status === "cleaning_running";
                   return (
                     <tr key={j.id} className={activeJob?.id === j.id ? "bg-emerald-50/30" : ""}>
                       <td className="px-3 py-2.5">
@@ -451,14 +776,22 @@ export default function ProductImporterClient({
                           <div className="mt-0.5 text-[11px] text-red-600">{j.error_message}</div>
                         )}
                       </td>
-                      <td className="px-3 py-2.5">
-                        <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold ${badge.cls}`}>
-                          {badge.label}
-                        </span>
-                        {j.source_cleared === 1 && (
-                          <span className="ml-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
-                            Đã xoá note nguồn
+                      <td className="px-3 py-2.5 space-y-1">
+                        <div className="flex flex-wrap items-center gap-1">
+                          <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold ${badge.cls}`}>
+                            {badge.label}
                           </span>
+                          {j.source_cleared === 1 && (
+                            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
+                              Đã xoá note nguồn
+                            </span>
+                          )}
+                        </div>
+                        {isQueueItem && (
+                          <div className="text-[11px] text-indigo-700">
+                            {j.current_step} · <strong>{j.progress_pct}%</strong>{" "}
+                            {j.estimated_seconds > 0 && `(${fmtEta(j.estimated_seconds)})`}
+                          </div>
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-gray-600">
@@ -470,13 +803,33 @@ export default function ProductImporterClient({
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-right space-x-1.5 whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => setActiveJobId(j.id)}
-                          className="cursor-pointer rounded border px-2 py-1 font-semibold text-gray-700 hover:bg-gray-50"
-                        >
-                          Xem
-                        </button>
+                        {j.status === "failed" && (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              callApi(
+                                { action: "retry_job", job_id: j.id },
+                                "✓ Đã đưa job vào lại hàng đợi!",
+                              )
+                            }
+                            className="cursor-pointer rounded border border-amber-300 bg-amber-50 px-2 py-1 font-bold text-amber-800 hover:bg-amber-100"
+                          >
+                            ↻ Thử lại
+                          </button>
+                        )}
+                        {(j.status === "fetch_queued" || j.status === "cleaning_queued" || j.status === "failed") && (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              callApi({ action: "cancel_job", job_id: j.id }, "✓ Đã huỷ khỏi hàng đợi.")
+                            }
+                            className="cursor-pointer rounded border border-red-200 px-2 py-1 font-semibold text-red-600 hover:bg-red-50"
+                          >
+                            Huỷ
+                          </button>
+                        )}
                         <button
                           type="button"
                           disabled={busy}

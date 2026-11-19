@@ -3,15 +3,16 @@ import ProductImporterClient from "@/components/admin/ProductImporterClient";
 import { PageHeader, ui } from "@/components/admin/ui";
 import { requireRole } from "@/lib/auth";
 import { getProductCategories } from "@/lib/data";
-import { listImportJobs } from "@/lib/product-importer";
+import { getIdleWorkerSummary, listImportJobs } from "@/lib/product-importer";
 
 export const metadata = { title: "Nhập sản phẩm từ Link & Làm sạch AI | Quản trị" };
 
 export default async function ProductImportPage() {
   await requireRole(["super_admin", "admin", "editor"]);
-  const [jobs, categories] = await Promise.all([
+  const [jobs, categories, workerSummary] = await Promise.all([
     listImportJobs(50),
     getProductCategories(),
+    getIdleWorkerSummary(),
   ]);
 
   return (
@@ -21,7 +22,11 @@ export default async function ProductImportPage() {
           ← Danh sách sản phẩm
         </Link>
       </PageHeader>
-      <ProductImporterClient initialJobs={jobs} categories={categories} />
+      <ProductImporterClient
+        initialJobs={jobs}
+        initialSummary={workerSummary}
+        categories={categories}
+      />
     </div>
   );
 }

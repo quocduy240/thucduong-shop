@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { currentAdmin } from "@/lib/auth";
-import { processNextIdleProductImportJob } from "@/lib/product-importer";
+import { getIdleWorkerSummary, processNextIdleProductImportJob } from "@/lib/product-importer";
 import { safeEqualSecret } from "@/lib/security";
 
 async function handleIdleRun(req: Request) {
@@ -28,7 +28,8 @@ async function handleIdleRun(req: Request) {
   if (result.processed) {
     revalidatePath("/", "layout");
   }
-  return Response.json({ ok: true, ...result });
+  const workerSummary = await getIdleWorkerSummary();
+  return Response.json({ ok: true, ...result, workerSummary });
 }
 
 export async function GET(req: Request) {

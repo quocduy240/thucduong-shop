@@ -95,19 +95,19 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
       },
       {
         id: "product-import",
-        title: "3. Nhập Sản phẩm từ Link & Làm sạch Thương hiệu (/admin/products/import/)",
+        title: "3. Nhập Sản phẩm từ Link, Hàng đợi Idle Worker & Làm sạch AI (/admin/products/import/)",
         badge: "Mới",
         items: [
           {
-            heading: "Bước 1 & 2: Dán Link lấy dữ liệu → Xem trước → Nhập SP",
-            body: "Vào /admin/products/ bấm '🌐 Nhập SP từ Link'. Dán URL sản phẩm (hoặc HTML dự phòng nếu site chặn bot), hệ thống tự lấy thông tin, chuyển đổi theo motif chuẩn của shop, cảnh báo trùng link và hiển thị danh sách dấu vết trang cũ (SĐT, Email, link ngoài, ảnh).",
+            heading: "Kiểm tra trùng link tức thời & Xử lý SP còn dấu vết cũ",
+            body: "Ngay khi dán URL (tự bỏ utm/fbclid), hệ thống báo ngay nếu link đã có trong kho hoặc đang nằm trong hàng đợi. Nếu SP cũ vẫn còn dấu vết trang nguồn, bạn có thể chọn giữ danh mục hiện tại hoặc chuyển sang danh mục mới rồi đưa thẳng vào hàng đợi làm sạch.",
           },
           {
-            heading: "Bước 3: Chỉnh sửa Thủ công hoặc Tự động chạy ngầm",
-            body: "Sau khi bấm '📥 Nhập sản phẩm vào trang', chọn Cách 1 (sửa thủ công theo gợi ý) hoặc Cách 2 (Tự động chạy ngầm qua Idle Worker: làm sạch văn bản + dùng AI Vision phát hiện và vẽ lại ảnh dính SĐT/Email/Watermark trang cũ).",
+            heading: "Khung Giám sát Hàng đợi Idle Worker & Ước tính thời gian (ETA)",
+            body: "Khung trên cùng hiển thị trạng thái Rảnh việc (kèm gợi ý giao việc tồn đọng) hoặc Đang chạy ngầm (% tiến độ, bước xử lý từng ảnh, ETA đếm ngược). Hỗ trợ dán hàng loạt tối đa 20 link cùng lúc để Worker tự chạy tuần tự.",
           },
           {
-            heading: "Bước 4: Lịch sử cập nhật & Xoá note nguồn",
+            heading: "Lịch sử cập nhật & Xoá note nguồn",
             body: "Mọi link đã lấy được lưu trong Lịch sử kèm nút '🔄 Cập nhật nguồn'. Khi sản phẩm đã sạch hoàn toàn, bấm '🧹 Xoá note nguồn' để xoá link nguồn khỏi hồ sơ sản phẩm.",
           },
         ],

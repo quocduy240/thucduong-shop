@@ -6,6 +6,7 @@ import { assertSafePublicHttpUrl } from "./security";
 import { getSite } from "./settings";
 
 export type ImportJobStatus =
+  | "fetch_queued"
   | "fetched"
   | "imported"
   | "cleaning_queued"
@@ -35,13 +36,21 @@ export type LegacyTraceWarning = {
 export type ProductImportJobRow = {
   id: number;
   source_url: string;
+  canonical_url: string;
   source_domain: string;
   product_id: number | null;
+  target_category_id: number | null;
   status: ImportJobStatus;
   mode: string;
   raw_payload: string;
   normalized_payload: string;
   audit_notes: string;
+  working_images: string;
+  step_cursor: number;
+  progress_pct: number;
+  current_step: string;
+  estimated_seconds: number;
+  locked_until: string | null;
   images_total: number;
   images_cleaned: number;
   images_recreated: number;
@@ -54,6 +63,44 @@ export type ProductImportJobRow = {
   category_slug?: string | null;
 };
 
+export type DuplicateCheckResult = {
+  canonicalUrl: string;
+  duplicateProduct: {
+    id: number;
+    name: string;
+    category_id: number;
+    category_name: string;
+    source_url: string;
+    traces: LegacyTraceWarning[];
+    hasLegacyTraces: boolean;
+  } | null;
+  queuedJob: {
+    id: number;
+    status: ImportJobStatus;
+    progress_pct: number;
+    current_step: string;
+  } | null;
+};
+
+export type IdleWorkerSummary = {
+  state: "idle" | "busy";
+  activeJob: {
+    id: number;
+    name: string;
+    status: ImportJobStatus;
+    progress_pct: number;
+    current_step: string;
+    estimated_seconds: number;
+  } | null;
+  queuedCount: number;
+  totalEtaSeconds: number;
+  suggestions: {
+    uncleanedImportedCount: number;
+    failedCount: number;
+    productsWithSourceCount: number;
+  };
+};
+
 let ensuredImporterSchema: Promise<void> | null = null;
 
 export async function ensureProductImportSchema(): Promise<void> {
@@ -63,13 +110,21 @@ export async function ensureProductImportSchema(): Promise<void> {
         CREATE TABLE IF NOT EXISTS product_import_jobs (
           id INTEGER PRIMARY KEY,
           source_url TEXT NOT NULL,
+          canonical_url TEXT NOT NULL DEFAULT '',
           source_domain TEXT NOT NULL DEFAULT '',
           product_id INTEGER,
+          target_category_id INTEGER,
           status TEXT NOT NULL DEFAULT 'fetched',
           mode TEXT NOT NULL DEFAULT 'pending',
           raw_payload TEXT NOT NULL DEFAULT '{}',
           normalized_payload TEXT NOT NULL DEFAULT '{}',
           audit_notes TEXT NOT NULL DEFAULT '[]',
+          working_images TEXT NOT NULL DEFAULT '[]',
+          step_cursor INTEGER NOT NULL DEFAULT 0,
+          progress_pct INTEGER NOT NULL DEFAULT 0,
+          current_step TEXT NOT NULL DEFAULT '',
+          estimated_seconds INTEGER NOT NULL DEFAULT 0,
+          locked_until TEXT,
           images_total INTEGER NOT NULL DEFAULT 0,
           images_cleaned INTEGER NOT NULL DEFAULT 0,
           images_recreated INTEGER NOT NULL DEFAULT 0,
@@ -79,6 +134,25 @@ export async function ensureProductImportSchema(): Promise<void> {
           updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
       `);
+
+      const jCols = await all<{ name: string }>("PRAGMA table_info(product_import_jobs)");
+      const jNames = new Set(jCols.map((c) => c.name));
+      const addJobCols: [string, string][] = [
+        ["canonical_url", "TEXT NOT NULL DEFAULT ''"],
+        ["target_category_id", "INTEGER"],
+        ["working_images", "TEXT NOT NULL DEFAULT '[]'"],
+        ["step_cursor", "INTEGER NOT NULL DEFAULT 0"],
+        ["progress_pct", "INTEGER NOT NULL DEFAULT 0"],
+        ["current_step", "TEXT NOT NULL DEFAULT ''"],
+        ["estimated_seconds", "INTEGER NOT NULL DEFAULT 0"],
+        ["locked_until", "TEXT"],
+      ];
+      for (const [col, def] of addJobCols) {
+        if (!jNames.has(col)) {
+          await run(`ALTER TABLE product_import_jobs ADD COLUMN ${col} ${def}`);
+        }
+      }
+
       const pCols = await all<{ name: string }>("PRAGMA table_info(products)");
       const colNames = new Set(pCols.map((c) => c.name));
       if (!colNames.has("source_url")) {
@@ -93,6 +167,31 @@ export async function ensureProductImportSchema(): Promise<void> {
     });
   }
   await ensuredImporterSchema;
+}
+
+const TRACKING_PARAMS = new Set([
+  "fbclid",
+  "gclid",
+  "mc_cid",
+  "mc_eid",
+  "ref",
+  "source",
+  "spm",
+  "zarsrc",
+]);
+
+export function canonicalizeProductUrl(rawUrl: string): string {
+  const safe = assertSafePublicHttpUrl(rawUrl);
+  safe.hash = "";
+  for (const key of [...safe.searchParams.keys()]) {
+    if (key.toLowerCase().startsWith("utm_") || TRACKING_PARAMS.has(key.toLowerCase())) {
+      safe.searchParams.delete(key);
+    }
+  }
+  if (safe.pathname.length > 1 && safe.pathname.endsWith("/")) {
+    safe.pathname = safe.pathname.slice(0, -1);
+  }
+  return safe.toString();
 }
 
 function slugifyVi(raw: string): string {
@@ -167,14 +266,87 @@ export function scanLegacyTraces(
       detail: sourceDomain,
     });
   }
-  if (images.length > 0) {
+  const externalImgs = images.filter(
+    (u) => u && !u.startsWith("/api/media/") && !u.startsWith("/uploads/"),
+  );
+  if (externalImgs.length > 0) {
     warnings.push({
       type: "images",
-      label: `${images.length} ảnh lấy từ nguồn ngoài`,
-      detail: "Cần tải về hệ thống & kiểm tra/xoá watermark, SĐT trên ảnh",
+      label: `${externalImgs.length} ảnh vẫn trỏ từ nguồn ngoài`,
+      detail: "Cần tải về nội bộ & kiểm tra/xoá watermark, SĐT, email trên ảnh",
     });
   }
   return warnings;
+}
+
+export async function checkDuplicateProductUrl(rawUrl: string): Promise<DuplicateCheckResult> {
+  await ensureProductImportSchema();
+  const safe = assertSafePublicHttpUrl(rawUrl);
+  const exactUrl = safe.toString();
+  const canonicalUrl = canonicalizeProductUrl(rawUrl);
+  const domain = safe.hostname.replace(/^www\./, "");
+
+  const prod = await one<{
+    id: number;
+    name: string;
+    category_id: number;
+    category_name?: string;
+    source_url: string;
+    description: string;
+    image: string | null;
+    gallery: string;
+  }>(
+    `SELECT p.id, p.name, p.category_id, c.name AS category_name, p.source_url, p.description, p.image, p.gallery
+     FROM products p
+     LEFT JOIN product_categories c ON c.id = p.category_id
+     WHERE p.source_url = ? OR p.source_url = ? OR p.source_url LIKE ?
+     ORDER BY p.id DESC LIMIT 1`,
+    exactUrl,
+    canonicalUrl,
+    `${canonicalUrl}%`,
+  );
+
+  const queued = await one<{
+    id: number;
+    status: ImportJobStatus;
+    progress_pct: number;
+    current_step: string;
+  }>(
+    `SELECT id, status, progress_pct, current_step
+     FROM product_import_jobs
+     WHERE (canonical_url = ? OR source_url = ?)
+       AND status IN ('fetch_queued', 'cleaning_queued', 'cleaning_running')
+     ORDER BY id DESC LIMIT 1`,
+    canonicalUrl,
+    exactUrl,
+  );
+
+  let duplicateProduct: DuplicateCheckResult["duplicateProduct"] = null;
+  if (prod) {
+    const imgs = [
+      ...(prod.image ? [prod.image] : []),
+      ...(prod.gallery || "")
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ];
+    const traces = scanLegacyTraces(prod.description || "", domain, imgs);
+    duplicateProduct = {
+      id: prod.id,
+      name: prod.name,
+      category_id: prod.category_id,
+      category_name: prod.category_name ?? "Chưa phân loại",
+      source_url: prod.source_url,
+      traces,
+      hasLegacyTraces: traces.length > 0,
+    };
+  }
+
+  return {
+    canonicalUrl,
+    duplicateProduct,
+    queuedJob: queued ?? null,
+  };
 }
 
 function stripTags(html: string): string {
@@ -412,7 +584,9 @@ DỮ LIỆU NGUỒN:
       name: String(parsed.name || raw.name).trim().slice(0, 200),
       price: parsePriceNumber(parsed.price ?? raw.price) || raw.price,
       sale_price:
-        parsed.sale_price && Number(parsed.sale_price) > 0 && Number(parsed.sale_price) < (Number(parsed.price) || raw.price)
+        parsed.sale_price &&
+        Number(parsed.sale_price) > 0 &&
+        Number(parsed.sale_price) < (Number(parsed.price) || raw.price)
           ? Math.round(Number(parsed.sale_price))
           : null,
       summary: String(parsed.summary || raw.summary).trim().slice(0, 300),
@@ -444,17 +618,15 @@ export async function fetchAndCreateImportJob(opts: {
   rawHtmlOverride?: string;
 }): Promise<{
   job: ProductImportJobRow;
-  duplicateProduct?: { id: number; name: string } | null;
+  duplicate: DuplicateCheckResult;
 }> {
   await ensureProductImportSchema();
   const safeUrl = assertSafePublicHttpUrl(opts.url);
   const sourceUrl = safeUrl.toString();
+  const canonicalUrl = canonicalizeProductUrl(opts.url);
   const sourceDomain = safeUrl.hostname.replace(/^www\./, "");
 
-  const existingProd = await one<{ id: number; name: string }>(
-    "SELECT id, name FROM products WHERE source_url = ? LIMIT 1",
-    sourceUrl,
-  );
+  const duplicate = await checkDuplicateProductUrl(opts.url);
 
   let html = (opts.rawHtmlOverride ?? "").trim();
   if (!html) {
@@ -482,9 +654,10 @@ export async function fetchAndCreateImportJob(opts: {
 
   const r = await run(
     `INSERT INTO product_import_jobs
-     (source_url, source_domain, status, mode, raw_payload, normalized_payload, audit_notes, images_total)
-     VALUES (?, ?, 'fetched', 'pending', ?, ?, ?, ?)`,
+     (source_url, canonical_url, source_domain, status, mode, raw_payload, normalized_payload, audit_notes, images_total, progress_pct, current_step)
+     VALUES (?, ?, ?, 'fetched', 'pending', ?, ?, ?, ?, 100, 'Đã lấy & chuẩn hoá theo motif shop')`,
     sourceUrl,
+    canonicalUrl,
     sourceDomain,
     JSON.stringify({
       name: raw.name,
@@ -500,7 +673,7 @@ export async function fetchAndCreateImportJob(opts: {
   );
 
   const job = await getImportJobById(Number(r.lastInsertRowid));
-  return { job: job!, duplicateProduct: existingProd ?? null };
+  return { job: job!, duplicate };
 }
 
 export async function getImportJobById(id: number): Promise<ProductImportJobRow | undefined> {
@@ -515,7 +688,7 @@ export async function getImportJobById(id: number): Promise<ProductImportJobRow 
   );
 }
 
-export async function listImportJobs(limit = 40): Promise<ProductImportJobRow[]> {
+export async function listImportJobs(limit = 50): Promise<ProductImportJobRow[]> {
   await ensureProductImportSchema();
   return all<ProductImportJobRow>(
     `SELECT j.*, p.name AS product_name, p.slug AS product_slug, c.slug AS category_slug
@@ -526,6 +699,63 @@ export async function listImportJobs(limit = 40): Promise<ProductImportJobRow[]>
      LIMIT ?`,
     limit,
   );
+}
+
+export async function getIdleWorkerSummary(): Promise<IdleWorkerSummary> {
+  await ensureProductImportSchema();
+  const [active, queuedRows, uncleanedRow, failedRow, sourceRow] = await Promise.all([
+    one<ProductImportJobRow>(
+      `SELECT j.*, p.name AS product_name
+       FROM product_import_jobs j
+       LEFT JOIN products p ON p.id = j.product_id
+       WHERE j.status IN ('cleaning_running', 'cleaning_queued', 'fetch_queued')
+       ORDER BY CASE j.status
+         WHEN 'cleaning_running' THEN 0
+         WHEN 'cleaning_queued' THEN 1
+         ELSE 2
+       END ASC, j.id ASC
+       LIMIT 1`,
+    ),
+    all<{ id: number; estimated_seconds: number; status: string }>(
+      `SELECT id, estimated_seconds, status FROM product_import_jobs
+       WHERE status IN ('cleaning_running', 'cleaning_queued', 'fetch_queued')`,
+    ),
+    one<{ cnt: number }>(
+      "SELECT COUNT(*) AS cnt FROM product_import_jobs WHERE status = 'imported' AND product_id IS NOT NULL",
+    ),
+    one<{ cnt: number }>(
+      "SELECT COUNT(*) AS cnt FROM product_import_jobs WHERE status = 'failed'",
+    ),
+    one<{ cnt: number }>(
+      "SELECT COUNT(*) AS cnt FROM products WHERE source_url IS NOT NULL AND source_url <> ''",
+    ),
+  ]);
+
+  const totalEta = queuedRows.reduce(
+    (s, r) => s + (r.estimated_seconds > 0 ? r.estimated_seconds : r.status === "fetch_queued" ? 20 : 18),
+    0,
+  );
+
+  return {
+    state: active ? "busy" : "idle",
+    activeJob: active
+      ? {
+          id: active.id,
+          name: active.product_name || active.source_domain || `Job #${active.id}`,
+          status: active.status,
+          progress_pct: active.progress_pct,
+          current_step: active.current_step || "Đang chờ xử lý...",
+          estimated_seconds: active.estimated_seconds,
+        }
+      : null,
+    queuedCount: queuedRows.length,
+    totalEtaSeconds: totalEta,
+    suggestions: {
+      uncleanedImportedCount: uncleanedRow?.cnt ?? 0,
+      failedCount: failedRow?.cnt ?? 0,
+      productsWithSourceCount: sourceRow?.cnt ?? 0,
+    },
+  };
 }
 
 export async function importJobIntoProducts(opts: {
@@ -549,7 +779,10 @@ export async function importJobIntoProducts(opts: {
   }
 
   const pct = Number(opts.priceAdjustPct) || 0;
-  const price = pct !== 0 && draft.price > 0 ? Math.round((draft.price * (1 + pct / 100)) / 1000) * 1000 : draft.price;
+  const price =
+    pct !== 0 && draft.price > 0
+      ? Math.round((draft.price * (1 + pct / 100)) / 1000) * 1000
+      : draft.price;
   const stock = opts.holdStockZero ? 0 : 100;
   const mainImg = draft.images?.[0] ?? null;
   const gallery = (draft.images ?? []).slice(1).join("\n");
@@ -580,9 +813,10 @@ export async function importJobIntoProducts(opts: {
   const productId = Number(res.lastInsertRowid);
   await run(
     `UPDATE product_import_jobs
-     SET product_id = ?, status = 'imported', updated_at = datetime('now')
+     SET product_id = ?, target_category_id = ?, status = 'imported', progress_pct = 0, current_step = 'Đã nhập · Chờ chọn làm sạch', updated_at = datetime('now')
      WHERE id = ?`,
     productId,
+    opts.categoryId,
     job.id,
   );
 
@@ -591,13 +825,150 @@ export async function importJobIntoProducts(opts: {
 
 export async function queueAutoCleanJob(jobId: number): Promise<ProductImportJobRow> {
   await ensureProductImportSchema();
+  const job = await getImportJobById(jobId);
+  if (!job || !job.product_id) throw new Error("Sản phẩm chưa được nhập vào kho.");
+  const prod = await one<{ image: string | null; gallery: string }>(
+    "SELECT image, gallery FROM products WHERE id = ?",
+    job.product_id,
+  );
+  const imgs = [
+    ...(prod?.image ? [prod.image] : []),
+    ...(prod?.gallery || "")
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean),
+  ].slice(0, 5);
+  const eta = 4 + imgs.length * 6;
+
   await run(
     `UPDATE product_import_jobs
-     SET status = 'cleaning_queued', mode = 'auto', error_message = '', updated_at = datetime('now')
+     SET status = 'cleaning_queued',
+         mode = 'auto',
+         step_cursor = 0,
+         progress_pct = 5,
+         current_step = 'Đang xếp hàng làm sạch văn bản & ảnh',
+         estimated_seconds = ?,
+         working_images = '[]',
+         images_total = ?,
+         images_cleaned = 0,
+         images_recreated = 0,
+         locked_until = NULL,
+         error_message = '',
+         updated_at = datetime('now')
      WHERE id = ?`,
+    eta,
+    imgs.length,
     jobId,
   );
   return (await getImportJobById(jobId))!;
+}
+
+/**
+ * When a pasted URL matches an existing product in stock that still has legacy traces:
+ * update its category (keep current or move to new category) and either queue auto-clean or open manual edit.
+ */
+export async function recleanExistingProduct(opts: {
+  productId: number;
+  categoryId: number;
+  mode: "auto" | "manual";
+}): Promise<{ productId: number; job?: ProductImportJobRow }> {
+  await ensureProductImportSchema();
+  const prod = await one<{
+    id: number;
+    name: string;
+    source_url: string | null;
+    image: string | null;
+    gallery: string;
+  }>("SELECT id, name, source_url, image, gallery FROM products WHERE id = ?", opts.productId);
+  if (!prod) throw new Error("Không tìm thấy sản phẩm trong kho.");
+
+  await run("UPDATE products SET category_id = ? WHERE id = ?", opts.categoryId, opts.productId);
+
+  if (opts.mode === "manual") {
+    return { productId: opts.productId };
+  }
+
+  let job = await one<ProductImportJobRow>(
+    "SELECT * FROM product_import_jobs WHERE product_id = ? ORDER BY id DESC LIMIT 1",
+    opts.productId,
+  );
+
+  if (!job) {
+    const srcUrl = prod.source_url || "https://unknown-source.local/";
+    let domain = "";
+    let canonical = "";
+    try {
+      const u = new URL(srcUrl);
+      domain = u.hostname.replace(/^www\./, "");
+      canonical = canonicalizeProductUrl(srcUrl);
+    } catch {
+      canonical = srcUrl;
+    }
+    const r = await run(
+      `INSERT INTO product_import_jobs
+       (source_url, canonical_url, source_domain, product_id, target_category_id, status, mode)
+       VALUES (?, ?, ?, ?, ?, 'imported', 'auto')`,
+      srcUrl,
+      canonical,
+      domain,
+      opts.productId,
+      opts.categoryId,
+    );
+    job = await getImportJobById(Number(r.lastInsertRowid));
+  } else {
+    await run(
+      "UPDATE product_import_jobs SET target_category_id = ? WHERE id = ?",
+      opts.categoryId,
+      job.id,
+    );
+  }
+
+  const queued = await queueAutoCleanJob(job!.id);
+  return { productId: opts.productId, job: queued };
+}
+
+export async function enqueueBulkUrls(opts: {
+  urls: string[];
+  categoryId: number;
+}): Promise<{ queued: number; skippedDuplicates: number; invalid: number }> {
+  await ensureProductImportSchema();
+  let queued = 0;
+  let skippedDuplicates = 0;
+  let invalid = 0;
+  const seen = new Set<string>();
+
+  for (const raw of opts.urls.slice(0, 20)) {
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    try {
+      const canonical = canonicalizeProductUrl(trimmed);
+      if (seen.has(canonical)) {
+        skippedDuplicates++;
+        continue;
+      }
+      seen.add(canonical);
+      const dup = await checkDuplicateProductUrl(trimmed);
+      if (dup.duplicateProduct || dup.queuedJob) {
+        skippedDuplicates++;
+        continue;
+      }
+      const u = new URL(trimmed);
+      const domain = u.hostname.replace(/^www\./, "");
+      await run(
+        `INSERT INTO product_import_jobs
+         (source_url, canonical_url, source_domain, target_category_id, status, mode, progress_pct, current_step, estimated_seconds)
+         VALUES (?, ?, ?, ?, 'fetch_queued', 'auto', 5, 'Chờ Worker lấy dữ liệu từ link', 22)`,
+        u.toString(),
+        canonical,
+        domain,
+        opts.categoryId,
+      );
+      queued++;
+    } catch {
+      invalid++;
+    }
+  }
+  return { queued, skippedDuplicates, invalid };
 }
 
 function arrayBufferToBase64(buf: ArrayBuffer): string {
@@ -708,53 +1079,158 @@ async function recreateCleanImageWithGemini(
   return null;
 }
 
+/**
+ * Step-by-step idle worker: processes ONE small unit of work per invocation
+ * (either fetching a queued URL, cleaning text, or cleaning 1 image)
+ * with a D1 lease lock so concurrent admin tabs never collide or hit Worker timeouts.
+ */
 export async function processNextIdleProductImportJob(targetJobId?: number): Promise<{
   processed: boolean;
   jobId?: number;
   status?: string;
 }> {
   await ensureProductImportSchema();
-  const job = targetJobId
+  const candidate = targetJobId
     ? await one<ProductImportJobRow>("SELECT * FROM product_import_jobs WHERE id = ?", targetJobId)
     : await one<ProductImportJobRow>(
-        "SELECT * FROM product_import_jobs WHERE status = 'cleaning_queued' ORDER BY id ASC LIMIT 1",
+        `SELECT * FROM product_import_jobs
+         WHERE status IN ('cleaning_running', 'cleaning_queued', 'fetch_queued')
+           AND (locked_until IS NULL OR locked_until < datetime('now'))
+         ORDER BY CASE status
+           WHEN 'cleaning_running' THEN 0
+           WHEN 'cleaning_queued' THEN 1
+           ELSE 2
+         END ASC, id ASC
+         LIMIT 1`,
       );
 
-  if (!job || !job.product_id) return { processed: false };
+  if (!candidate) return { processed: false };
 
-  await run(
-    "UPDATE product_import_jobs SET status = 'cleaning_running', updated_at = datetime('now') WHERE id = ?",
-    job.id,
+  // Acquire 35s lease lock
+  const lock = await run(
+    `UPDATE product_import_jobs
+     SET locked_until = datetime('now', '+35 seconds'), updated_at = datetime('now')
+     WHERE id = ? AND (locked_until IS NULL OR locked_until < datetime('now'))`,
+    candidate.id,
   );
+  if (lock.changes === 0) return { processed: false };
 
   try {
+    // Case A: Bulk fetch_queued job -> fetch, normalize, import, then queue auto-clean
+    if (candidate.status === "fetch_queued") {
+      await run(
+        "UPDATE product_import_jobs SET current_step = 'Đang tải & chuẩn hoá từ link nguồn...', progress_pct = 15 WHERE id = ?",
+        candidate.id,
+      );
+      const safeUrl = assertSafePublicHttpUrl(candidate.source_url);
+      const res = await fetch(safeUrl.toString(), {
+        headers: {
+          "User-Agent": "Mozilla/5.0 Chrome/126.0.0.0",
+          Accept: "text/html,application/xhtml+xml",
+        },
+        redirect: "follow",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status} khi tải trang nguồn`);
+      const html = await res.text();
+      const raw = extractRawFromHtml(html, safeUrl.toString());
+      const site = await getSite();
+      const normalized = await normalizeDraftWithMotif(raw, candidate.source_domain, site.name);
+      const traces = scanLegacyTraces(`${raw.raw_text}\n${raw.description_html}`, candidate.source_domain, raw.images);
+
+      await run(
+        `UPDATE product_import_jobs
+         SET raw_payload = ?, normalized_payload = ?, audit_notes = ?, images_total = ?
+         WHERE id = ?`,
+        JSON.stringify({ name: raw.name, price: raw.price, images: raw.images }),
+        JSON.stringify(normalized),
+        JSON.stringify(traces),
+        raw.images.length,
+        candidate.id,
+      );
+
+      let catId = candidate.target_category_id;
+      if (!catId) {
+        const firstCat = await one<{ id: number }>("SELECT id FROM product_categories ORDER BY id ASC LIMIT 1");
+        catId = firstCat?.id ?? 1;
+      }
+      await importJobIntoProducts({ jobId: candidate.id, categoryId: catId });
+      await queueAutoCleanJob(candidate.id);
+      return { processed: true, jobId: candidate.id, status: "cleaning_queued" };
+    }
+
+    if (!candidate.product_id) {
+      await run("UPDATE product_import_jobs SET locked_until = NULL WHERE id = ?", candidate.id);
+      return { processed: false };
+    }
+
     const product = await one<{
       id: number;
       name: string;
-      slug: string;
-      summary: string;
       description: string;
       image: string | null;
       gallery: string;
-    }>("SELECT id, name, slug, summary, description, image, gallery FROM products WHERE id = ?", job.product_id);
+    }>("SELECT id, name, description, image, gallery FROM products WHERE id = ?", candidate.product_id);
 
-    if (!product) {
-      throw new Error("Sản phẩm đã bị xoá.");
-    }
+    if (!product) throw new Error("Sản phẩm đã bị xoá.");
 
     const site = await getSite();
     const apiKey = await resolveGeminiApiKey();
 
-    // 1. Clean text completely & replace with shop official CTA
-    let cleanedDesc = cleanFallbackHtml(product.description, job.source_url);
-    cleanedDesc = cleanedDesc
-      .replace(/(?:\+84|0)\d[\d.\s-]{7,12}\d/g, site.hotline)
-      .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, "");
-    if (job.source_domain) {
-      cleanedDesc = cleanedDesc.replace(new RegExp(job.source_domain.replace(/\./g, "\\."), "gi"), site.name);
+    // Step 0: Clean text & prepare image list
+    if (candidate.step_cursor === 0) {
+      let cleanedDesc = cleanFallbackHtml(product.description, candidate.source_url);
+      cleanedDesc = cleanedDesc
+        .replace(/(?:\+84|0)\d[\d.\s-]{7,12}\d/g, site.hotline)
+        .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, "");
+      if (candidate.source_domain) {
+        cleanedDesc = cleanedDesc.replace(
+          new RegExp(candidate.source_domain.replace(/\./g, "\\."), "gi"),
+          site.name,
+        );
+      }
+
+      await run("UPDATE products SET description = ? WHERE id = ?", cleanedDesc, product.id);
+
+      const candidateImgs = [
+        ...(product.image ? [product.image] : []),
+        ...(product.gallery || "")
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter(Boolean),
+      ].slice(0, 5);
+
+      if (candidateImgs.length === 0) {
+        await run(
+          `UPDATE product_import_jobs
+           SET status = 'cleaned', progress_pct = 100, current_step = 'Hoàn tất sạch 100%',
+               estimated_seconds = 0, audit_notes = '[]', locked_until = NULL, updated_at = datetime('now')
+           WHERE id = ?`,
+          candidate.id,
+        );
+        return { processed: true, jobId: candidate.id, status: "cleaned" };
+      }
+
+      await run(
+        `UPDATE product_import_jobs
+         SET status = 'cleaning_running',
+             step_cursor = 1,
+             progress_pct = 20,
+             current_step = ?,
+             estimated_seconds = ?,
+             working_images = '[]',
+             images_total = ?,
+             locked_until = NULL,
+             updated_at = datetime('now')
+         WHERE id = ?`,
+        `Đã làm sạch văn bản · Chuẩn bị kiểm tra ảnh 1/${candidateImgs.length}`,
+        candidateImgs.length * 6,
+        candidateImgs.length,
+        candidate.id,
+      );
+      return { processed: true, jobId: candidate.id, status: "cleaning_running" };
     }
 
-    // 2. Smart Image Filter + Localize + Recreate watermarked images
+    // Step >= 1: Process 1 image at index (step_cursor - 1)
     const candidateImgs = [
       ...(product.image ? [product.image] : []),
       ...(product.gallery || "")
@@ -763,79 +1239,123 @@ export async function processNextIdleProductImportJob(targetJobId?: number): Pro
         .filter(Boolean),
     ].slice(0, 5);
 
-    const finalImgs: string[] = [];
-    let cleanedCount = 0;
-    let recreatedCount = 0;
-
-    for (let i = 0; i < candidateImgs.length; i++) {
-      const imgUrl = candidateImgs[i];
-      if (imgUrl.startsWith("/api/media/") || imgUrl.startsWith("/uploads/")) {
-        finalImgs.push(imgUrl);
-        cleanedCount++;
-        continue;
-      }
-      const fetched = await fetchImageBytes(imgUrl);
-      if (!fetched) continue;
-
-      let outBase64 = fetched.base64;
-      let outMime = fetched.mimeType;
-
-      if (apiKey) {
-        const hasWatermark = await detectWatermarkOrContact(apiKey, fetched.base64, fetched.mimeType);
-        if (hasWatermark) {
-          const recreated = await recreateCleanImageWithGemini(
-            apiKey,
-            fetched.base64,
-            fetched.mimeType,
-            product.name,
-          );
-          if (recreated) {
-            outBase64 = recreated.base64;
-            outMime = recreated.mimeType;
-            recreatedCount++;
-          }
-        }
-      }
-
-      const extSlug = `sp-${product.id}-${i + 1}-${Date.now().toString(36)}`;
-      const localUrl = await saveMediaAsset(extSlug, outMime, outBase64);
-      finalImgs.push(localUrl);
-      cleanedCount++;
+    const imgIdx = candidate.step_cursor - 1;
+    let workingImgs: string[] = [];
+    try {
+      workingImgs = JSON.parse(candidate.working_images || "[]") as string[];
+    } catch {
+      workingImgs = [];
     }
 
-    const nextMainImg = finalImgs[0] ?? product.image;
-    const nextGallery = finalImgs.slice(1).join("\n");
+    let cleanedCount = candidate.images_cleaned || 0;
+    let recreatedCount = candidate.images_recreated || 0;
 
-    await run(
-      `UPDATE products
-       SET description = ?, image = ?, gallery = ?, stock = CASE WHEN stock = 0 THEN 100 ELSE stock END
-       WHERE id = ?`,
-      cleanedDesc,
-      nextMainImg,
-      nextGallery,
-      product.id,
-    );
+    if (imgIdx < candidateImgs.length) {
+      const imgUrl = candidateImgs[imgIdx];
+      if (imgUrl.startsWith("/api/media/") || imgUrl.startsWith("/uploads/")) {
+        workingImgs.push(imgUrl);
+        cleanedCount++;
+      } else {
+        const fetched = await fetchImageBytes(imgUrl);
+        if (fetched) {
+          let outBase64 = fetched.base64;
+          let outMime = fetched.mimeType;
+          if (apiKey) {
+            const hasWatermark = await detectWatermarkOrContact(apiKey, fetched.base64, fetched.mimeType);
+            if (hasWatermark) {
+              const recreated = await recreateCleanImageWithGemini(
+                apiKey,
+                fetched.base64,
+                fetched.mimeType,
+                product.name,
+              );
+              if (recreated) {
+                outBase64 = recreated.base64;
+                outMime = recreated.mimeType;
+                recreatedCount++;
+              }
+            }
+          }
+          const extSlug = `sp-${product.id}-${imgIdx + 1}-${Date.now().toString(36)}`;
+          const localUrl = await saveMediaAsset(extSlug, outMime, outBase64);
+          workingImgs.push(localUrl);
+          cleanedCount++;
+        }
+      }
+    }
 
+    const nextCursor = candidate.step_cursor + 1;
+    const doneAll = imgIdx + 1 >= candidateImgs.length;
+
+    if (doneAll) {
+      const nextMainImg = workingImgs[0] ?? product.image;
+      const nextGallery = workingImgs.slice(1).join("\n");
+      await run(
+        `UPDATE products
+         SET image = ?, gallery = ?, stock = CASE WHEN stock = 0 THEN 100 ELSE stock END
+         WHERE id = ?`,
+        nextMainImg,
+        nextGallery,
+        product.id,
+      );
+      await run(
+        `UPDATE product_import_jobs
+         SET status = 'cleaned',
+             step_cursor = ?,
+             working_images = ?,
+             images_cleaned = ?,
+             images_recreated = ?,
+             progress_pct = 100,
+             current_step = 'Hoàn tất sạch 100%',
+             estimated_seconds = 0,
+             audit_notes = '[]',
+             locked_until = NULL,
+             updated_at = datetime('now')
+         WHERE id = ?`,
+        nextCursor,
+        JSON.stringify(workingImgs),
+        cleanedCount,
+        recreatedCount,
+        candidate.id,
+      );
+      return { processed: true, jobId: candidate.id, status: "cleaned" };
+    }
+
+    const remaining = Math.max(1, candidateImgs.length - (imgIdx + 1));
+    const pct = Math.min(95, Math.round(20 + ((imgIdx + 1) / candidateImgs.length) * 75));
     await run(
       `UPDATE product_import_jobs
-       SET status = 'cleaned', images_cleaned = ?, images_recreated = ?, audit_notes = '[]', updated_at = datetime('now')
+       SET status = 'cleaning_running',
+           step_cursor = ?,
+           working_images = ?,
+           images_cleaned = ?,
+           images_recreated = ?,
+           progress_pct = ?,
+           current_step = ?,
+           estimated_seconds = ?,
+           locked_until = NULL,
+           updated_at = datetime('now')
        WHERE id = ?`,
+      nextCursor,
+      JSON.stringify(workingImgs),
       cleanedCount,
       recreatedCount,
-      job.id,
+      pct,
+      `Đang kiểm tra & làm sạch ảnh ${imgIdx + 2}/${candidateImgs.length}...`,
+      remaining * 6,
+      candidate.id,
     );
-
-    return { processed: true, jobId: job.id, status: "cleaned" };
+    return { processed: true, jobId: candidate.id, status: "cleaning_running" };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Lỗi xử lý tự động.";
     await run(
       `UPDATE product_import_jobs
-       SET status = 'failed', error_message = ?, updated_at = datetime('now')
+       SET status = 'failed', error_message = ?, locked_until = NULL, current_step = 'Lỗi xử lý', estimated_seconds = 0, updated_at = datetime('now')
        WHERE id = ?`,
       msg.slice(0, 300),
-      job.id,
+      candidate.id,
     );
-    return { processed: true, jobId: job.id, status: "failed" };
+    return { processed: true, jobId: candidate.id, status: "failed" };
   }
 }
 

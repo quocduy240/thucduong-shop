@@ -1,24 +1,42 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { currentAdmin } from "@/lib/auth";
+import { all, run } from "@/lib/db";
 import {
+  checkDuplicateProductUrl,
   clearProductSourceTrace,
+  enqueueBulkUrls,
   fetchAndCreateImportJob,
+  getIdleWorkerSummary,
   getImportJobById,
   importJobIntoProducts,
   listImportJobs,
   queueAutoCleanJob,
+  recleanExistingProduct,
 } from "@/lib/product-importer";
 import { canAccessAdminPath } from "@/lib/rbac";
 
-export async function GET() {
+export async function GET(req: Request) {
   const admin = await currentAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canAccessAdminPath(admin.role, "/admin/products/")) {
     return NextResponse.json({ error: "Không có quyền truy cập." }, { status: 403 });
   }
-  const jobs = await listImportJobs(50);
-  return NextResponse.json({ jobs });
+
+  const { searchParams } = new URL(req.url);
+  const checkUrl = searchParams.get("check_url")?.trim();
+  if (checkUrl) {
+    try {
+      const result = await checkDuplicateProductUrl(checkUrl);
+      return NextResponse.json({ ok: true, ...result });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "URL không hợp lệ.";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+  }
+
+  const [jobs, workerSummary] = await Promise.all([listImportJobs(50), getIdleWorkerSummary()]);
+  return NextResponse.json({ jobs, workerSummary });
 }
 
 export async function POST(req: Request) {
@@ -38,8 +56,9 @@ export async function POST(req: Request) {
       if (!url) {
         return NextResponse.json({ error: "Vui lòng dán đường dẫn (URL) sản phẩm." }, { status: 400 });
       }
-      const { job, duplicateProduct } = await fetchAndCreateImportJob({ url, rawHtmlOverride });
-      return NextResponse.json({ ok: true, job, duplicateProduct, jobs: await listImportJobs(50) });
+      const { job, duplicate } = await fetchAndCreateImportJob({ url, rawHtmlOverride });
+      const [jobs, workerSummary] = await Promise.all([listImportJobs(50), getIdleWorkerSummary()]);
+      return NextResponse.json({ ok: true, job, duplicate, jobs, workerSummary });
     }
 
     if (action === "import") {
@@ -57,22 +76,86 @@ export async function POST(req: Request) {
         holdStockZero,
       });
       revalidatePath("/", "layout");
-      return NextResponse.json({ ok: true, productId, job, jobs: await listImportJobs(50) });
+      const [jobs, workerSummary] = await Promise.all([listImportJobs(50), getIdleWorkerSummary()]);
+      return NextResponse.json({ ok: true, productId, job, jobs, workerSummary });
     }
 
     if (action === "queue_auto_clean") {
       const jobId = Number(b.job_id);
       if (!jobId) return NextResponse.json({ error: "Thiếu job_id." }, { status: 400 });
       const job = await queueAutoCleanJob(jobId);
-      return NextResponse.json({ ok: true, job, jobs: await listImportJobs(50) });
+      const [jobs, workerSummary] = await Promise.all([listImportJobs(50), getIdleWorkerSummary()]);
+      return NextResponse.json({ ok: true, job, jobs, workerSummary });
+    }
+
+    if (action === "reclean_existing") {
+      const productId = Number(b.product_id);
+      const categoryId = Number(b.category_id);
+      const mode = b.mode === "manual" ? "manual" : "auto";
+      if (!productId || !categoryId) {
+        return NextResponse.json({ error: "Thiếu ID sản phẩm hoặc danh mục." }, { status: 400 });
+      }
+      const res = await recleanExistingProduct({ productId, categoryId, mode });
+      revalidatePath("/", "layout");
+      const [jobs, workerSummary] = await Promise.all([listImportJobs(50), getIdleWorkerSummary()]);
+      return NextResponse.json({ ok: true, ...res, jobs, workerSummary });
+    }
+
+    if (action === "bulk_queue") {
+      const urls = Array.isArray(b.urls) ? b.urls.map(String) : [];
+      const categoryId = Number(b.category_id);
+      if (urls.length === 0 || !categoryId) {
+        return NextResponse.json({ error: "Vui lòng nhập danh sách link và chọn danh mục." }, { status: 400 });
+      }
+      const stats = await enqueueBulkUrls({ urls, categoryId });
+      const [jobs, workerSummary] = await Promise.all([listImportJobs(50), getIdleWorkerSummary()]);
+      return NextResponse.json({ ok: true, stats, jobs, workerSummary });
+    }
+
+    if (action === "queue_all_uncleaned") {
+      const rows = await all<{ id: number }>(
+        "SELECT id FROM product_import_jobs WHERE status = 'imported' AND product_id IS NOT NULL ORDER BY id ASC LIMIT 20",
+      );
+      for (const r of rows) {
+        await queueAutoCleanJob(r.id);
+      }
+      const [jobs, workerSummary] = await Promise.all([listImportJobs(50), getIdleWorkerSummary()]);
+      return NextResponse.json({ ok: true, queuedCount: rows.length, jobs, workerSummary });
+    }
+
+    if (action === "retry_job") {
+      const jobId = Number(b.job_id);
+      const existing = await getImportJobById(jobId);
+      if (!existing) return NextResponse.json({ error: "Không tìm thấy job." }, { status: 404 });
+      if (existing.product_id) {
+        await queueAutoCleanJob(jobId);
+      } else {
+        await run(
+          "UPDATE product_import_jobs SET status = 'fetch_queued', error_message = '', locked_until = NULL, progress_pct = 5, current_step = 'Thử lại lấy dữ liệu', updated_at = datetime('now') WHERE id = ?",
+          jobId,
+        );
+      }
+      const [jobs, workerSummary] = await Promise.all([listImportJobs(50), getIdleWorkerSummary()]);
+      return NextResponse.json({ ok: true, jobs, workerSummary });
+    }
+
+    if (action === "cancel_job") {
+      const jobId = Number(b.job_id);
+      await run(
+        "DELETE FROM product_import_jobs WHERE id = ? AND status IN ('fetch_queued', 'cleaning_queued', 'failed', 'fetched')",
+        jobId,
+      );
+      const [jobs, workerSummary] = await Promise.all([listImportJobs(50), getIdleWorkerSummary()]);
+      return NextResponse.json({ ok: true, jobs, workerSummary });
     }
 
     if (action === "check_update") {
       const jobId = Number(b.job_id);
       const oldJob = await getImportJobById(jobId);
       if (!oldJob) return NextResponse.json({ error: "Không tìm thấy lịch sử nguồn." }, { status: 404 });
-      const { job } = await fetchAndCreateImportJob({ url: oldJob.source_url });
-      return NextResponse.json({ ok: true, job, jobs: await listImportJobs(50) });
+      const { job, duplicate } = await fetchAndCreateImportJob({ url: oldJob.source_url });
+      const [jobs, workerSummary] = await Promise.all([listImportJobs(50), getIdleWorkerSummary()]);
+      return NextResponse.json({ ok: true, job, duplicate, jobs, workerSummary });
     }
 
     if (action === "clear_source") {
@@ -80,7 +163,8 @@ export async function POST(req: Request) {
       if (!productId) return NextResponse.json({ error: "Thiếu product_id." }, { status: 400 });
       await clearProductSourceTrace(productId);
       revalidatePath("/", "layout");
-      return NextResponse.json({ ok: true, jobs: await listImportJobs(50) });
+      const [jobs, workerSummary] = await Promise.all([listImportJobs(50), getIdleWorkerSummary()]);
+      return NextResponse.json({ ok: true, jobs, workerSummary });
     }
 
     return NextResponse.json({ error: "Hành động không hợp lệ." }, { status: 400 });
