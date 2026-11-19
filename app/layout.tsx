@@ -4,6 +4,7 @@ import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FloatingConsultWidget from "@/components/FloatingConsultWidget";
+import MiniCartDrawer from "@/components/MiniCartDrawer";
 import MobileBottomBar from "@/components/MobileBottomBar";
 import { getSite, getWidgetSettings } from "@/lib/settings";
 import { getThemeSettings } from "@/lib/theme-settings";
@@ -43,6 +44,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <main className="flex-1 pb-16 md:pb-0">{children}</main>
         <Footer />
         <FloatingConsultWidget config={widgetCfg} />
+        <MiniCartDrawer />
         <MobileBottomBar />
       </body>
     </html>

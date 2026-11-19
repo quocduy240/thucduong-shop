@@ -164,6 +164,11 @@ export default async function Footer() {
               </li>
             ))}
             <li>
+              <Link href="/tra-cuu-don-hang/" className="text-emerald-100/90 hover:text-white hover:underline">
+                🔍 Tra cứu đơn hàng
+              </Link>
+            </li>
+            <li>
               <Link href="/so-do-trang.html" className="text-emerald-100/90 hover:text-white hover:underline">
                 🗺️ Sơ đồ trang (Sitemap)
               </Link>

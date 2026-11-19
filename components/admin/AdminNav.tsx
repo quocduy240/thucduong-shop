@@ -16,6 +16,7 @@ const ITEMS = [
   { href: "/admin/videos/", label: "Video bài giảng", icon: "🎬" },
   { href: "/admin/documents/", label: "Tài liệu & Sách", icon: "📚" },
   { href: "/admin/members/", label: "Thành viên & Email", icon: "👥" },
+  { href: "/admin/crm/", label: "CRM Chăm sóc", icon: "💎" },
   { href: "/admin/loyalty/", label: "Tích điểm & Quà", icon: "🎁" },
   { href: "/admin/comments/", label: "Bình luận", icon: "💬" },
   { href: "/admin/pages/", label: "Trang tĩnh", icon: "📄" },

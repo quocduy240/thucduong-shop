@@ -94,6 +94,7 @@ export default function MemberPortal({
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reorderBusyId, setReorderBusyId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [copiedCode, setCopiedCode] = useState("");
   const [referralCode, setReferralCode] = useState("");
@@ -127,6 +128,26 @@ export default function MemberPortal({
       }
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleReorder(orderId: number) {
+    setReorderBusyId(orderId);
+    try {
+      const res = await fetch("/api/member/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      if (res.ok) {
+        window.dispatchEvent(new Event("td:cart-updated"));
+        router.push("/cart");
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error ?? "Không thể mua lại đơn hàng này.");
+      }
+    } finally {
+      setReorderBusyId(null);
     }
   }
 
@@ -528,6 +549,7 @@ export default function MemberPortal({
                   <th className="p-3">Mã ưu đãi</th>
                   <th className="p-3">Giảm giá</th>
                   <th className="p-3">Tổng thanh toán</th>
+                  <th className="p-3 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -540,6 +562,16 @@ export default function MemberPortal({
                       {o.discount_amount > 0 ? `-${vnd(o.discount_amount)}` : "—"}
                     </td>
                     <td className="p-3 font-bold text-accent">{vnd(o.total)}</td>
+                    <td className="p-3 text-right">
+                      <button
+                        type="button"
+                        disabled={reorderBusyId === o.id}
+                        onClick={() => handleReorder(o.id)}
+                        className="cursor-pointer rounded-lg border border-brand/30 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-brand hover:bg-brand hover:text-white disabled:opacity-50"
+                      >
+                        {reorderBusyId === o.id ? "Đang thêm..." : "🛒 Mua lại"}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

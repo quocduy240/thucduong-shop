@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-type Comment = { id: number; name: string; content: string; rating: number; created_at: string };
+type Comment = { id: number; name: string; content: string; rating: number; created_at: string; verified?: number };
 type Stats = { avg: number; total: number; counts: Record<number, number> };
 
 const RATING_LABELS: Record<number, string> = {
@@ -171,9 +171,15 @@ export default function Comments({ productId }: { productId: number }) {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-gray-800">{c.name}</span>
-                        <span className="rounded bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-brand">
-                          ✓ Đã đánh giá
-                        </span>
+                        {c.verified === 1 ? (
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                            ✓ Đã mua hàng
+                          </span>
+                        ) : (
+                          <span className="rounded bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-brand">
+                            ✓ Đã đánh giá
+                          </span>
+                        )}
                       </div>
                       <span className="text-xs text-gray-400">{c.created_at.slice(0, 16)}</span>
                     </div>

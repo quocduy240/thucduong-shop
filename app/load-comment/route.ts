@@ -4,8 +4,18 @@ import { all, one } from "@/lib/db";
 export async function GET(req: Request) {
   const id = Number(new URL(req.url).searchParams.get("product_id"));
   const [items, statsRow, byStar] = await Promise.all([
-    all<{ id: number; name: string; content: string; rating: number; created_at: string }>(
-      "SELECT id, name, content, rating, created_at FROM comments WHERE product_id = ? ORDER BY id DESC LIMIT 50",
+    all<{ id: number; name: string; content: string; rating: number; created_at: string; verified: number }>(
+      `SELECT c.id, c.name, c.content, c.rating, c.created_at,
+         CASE WHEN EXISTS (
+           SELECT 1 FROM orders o
+           JOIN order_items oi ON oi.order_id = o.id
+           WHERE oi.product_id = c.product_id
+             AND o.status = 'done'
+             AND LOWER(TRIM(o.name)) = LOWER(TRIM(c.name))
+         ) THEN 1 ELSE 0 END AS verified
+       FROM comments c
+       WHERE c.product_id = ?
+       ORDER BY c.id DESC LIMIT 50`,
       id,
     ),
     one<{ avg: number; total: number }>(
