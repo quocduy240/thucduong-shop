@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getPages, getProductCategories, url } from "@/lib/data";
 import { getSite, getWidgetSettings } from "@/lib/settings";
 import { getSocialLinksConfig } from "@/lib/social-links";
+import RotatingHotline from "./RotatingHotline";
 import SocialLinksBlock from "./SocialLinksBlock";
 import NewsletterBar from "./NewsletterBar";
 
@@ -65,12 +66,11 @@ export default async function Footer() {
             Cung cấp sản phẩm Thực dưỡng – Thảo dược – Ngũ cốc – Gia vị sạch hữu cơ chuẩn mực. Sống khoẻ Phúc Thọ, Tâm An mỗi ngày.
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            <a
-              href={`tel:${primaryPhone}`}
+            <RotatingHotline
+              raw={[widget.widget_hotline, widget.widget_hotline_2].filter(Boolean).join(" - ") || site.hotline}
+              prefix="📞 "
               className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-brand-dark shadow-xs transition hover:bg-emerald-50"
-            >
-              📞 {displayHotline}
-            </a>
+            />
             <a
               href={zaloHref}
               target="_blank"

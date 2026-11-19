@@ -53,7 +53,7 @@ export default async function CanhDuongSinhPage() {
             }
           : null
       }
-      hotline={widget.widget_hotline || site.hotline || "0909 000 000"}
+      hotline={[widget.widget_hotline, widget.widget_hotline_2].filter(Boolean).join(" - ") || site.hotline || "0767.518.592 - 0858.816.070"}
       zaloUrl={widget.widget_zalo || ""}
     />
   );

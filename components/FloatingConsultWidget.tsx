@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRotatingHotline } from "./RotatingHotline";
 
 export type FloatingWidgetConfig = {
   widget_enabled: string;
@@ -143,8 +144,10 @@ export default function FloatingConsultWidget({ config }: { config: FloatingWidg
 
   const zaloUrl = normalizeZaloUrl(config.widget_zalo);
   const messengerUrl = normalizeMessengerUrl(config.widget_messenger);
-  const hotlineDisplay = config.widget_hotline.trim();
-  const hotlineTel = normalizeTel(hotlineDisplay);
+  const { current: hotlineDisplay, tel: hotlineTel } = useRotatingHotline(
+    [config.widget_hotline, config.widget_hotline_2].filter(Boolean),
+    5000,
+  );
 
   async function handleQuickAskSubmit(e: React.FormEvent) {
     e.preventDefault();

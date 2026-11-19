@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import RotatingHotline from "./RotatingHotline";
 import {
   CONSULT_AUDIENCES,
   CONSULT_CONDITIONS,
@@ -740,13 +741,12 @@ export default function QuickConsultClient({
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <a
-                    href={`tel:${hotline.replace(/\s+/g, "")}`}
+                  <RotatingHotline
+                    raw={hotline}
+                    prefix="📞 Gọi Hotline "
                     onClick={() => void submitFollowup("hotline")}
                     className="flex-1 rounded-xl bg-brand px-4 py-2.5 text-center text-xs font-bold text-white hover:bg-brand-dark"
-                  >
-                    📞 Gọi Hotline {hotline}
-                  </a>
+                  />
                   {zaloUrl && (
                     <a
                       href={zaloUrl}

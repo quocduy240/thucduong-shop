@@ -9,7 +9,7 @@ export const metadata = {
 
 export default async function QuickConsultPage() {
   const [site, widget] = await Promise.all([getSite(), getWidgetSettings()]);
-  const hotline = widget.widget_hotline || site.hotline || "0909 000 000";
+  const hotline = [widget.widget_hotline, widget.widget_hotline_2].filter(Boolean).join(" - ") || site.hotline || "0767.518.592 - 0858.816.070";
   const zaloUrl = widget.widget_zalo || "";
 
   return (

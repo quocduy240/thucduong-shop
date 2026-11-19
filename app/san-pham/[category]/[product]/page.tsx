@@ -9,6 +9,7 @@ import { getSite } from "@/lib/settings";
 import { getSocialLinksConfig } from "@/lib/social-links";
 import { vnd } from "@/lib/site";
 import BlockZone from "@/components/BlockZone";
+import RotatingHotline from "@/components/RotatingHotline";
 import SocialLinksBlock from "@/components/SocialLinksBlock";
 import { Breadcrumb, Price, ProductGrid, SectionTitle } from "@/components/ui";
 import AddToCart from "@/components/AddToCart";
@@ -205,12 +206,11 @@ export default async function ProductPage({ params }: PageProps<"/san-pham/[cate
                   <div className="text-xs text-gray-600">Gọi trực tiếp hoặc nhắn Zalo để được hướng dẫn cách dùng chi tiết</div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <a
-                    href={`tel:${primaryPhone}`}
+                  <RotatingHotline
+                    raw={site.hotline}
+                    prefix="📞 "
                     className="rounded-xl bg-brand px-3.5 py-2 text-xs font-bold text-white shadow-2xs transition hover:bg-brand-dark"
-                  >
-                    📞 {site.hotline.split("-")[0]?.trim()}
-                  </a>
+                  />
                   <a
                     href={`https://zalo.me/${primaryPhone}`}
                     target="_blank"

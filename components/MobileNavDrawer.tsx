@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import RotatingHotline from "./RotatingHotline";
 
 export type NavMenuItem = {
   label: string;
@@ -112,12 +113,11 @@ export default function MobileNavDrawer({
             </nav>
 
             <div className="border-t bg-gray-50 p-3 text-xs">
-              <a
-                href={`tel:${hotline.split("-")[0]?.replace(/[^\d]/g, "") || ""}`}
+              <RotatingHotline
+                raw={hotline}
+                prefix="📞 Hotline: "
                 className="block w-full rounded-xl bg-brand py-2.5 text-center font-bold text-white"
-              >
-                📞 Hotline: {hotline.split("-")[0]?.trim()}
-              </a>
+              />
             </div>
           </aside>
         </div>

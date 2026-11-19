@@ -4,6 +4,7 @@ import { getSite } from "@/lib/settings";
 import { getThemeSettings } from "@/lib/theme-settings";
 import HeaderAccountCart from "./HeaderAccountCart";
 import MobileNavDrawer from "./MobileNavDrawer";
+import RotatingHotline from "./RotatingHotline";
 import SearchBox from "./SearchBox";
 import ThemeSwitcher from "./ThemeSwitcher";
 
@@ -56,7 +57,7 @@ export default async function Header() {
     <header className="z-40 bg-white shadow-sm md:sticky md:top-0">
       <div className="bg-brand-dark text-xs text-white">
         <div className="mx-auto flex max-w-6xl justify-between px-4 py-1.5">
-          <span>Hotline: {site.hotline}</span>
+          <RotatingHotline raw={site.hotline} prefix="📞 Hotline: " className="font-semibold hover:underline" />
           <span className="hidden sm:inline">{site.email}</span>
         </div>
       </div>

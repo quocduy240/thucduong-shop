@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import RotatingHotline from "./RotatingHotline";
 
 export type CdsProductInfo = {
   id: number;
@@ -179,12 +180,11 @@ export default function CanhDuongSinhLanding({
               >
                 🛒 Chọn Mua Canh Dưỡng Sinh
               </a>
-              <a
-                href={`tel:${hotline.replace(/\s+/g, "")}`}
+              <RotatingHotline
+                raw={hotline}
+                prefix="📞 Tư vấn: "
                 className="rounded-full border border-brand bg-green-50 px-5 py-3 text-sm font-bold text-brand transition hover:bg-brand hover:text-white"
-              >
-                📞 Tư vấn: {hotline}
-              </a>
+              />
             </div>
           </div>
 
