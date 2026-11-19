@@ -93,6 +93,17 @@ data/shop.db                 SQLite DB (git-ignored, shipped in the zip)
 - Runtime uploads into `public/` are only served by `next dev`, not by a pre-built `next start`.
 - **Admin Handbook Auto-Sync Rule:** Whenever adding a new admin feature/module or upgrading an existing backend workflow, ALWAYS update `lib/admin-handbook.ts` (`ADMIN_HANDBOOK_SECTIONS`) with clear usage instructions and mark new items with `badge: "Mới"` so the global `AdminHandbookDrawer` across `/admin/*` stays up to date automatically.
 
+## AI, Security & Cloudflare Workers Architecture Rules
+
+- **Unified AI Gateway (`lib/gemini-key.ts`):** All Gemini text/vision/image calls MUST go through `resolveGeminiApiKey()` and `callGeminiGenerateContent()`. Use 1 dedicated Production Google Cloud Project (`GEMINI_API_KEY` secret / Tier 1 with budget alert) rather than rotating multiple free personal accounts. Never log or expose API keys to clients.
+- **Token Optimization & Sequential Idle Queue:**
+  - Strip source HTML/CSS/scripts/phones/external domains with pure TypeScript before sending text to AI.
+  - Pre-check images before calling image-generation models (only recreate images that fail watermark/contact detection).
+  - Route interactive admin AI tasks through `AiIdleQueueProvider` (`components/admin/AiIdleQueueProvider.tsx`, `concurrency = 1`, idle cooldown + adaptive ETA + high-contrast floating/inline notices) and heavy batch jobs through D1 lease-locked idle workers.
+- **Cloudflare Workers (`workerd`) Compatibility:** NEVER import `cheerio` or heavy Node-only libraries into runtime API routes deployed to Cloudflare Workers (causes module-load 500 crashes). Use pure TypeScript regex/string helpers instead.
+- **Medical Law & YMYL Compliance:** Health/macrobiotic content and consult reports must apply `lib/medical-compliance.ts` (weekly auto-sync for VN Law + Google YMYL + YouTube) and `lib/medical-disclaimer.ts`.
+- **Deploy & Verify Rule:** Because `next.config.ts` sets `trailingSlash: true`, always include a trailing `/` on `POST`/`fetch` API URLs (e.g., `/api/admin/products/ai-rewrite/`). Verify changes with `npm run typecheck`, `npm run cf:deploy`, and live `curl` checks before committing.
+
 ## Reference: original site structure
 
 - Platform: LoveItop template `base3`, server-rendered, jQuery 3.3.1 + Bootstrap 4.3.1.
