@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getPages, getProductCategories, url } from "@/lib/data";
+import { getFooterProductCategories, getPages, url } from "@/lib/data";
 import { getSite, getWidgetSettings } from "@/lib/settings";
 import { getSocialLinksConfig } from "@/lib/social-links";
 import RotatingHotline from "./RotatingHotline";
@@ -19,7 +19,7 @@ export default async function Footer() {
     getSite(),
     getWidgetSettings(),
     getPages("chinh-sach"),
-    getProductCategories(),
+    getFooterProductCategories(),
     getSocialLinksConfig(),
   ]);
 
@@ -191,15 +191,7 @@ export default async function Footer() {
             Danh mục sản phẩm
           </h3>
           <ul className="space-y-2 text-xs">
-            <li>
-              <Link
-                href="/canh-duong-sinh/"
-                className="inline-flex items-center gap-1.5 font-bold text-amber-300 hover:underline"
-              >
-                <span>⭐ Canh Dưỡng Sinh King Kung</span>
-              </Link>
-            </li>
-            {categories.slice(0, 6).map((c) => (
+            {categories.map((c) => (
               <li key={c.slug}>
                 <Link href={url.productCategory(c)} className="text-emerald-100/90 hover:text-white hover:underline">
                   {c.name}

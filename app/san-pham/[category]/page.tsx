@@ -8,7 +8,10 @@ import ProductFilterBar from "@/components/ProductFilterBar";
 
 export async function generateMetadata({ params }: PageProps<"/san-pham/[category]">) {
   const c = await getProductCategory((await params).category);
-  return { title: c?.name ?? "Không tìm thấy" };
+  return {
+    title: c?.seo_title || c?.name || "Không tìm thấy",
+    description: c?.description || undefined,
+  };
 }
 
 const str = (v: string | string[] | undefined) => (typeof v === "string" ? v.trim() : "");
@@ -56,6 +59,11 @@ export default async function CategoryPage({ params, searchParams }: PageProps<"
               />
             </div>
           </div>
+          {c.description && (
+            <p className="mb-4 rounded-xl border border-emerald-200/80 bg-emerald-50/50 px-4 py-3 text-xs leading-relaxed text-emerald-950 sm:text-sm">
+              {c.description}
+            </p>
+          )}
           <Suspense fallback={null}>
             <ProductFilterBar facets={facets} totalCount={products.length} />
           </Suspense>

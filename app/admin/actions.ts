@@ -283,24 +283,42 @@ export async function saveProductCategoryAction(formData: FormData) {
   if (!name || !slug) back("/admin/categories/", "Nhập tên danh mục.");
   const hasSort = str(formData, "sort") !== "";
   const showInMenu = formData.get("show_in_menu") === "1" ? 1 : 0;
+  const showInHome = formData.get("show_in_home") === "1" ? 1 : 0;
+  const showInFooter = formData.get("show_in_footer") === "1" ? 1 : 0;
+  const isActive = formData.get("is_active") === "0" ? 0 : 1;
+  const seoTitle = str(formData, "seo_title");
+  const description = str(formData, "description");
   try {
     if (id) {
       await run(
-        "UPDATE product_categories SET name = ?, slug = ?, sort = ?, show_in_menu = ? WHERE id = ?",
+        `UPDATE product_categories
+         SET name = ?, slug = ?, sort = ?, show_in_menu = ?, show_in_home = ?, show_in_footer = ?, is_active = ?, seo_title = ?, description = ?
+         WHERE id = ?`,
         name,
         slug,
         num(formData, "sort"),
         showInMenu,
+        showInHome,
+        showInFooter,
+        isActive,
+        seoTitle,
+        description,
         id,
       );
     } else {
       const next = (await one<{ n: number }>("SELECT COALESCE(MAX(sort), 0) + 1 AS n FROM product_categories"))!.n;
       await run(
-        "INSERT INTO product_categories (name, slug, sort, show_in_menu) VALUES (?, ?, ?, ?)",
+        `INSERT INTO product_categories (name, slug, sort, show_in_menu, show_in_home, show_in_footer, is_active, seo_title, description)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         name,
         slug,
         hasSort ? num(formData, "sort") : next,
         showInMenu,
+        showInHome,
+        showInFooter,
+        isActive,
+        seoTitle,
+        description,
       );
     }
   } catch (e) {

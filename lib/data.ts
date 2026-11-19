@@ -2,7 +2,17 @@ import "server-only";
 import { cache } from "react";
 import { all, one, run } from "./db";
 
-export type ProductCategory = { id: number; slug: string; name: string };
+export type ProductCategory = {
+  id: number;
+  slug: string;
+  name: string;
+  show_in_menu?: number;
+  show_in_home?: number;
+  show_in_footer?: number;
+  is_active?: number;
+  seo_title?: string;
+  description?: string;
+};
 export type Product = {
   id: number;
   slug: string;
@@ -71,8 +81,17 @@ export async function ensureProductCategoryMenuColumn() {
   if (!ensuredCatMenuCol) {
     ensuredCatMenuCol = (async () => {
       const cols = await all<{ name: string }>("PRAGMA table_info(product_categories)");
-      if (!cols.some((c) => c.name === "show_in_menu")) {
-        await run("ALTER TABLE product_categories ADD COLUMN show_in_menu INTEGER NOT NULL DEFAULT 1");
+      const names = new Set(cols.map((c) => c.name));
+      const migrations: Array<[string, string]> = [
+        ["show_in_menu", "ALTER TABLE product_categories ADD COLUMN show_in_menu INTEGER NOT NULL DEFAULT 1"],
+        ["show_in_home", "ALTER TABLE product_categories ADD COLUMN show_in_home INTEGER NOT NULL DEFAULT 1"],
+        ["show_in_footer", "ALTER TABLE product_categories ADD COLUMN show_in_footer INTEGER NOT NULL DEFAULT 1"],
+        ["is_active", "ALTER TABLE product_categories ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1"],
+        ["seo_title", "ALTER TABLE product_categories ADD COLUMN seo_title TEXT NOT NULL DEFAULT ''"],
+        ["description", "ALTER TABLE product_categories ADD COLUMN description TEXT NOT NULL DEFAULT ''"],
+      ];
+      for (const [col, sql] of migrations) {
+        if (!names.has(col)) await run(sql);
       }
     })().catch((err) => {
       ensuredCatMenuCol = null;
@@ -83,20 +102,41 @@ export async function ensureProductCategoryMenuColumn() {
 }
 
 // ---- Products ----
-export const getProductCategories = cache(() =>
-  all<ProductCategory>("SELECT id, slug, name FROM product_categories ORDER BY sort, id"),
-);
+export const getProductCategories = cache(async () => {
+  await ensureProductCategoryMenuColumn();
+  return all<ProductCategory>(
+    "SELECT id, slug, name, COALESCE(show_in_menu,1) AS show_in_menu, COALESCE(show_in_home,1) AS show_in_home, COALESCE(show_in_footer,1) AS show_in_footer, COALESCE(is_active,1) AS is_active, COALESCE(seo_title,'') AS seo_title, COALESCE(description,'') AS description FROM product_categories WHERE COALESCE(is_active, 1) = 1 ORDER BY sort, id",
+  );
+});
 
 export const getMenuProductCategories = cache(async () => {
   await ensureProductCategoryMenuColumn();
   return all<ProductCategory>(
-    "SELECT id, slug, name FROM product_categories WHERE COALESCE(show_in_menu, 1) = 1 ORDER BY sort, id",
+    "SELECT id, slug, name FROM product_categories WHERE COALESCE(is_active, 1) = 1 AND COALESCE(show_in_menu, 1) = 1 ORDER BY sort, id",
   );
 });
 
-export const getProductCategory = cache((slug: string) =>
-  one<ProductCategory>("SELECT id, slug, name FROM product_categories WHERE slug = ?", slug),
-);
+export const getHomeProductCategories = cache(async () => {
+  await ensureProductCategoryMenuColumn();
+  return all<ProductCategory>(
+    "SELECT id, slug, name FROM product_categories WHERE COALESCE(is_active, 1) = 1 AND COALESCE(show_in_home, 1) = 1 ORDER BY sort, id",
+  );
+});
+
+export const getFooterProductCategories = cache(async () => {
+  await ensureProductCategoryMenuColumn();
+  return all<ProductCategory>(
+    "SELECT id, slug, name FROM product_categories WHERE COALESCE(is_active, 1) = 1 AND COALESCE(show_in_footer, 1) = 1 ORDER BY sort, id",
+  );
+});
+
+export const getProductCategory = cache(async (slug: string) => {
+  await ensureProductCategoryMenuColumn();
+  return one<ProductCategory>(
+    "SELECT id, slug, name, COALESCE(seo_title,'') AS seo_title, COALESCE(description,'') AS description, COALESCE(is_active,1) AS is_active FROM product_categories WHERE slug = ?",
+    slug,
+  );
+});
 
 const CDS_FIRST = "CASE WHEN LOWER(p.name) LIKE '%canh dưỡng sinh%' OR LOWER(p.name) LIKE '%canh duong sinh%' THEN 0 ELSE 1 END";
 

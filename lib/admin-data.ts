@@ -242,14 +242,47 @@ export const getPageRow = (grp: string, slug: string) =>
   );
 
 // ---- categories ----
-export const listProductCategoriesWithCount = async () => {
+export type AdminProductCategoryRow = {
+  id: number;
+  slug: string;
+  name: string;
+  sort: number;
+  show_in_menu: number;
+  show_in_home: number;
+  show_in_footer: number;
+  is_active: number;
+  seo_title: string;
+  description: string;
+  n: number;
+  in_stock_count: number;
+  out_stock_count: number;
+};
+
+export const listProductCategoriesWithCount = async (): Promise<AdminProductCategoryRow[]> => {
   const cols = await all<{ name: string }>("PRAGMA table_info(product_categories)");
-  if (!cols.some((c) => c.name === "show_in_menu")) {
-    await all("ALTER TABLE product_categories ADD COLUMN show_in_menu INTEGER NOT NULL DEFAULT 1").catch(() => {});
+  const names = new Set(cols.map((c) => c.name));
+  const alters: Array<[string, string]> = [
+    ["show_in_menu", "ALTER TABLE product_categories ADD COLUMN show_in_menu INTEGER NOT NULL DEFAULT 1"],
+    ["show_in_home", "ALTER TABLE product_categories ADD COLUMN show_in_home INTEGER NOT NULL DEFAULT 1"],
+    ["show_in_footer", "ALTER TABLE product_categories ADD COLUMN show_in_footer INTEGER NOT NULL DEFAULT 1"],
+    ["is_active", "ALTER TABLE product_categories ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1"],
+    ["seo_title", "ALTER TABLE product_categories ADD COLUMN seo_title TEXT NOT NULL DEFAULT ''"],
+    ["description", "ALTER TABLE product_categories ADD COLUMN description TEXT NOT NULL DEFAULT ''"],
+  ];
+  for (const [col, sql] of alters) {
+    if (!names.has(col)) await all(sql).catch(() => {});
   }
-  return all<{ id: number; slug: string; name: string; sort: number; show_in_menu: number; n: number }>(
-    `SELECT c.id, c.slug, c.name, c.sort, COALESCE(c.show_in_menu, 1) AS show_in_menu,
-            (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id) AS n
+  return all<AdminProductCategoryRow>(
+    `SELECT c.id, c.slug, c.name, c.sort,
+            COALESCE(c.show_in_menu, 1) AS show_in_menu,
+            COALESCE(c.show_in_home, 1) AS show_in_home,
+            COALESCE(c.show_in_footer, 1) AS show_in_footer,
+            COALESCE(c.is_active, 1) AS is_active,
+            COALESCE(c.seo_title, '') AS seo_title,
+            COALESCE(c.description, '') AS description,
+            (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id) AS n,
+            (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id AND p.stock > 0) AS in_stock_count,
+            (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id AND p.stock <= 0) AS out_stock_count
      FROM product_categories c ORDER BY c.sort, c.id`,
   );
 };

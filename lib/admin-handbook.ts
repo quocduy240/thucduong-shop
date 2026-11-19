@@ -310,6 +310,21 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
           },
         ],
       },
+      {
+        id: "categories-manager",
+        title: "3. Quản lý Danh mục Sản phẩm & Chuyên mục toàn diện (/admin/categories/)",
+        badge: "Mới",
+        items: [
+          {
+            heading: "Bật/Tắt đa vị trí (Menu, Trang chủ, Footer, Tạm ẩn) & Sắp xếp ↑/↓",
+            body: "Sắp xếp thứ tự bằng nút ↑/↓, tự động tạo slug tiếng Việt, chọn nơi hiển thị (Menu Sản phẩm, Trang chủ, Footer) hoặc Tạm ẩn danh mục rồi bấm '💾 Lưu tất cả thay đổi' một lần.",
+          },
+          {
+            heading: "Xem nhanh & Chuyển SP/Bài viết hàng loạt + SEO Danh mục",
+            body: "Bấm vào số '📦 X SP' hoặc '📝 X bài' để xổ danh sách bên trong, tick chọn nhiều mục để chuyển sang danh mục khác (hoặc '? Chưa phân loại'). Bấm '📝 SEO & Mô tả' để nhập Meta Title và đoạn giới thiệu đầu trang danh mục.",
+          },
+        ],
+      },
     ],
   },
   {

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getHomeCategoryProducts, getPosts, getProductCategories, url } from "@/lib/data";
+import { getHomeCategoryProducts, getHomeProductCategories, getPosts, url } from "@/lib/data";
 import { getFlashSaleDashboard } from "@/lib/flash-sale";
 import BlockZone from "@/components/BlockZone";
 import { FlashSaleShowcase } from "@/components/FlashSaleShowcase";
@@ -12,7 +12,7 @@ export const revalidate = 60;
 export default async function Home() {
   const [site, categories, posts, flashSale, categoryProductsMap] = await Promise.all([
     getSite(),
-    getProductCategories(),
+    getHomeProductCategories(),
     getPosts({ limit: 6 }),
     getFlashSaleDashboard(),
     getHomeCategoryProducts(4),
