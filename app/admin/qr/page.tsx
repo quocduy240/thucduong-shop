@@ -40,6 +40,21 @@ export default async function QrAdminPage({
         </div>
       </div>
 
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 text-xs text-emerald-950 space-y-1.5">
+        <div className="font-extrabold text-brand">📘 Quy trình 3 bước vận hành QR Động</div>
+        <div className="grid gap-2 sm:grid-cols-3 text-[11px] leading-relaxed">
+          <div>
+            <strong>Bước 1 — Tạo mã:</strong> Bấm <strong>+ Tạo QR Code mới</strong>, nhập tên, Link đích (Zalo/Sản phẩm/Bài viết) và chọn vị trí hiển thị tự động hoặc <code>[[qr:slug]]</code>.
+          </div>
+          <div>
+            <strong>Bước 2 — Nhúng &amp; In ấn:</strong> Bấm <strong>📥 Tải SVG</strong> để in tem/bao bì sắc nét, hoặc bấm <strong>📱 + Chèn QR Code</strong> trong trình soạn thảo bài viết/sản phẩm.
+          </div>
+          <div>
+            <strong>Bước 3 — Đổi link &amp; Đo quét:</strong> Sửa thẳng ô Link đích ngay bên dưới bất kỳ lúc nào mà không cần in lại mã QR. Xem chi tiết hơn tại <strong>📖 Cẩm nang Backend</strong> (góc phải trên).
+          </div>
+        </div>
+      </div>
+
       <div className="space-y-4">
         {qrCodes.map((qr) => {
           const posList = qr.positions

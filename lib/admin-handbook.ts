@@ -297,10 +297,10 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
     ],
   },
   {
-    id: "blocks-qr",
+    id: "blocks",
     routePrefix: "/admin/blocks/",
     icon: "🧩",
-    label: "Block thường dùng & QR Code Động",
+    label: "Block thường dùng (Content Blocks)",
     topics: [
       {
         id: "blocks-zones",
@@ -310,9 +310,70 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
             heading: "Vị trí tự động (BlockZone) & Shortcode",
             body: "Mỗi Block có thể gắn vào home_top, home_bottom, post_top, post_middle (sau H2 thứ 2), post_bottom, post_sidebar, product_top, product_bottom, product_sidebar hoặc chèn tay bằng [[block:slug]].",
           },
+        ],
+      },
+    ],
+  },
+  {
+    id: "qr",
+    routePrefix: "/admin/qr/",
+    icon: "📱",
+    label: "QR Code Động (QR_Block)",
+    topics: [
+      {
+        id: "qr-concept",
+        title: "1. QR Code Động hoạt động thế nào & Tại sao nên dùng?",
+        badge: "Cơ bản",
+        items: [
           {
-            heading: "QR Code Động (/admin/qr/)",
-            body: "Tạo mã QR gắn slug cố định [[qr:slug]]. Khi đổi link đích trong Quản trị QR, mọi bài viết và sản phẩm đang nhúng mã này tự cập nhật theo link mới.",
+            heading: "In 1 lần — Đổi link đích mãi mãi",
+            body: "Mỗi mã QR được gắn một đường dẫn trung gian cố định dạng /q/<slug>. Khi khách quét mã QR (trên web, hộp hàng hay tờ rơi), hệ thống tự cộng +1 lượt quét rồi chuyển ngay đến Link đích bạn cấu hình.",
+          },
+          {
+            heading: "Không bao giờ phải in lại tem/bao bì",
+            body: "Ví dụ: bạn in mã QR lên hộp Gạo Lứt trỏ về link khuyến mãi tháng 11. Sang tháng 12, chỉ cần vào /admin/qr/ sửa lại Link đích mới và bấm Lưu — toàn bộ hộp hàng đã in vẫn quét ra đúng trang mới.",
+          },
+        ],
+      },
+      {
+        id: "qr-create",
+        title: "2. Cách Tạo mới & Cấu hình từng bước (+ Tạo QR Code mới)",
+        badge: "Mới",
+        items: [
+          {
+            heading: "Bước 1: Tên riêng, Mã định danh (slug) & Link đích",
+            body: "Bấm '+ Tạo QR Code mới'. Nhập Tên riêng dễ nhớ (VD: QR Tư vấn Zalo), Link đích (VD: https://zalo.me/... hoặc /san-pham/...). Mã định danh (slug) tự tạo từ tên hoặc bạn tự đặt ngắn gọn không dấu.",
+          },
+          {
+            heading: "Bước 2: Màu sắc, Kiểu khung & Chú thích kêu gọi",
+            body: "Chọn màu mã QR (mặc định xanh đậm #14532d dễ quét nhất), kiểu khung (Xanh Thực dưỡng, Vàng Ấm Áp, Xanh Dương, Trắng Xám) và viết câu chú thích ngắn dưới mã QR (VD: 'Quét để đặt hàng nhanh / Nhận tài liệu').",
+          },
+          {
+            heading: "Bước 3: Chọn Vị trí hiển thị tự động trên Website",
+            body: "Tích chọn nơi muốn QR tự hiện: Đầu/Giữa/Cuối bài viết, Đầu/Cuối mô tả sản phẩm, Trang chủ, Khung Video Thư viện, hoặc Huy hiệu QR nhỏ ngay trên ảnh sản phẩm/bài viết. Nếu chỉ muốn tự chèn ở vài chỗ, chọn 'Chỉ chèn thủ công [[qr:slug]]'.",
+          },
+          {
+            heading: "Bước 4 (Tùy chọn): Chỉ định bài viết / sản phẩm cụ thể",
+            body: "Nếu muốn mã QR chỉ xuất hiện ở 1–2 sản phẩm hoặc bài viết nhất định, tích chọn chúng trong danh sách mục tiêu bên dưới trước khi bấm Lưu.",
+          },
+        ],
+      },
+      {
+        id: "qr-use",
+        title: "3. Cách nhúng vào Bài viết, In ấn bao bì & Sửa nhanh Link đích",
+        badge: "Mới",
+        items: [
+          {
+            heading: "Chèn vào Bài viết / Mô tả sản phẩm / Block",
+            body: "Trong trình soạn thảo nội dung, bấm nút '📱 + Chèn QR Code' để chọn mã QR hoặc gõ trực tiếp [[qr:slug]] vào vị trí mong muốn.",
+          },
+          {
+            heading: "Tải ảnh Vector (SVG) để in hộp hàng & tờ rơi",
+            body: "Ở danh sách /admin/qr/, bấm nút '📥 Tải SVG' bên dưới ảnh xem trước. File SVG phóng to bao nhiêu cũng không bị mờ/vỡ nét khi gửi nhà in.",
+          },
+          {
+            heading: "Đổi nhanh Link đích & Xem thống kê quét",
+            body: "Ngay tại danh sách /admin/qr/, sửa thẳng ô Link đích rồi bấm Lưu nhanh, bật/tắt trạng thái hoặc theo dõi badge '👁️ X quét' để biết kênh/tờ rơi nào hiệu quả nhất.",
           },
         ],
       },
@@ -365,7 +426,7 @@ export function findMatchingSectionId(pathname: string): string {
   ) {
     return "content";
   }
-  if (path.startsWith("/admin/qr/")) return "blocks-qr";
+  if (path.startsWith("/admin/qr/")) return "qr";
   if (path.startsWith("/admin/sitemaps/") || path.startsWith("/admin/themes/")) return "system-seo";
   return "dashboard";
 }
