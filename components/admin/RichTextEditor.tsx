@@ -36,6 +36,43 @@ export default function RichTextEditor({
   }, [html]);
 
   useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ html?: string; targetName?: string }>).detail;
+      const snippet = detail?.html;
+      if (!snippet) return;
+      if (detail?.targetName && detail.targetName !== name) return;
+
+      if (mode === "html") {
+        setHtml((prev) => (prev ? `${prev}\n${snippet}` : snippet));
+        setStatusMsg("Đã chèn ảnh vào mã HTML");
+        return;
+      }
+
+      const el = visualRef.current;
+      if (el) {
+        el.focus();
+        const sel = window.getSelection();
+        if (savedRangeRef.current && sel) {
+          sel.removeAllRanges();
+          sel.addRange(savedRangeRef.current);
+        }
+        const inserted = document.execCommand("insertHTML", false, snippet);
+        if (!inserted) {
+          el.innerHTML = `${el.innerHTML}${snippet}`;
+        }
+        const cleaned = sanitizeHtml(el.innerHTML);
+        setHtml(cleaned);
+        setStatusMsg("Đã chèn ảnh vào bài viết");
+      } else {
+        setHtml((prev) => (prev ? `${prev}\n${snippet}` : snippet));
+        setStatusMsg("Đã chèn ảnh vào bài viết");
+      }
+    };
+    window.addEventListener("td-rich-editor-insert", handler);
+    return () => window.removeEventListener("td-rich-editor-insert", handler);
+  }, [mode, name]);
+
+  useEffect(() => {
     if (visualRef.current && visualRef.current.innerHTML !== html) {
       // nosemgrep: typescript.react.security.audit.react-unsanitized-property.react-unsanitized-property
       visualRef.current.innerHTML = sanitizeHtml(html);

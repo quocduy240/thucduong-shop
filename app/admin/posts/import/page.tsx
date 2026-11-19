@@ -4,17 +4,19 @@ import PostImporterClient from "@/components/admin/PostImporterClient";
 import { PageHeader, ui } from "@/components/admin/ui";
 import { requireRole } from "@/lib/auth";
 import { getPostCategories, getProducts } from "@/lib/data";
+import { getCompliancePolicyConfig } from "@/lib/medical-compliance";
 import { getPostIdleWorkerSummary, listPostImportJobs } from "@/lib/post-importer";
 
 export const metadata = { title: "Nghiên cứu & Nhập Bài viết từ Link / YouTube | Quản trị" };
 
 export default async function PostImportPage() {
   await requireRole(["super_admin", "admin", "editor"]);
-  const [jobs, workerSummary, categories, products] = await Promise.all([
+  const [jobs, workerSummary, categories, products, compliancePolicy] = await Promise.all([
     listPostImportJobs(40),
     getPostIdleWorkerSummary(),
     getPostCategories(),
     getProducts(60),
+    getCompliancePolicyConfig(),
   ]);
 
   return (
@@ -28,6 +30,7 @@ export default async function PostImportPage() {
       <PostImporterClient
         initialJobs={jobs}
         initialSummary={workerSummary}
+        initialCompliance={compliancePolicy}
         categories={categories}
         products={products.map((p) => ({ id: p.id, name: p.name }))}
       />

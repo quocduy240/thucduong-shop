@@ -10,6 +10,7 @@ import type {
   PostResearchBrief,
   PostTonePreset,
 } from "@/lib/post-importer";
+import type { CompliancePolicyConfig } from "@/lib/medical-compliance";
 import RichTextEditor from "./RichTextEditor";
 
 type CategoryOption = { id: number; slug: string; section_slug: string; name: string };
@@ -34,19 +35,45 @@ function fmtEta(seconds: number): string {
   return rem > 0 ? `~${m} phút ${rem}s` : `~${m} phút`;
 }
 
+const CUSTOM_STANDARD_PRESETS: Array<{ label: string; prompt: string }> = [
+  {
+    label: "⚖️ Chuẩn Pháp luật VN + Google YMYL",
+    prompt:
+      "Viết lại toàn bài chặt chẽ theo Luật Quảng cáo & NĐ 15/2018/NĐ-CP Việt Nam kết hợp Google YMYL/E-E-A-T: bỏ mọi từ ngữ khẳng định chữa/trị/khỏi bệnh, giữ cân bằng Đông-Tây Y có dẫn chứng và lưu ý tham vấn bác sĩ.",
+  },
+  {
+    label: "🎓 Chuyên sâu Đông–Tây Y có dẫn chứng",
+    prompt:
+      "Nâng cấp giọng văn chuyên gia thực dưỡng hiện đại, phân tích rõ cơ chế sinh học Tây Y song song cân bằng Âm-Dương Đông Y, bổ sung bảng hướng dẫn thực hành theo từng thể trạng.",
+  },
+  {
+    label: "👵 Dễ hiểu cho người lớn tuổi & gia đình",
+    prompt:
+      "Viết lại mạch lạc, câu ngắn, gần gũi cho người lớn tuổi dễ đọc và áp dụng tại nhà, chia bước thực đơn rõ ràng, giữ nguyên tính khách quan khoa học.",
+  },
+  {
+    label: "🔍 Chuẩn SEO EEAT & Tỷ lệ giữ chân cao",
+    prompt:
+      "Tối ưu cấu trúc SEO với mở bài súc tích, các thẻ H2/H3 dạng câu hỏi thực tế, bullet dễ quét, FAQ cuối bài và chèn đủ bộ ảnh AI đúng ngữ cảnh từng mục.",
+  },
+];
+
 export default function PostImporterClient({
   initialJobs,
   initialSummary,
+  initialCompliance,
   categories,
   products,
 }: {
   initialJobs: PostImportJobRow[];
   initialSummary: PostIdleWorkerSummary;
+  initialCompliance: CompliancePolicyConfig;
   categories: CategoryOption[];
   products: ProductOption[];
 }) {
   const [jobs, setJobs] = useState<PostImportJobRow[]>(initialJobs);
   const [summary, setSummary] = useState<PostIdleWorkerSummary>(initialSummary);
+  const [compliance, setCompliance] = useState<CompliancePolicyConfig>(initialCompliance);
   const [activeJobId, setActiveJobId] = useState<number | null>(initialJobs[0]?.id ?? null);
 
   // Input form
@@ -80,6 +107,15 @@ export default function PostImporterClient({
   const [workerPaused, setWorkerPaused] = useState(false);
   const [busy, setBusy] = useState(false);
   const [regenKey, setRegenKey] = useState("");
+  const [syncingCompliance, setSyncingCompliance] = useState(false);
+  const [autoInserting, setAutoInserting] = useState(false);
+  const [rewritingCustom, setRewritingCustom] = useState(false);
+  const [standardPrompt, setStandardPrompt] = useState("");
+  const [undoSnapshot, setUndoSnapshot] = useState<{
+    title: string;
+    excerpt: string;
+    content_html: string;
+  } | null>(null);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
 
@@ -220,6 +256,7 @@ export default function PostImporterClient({
       }
       if (Array.isArray(d.jobs)) setJobs(d.jobs);
       if (d.workerSummary) setSummary(d.workerSummary);
+      if (d.compliancePolicy) setCompliance(d.compliancePolicy);
       if (d.job?.id) setActiveJobId(d.job.id);
       setMsg(okText);
       return d;
@@ -261,6 +298,88 @@ export default function PostImporterClient({
       }
     }
     setRegenKey("");
+  }
+
+  function insertImageAtCursor(imgUrl: string, altText: string) {
+    if (!imgUrl) return;
+    if (reviewTab !== "edit") setReviewTab("edit");
+    const safeAlt = altText.replace(/"/g, "&quot;");
+    const snippet = `<figure class="my-4"><img src="${imgUrl}" alt="${safeAlt}" class="w-full rounded-xl" /></figure>`;
+    setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent("td-rich-editor-insert", {
+          detail: { targetName: "review_content_html", html: snippet },
+        }),
+      );
+    }, 30);
+    setErr("");
+    setMsg(`✓ Đã chèn ảnh "${altText}" vào bài viết.`);
+  }
+
+  async function handleAutoInsertImages() {
+    if (!activeJob) return;
+    setAutoInserting(true);
+    const res = await callApi(
+      {
+        action: "auto_insert_images",
+        job_id: activeJob.id,
+        content_html: revContent,
+      },
+      "✓ Đã tự động phân bổ các ảnh AI còn thiếu vào đúng các mục H2 của bài viết!",
+    );
+    if (typeof res?.content_html === "string") {
+      setRevContent(res.content_html);
+      setEditorRevision((v) => v + 1);
+    }
+    setAutoInserting(false);
+  }
+
+  async function handleCustomRewrite() {
+    if (!activeJob) return;
+    if (!standardPrompt.trim()) {
+      setErr("Vui lòng chọn hoặc nhập tiêu chuẩn đề nghị trước khi viết lại toàn bài.");
+      return;
+    }
+    setUndoSnapshot({ title: revTitle, excerpt: revExcerpt, content_html: revContent });
+    setRewritingCustom(true);
+    const res = await callApi(
+      {
+        action: "custom_rewrite",
+        job_id: activeJob.id,
+        standard_prompt: standardPrompt.trim(),
+        title: revTitle,
+        excerpt: revExcerpt,
+        content_html: revContent,
+        category_id: revCategoryId,
+      },
+      "✓ Đã viết lại toàn bài theo chuẩn đề nghị & chèn đồng bộ bộ ảnh AI + kiểm tra tuân thủ!",
+    );
+    if (res?.draft) {
+      setRevTitle(res.draft.title || revTitle);
+      setRevExcerpt(res.draft.excerpt || revExcerpt);
+      setRevContent(res.draft.content_html || revContent);
+      setEditorRevision((v) => v + 1);
+    }
+    setRewritingCustom(false);
+  }
+
+  function handleUndoRewrite() {
+    if (!undoSnapshot) return;
+    setRevTitle(undoSnapshot.title);
+    setRevExcerpt(undoSnapshot.excerpt);
+    setRevContent(undoSnapshot.content_html);
+    setEditorRevision((v) => v + 1);
+    setUndoSnapshot(null);
+    setMsg("↩️ Đã hoàn tác về phiên bản trước khi viết lại.");
+  }
+
+  async function handleSyncCompliance() {
+    setSyncingCompliance(true);
+    await callApi(
+      { action: "sync_compliance" },
+      "✓ Đã đồng bộ bộ tiêu chuẩn Pháp luật Y tế VN + Google YMYL + YouTube mới nhất!",
+    );
+    setSyncingCompliance(false);
   }
 
   return (
@@ -341,6 +460,40 @@ export default function PostImporterClient({
             />
           </div>
         )}
+      </section>
+
+      {/* Legal & Policy Weekly Sync Status */}
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200/80 bg-emerald-50/40 px-4 py-3 text-xs">
+        <div className="space-y-0.5">
+          <div className="flex flex-wrap items-center gap-2 font-extrabold text-emerald-950">
+            <span>⚖️ Chuẩn Pháp luật Y tế VN + Google YMYL + YouTube</span>
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+              {compliance.version}
+            </span>
+          </div>
+          <p className="text-[11px] text-emerald-900/80">
+            Tự động cập nhật chạy ngầm mỗi tuần (7 ngày). Đồng bộ gần nhất:{" "}
+            <strong>
+              {compliance.last_synced_at
+                ? new Date(compliance.last_synced_at).toLocaleDateString("vi-VN")
+                : "Mặc định"}
+            </strong>{" "}
+            · Kế tiếp:{" "}
+            <strong>
+              {compliance.next_sync_at
+                ? new Date(compliance.next_sync_at).toLocaleDateString("vi-VN")
+                : "—"}
+            </strong>
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={busy || syncingCompliance}
+          onClick={handleSyncCompliance}
+          className="cursor-pointer rounded-xl border border-emerald-300 bg-white px-3 py-1.5 font-bold text-emerald-900 hover:bg-emerald-100 disabled:opacity-50"
+        >
+          {syncingCompliance ? "Đang cập nhật..." : "🔄 Cập nhật chuẩn ngay"}
+        </button>
       </section>
 
       {/* 1. Input Link / YouTube + Options */}
@@ -577,20 +730,30 @@ export default function PostImporterClient({
                 </div>
               )}
 
-              {/* Generated AI Images with Individual Regenerate */}
+              {/* Generated AI Images with Individual Regenerate & 1-click Insert */}
               {activeDraft && (activeDraft.cover || (activeDraft.images ?? []).length > 0) && (
                 <div className="rounded-xl border bg-gray-50 p-3.5 space-y-2.5">
-                  <div className="font-extrabold text-gray-900">
-                    🎨 Bộ ảnh AI đồng bộ Thực Dưỡng ({(activeDraft.cover ? 1 : 0) + (activeDraft.images?.length || 0)} ảnh)
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="font-extrabold text-gray-900">
+                      🎨 Bộ ảnh AI từ bài này ({(activeDraft.cover ? 1 : 0) + (activeDraft.images?.length || 0)} ảnh)
+                    </div>
+                    <button
+                      type="button"
+                      disabled={busy || autoInserting}
+                      onClick={handleAutoInsertImages}
+                      className="cursor-pointer rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-900 hover:bg-emerald-100 disabled:opacity-50"
+                    >
+                      {autoInserting ? "Đang chèn..." : "🖼️ Tự chèn bộ ảnh vào bài"}
+                    </button>
                   </div>
                   <div className="grid grid-cols-2 gap-2.5">
                     {activeDraft.cover && (
-                      <div className="space-y-1">
+                      <div className="space-y-1.5 rounded-lg border bg-white p-1.5">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={revCover || activeDraft.cover}
                           alt="Ảnh bìa AI"
-                          className="h-24 w-full rounded-lg border object-cover"
+                          className="h-24 w-full rounded border object-cover"
                         />
                         <div className="flex items-center justify-between gap-1">
                           <span className="text-[10px] font-bold text-brand">Ảnh bìa</span>
@@ -598,20 +761,29 @@ export default function PostImporterClient({
                             type="button"
                             disabled={busy}
                             onClick={() => handleRegenerateImage("cover", 0)}
-                            className="cursor-pointer rounded border bg-white px-1.5 py-0.5 text-[10px] font-bold text-gray-700 hover:bg-emerald-50 disabled:opacity-50"
+                            className="cursor-pointer rounded border bg-gray-50 px-1.5 py-0.5 text-[10px] font-bold text-gray-700 hover:bg-emerald-50 disabled:opacity-50"
                           >
                             {regenKey === "cover:0" ? "Đang vẽ..." : "🎨 Vẽ lại"}
                           </button>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            insertImageAtCursor(revCover || activeDraft.cover || "", revTitle || "Ảnh bìa thực dưỡng")
+                          }
+                          className="w-full cursor-pointer rounded border border-brand/30 bg-emerald-50/70 px-1.5 py-1 text-[10px] font-bold text-brand hover:bg-emerald-100"
+                        >
+                          📥 Chèn vào con trỏ
+                        </button>
                       </div>
                     )}
                     {(activeDraft.images ?? []).map((img, i) => (
-                      <div key={`${img}-${i}`} className="space-y-1">
+                      <div key={`${img}-${i}`} className="space-y-1.5 rounded-lg border bg-white p-1.5">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={img}
                           alt={`Ảnh minh hoạ ${i + 1}`}
-                          className="h-24 w-full rounded-lg border object-cover"
+                          className="h-24 w-full rounded border object-cover"
                         />
                         <div className="flex items-center justify-between gap-1">
                           <span className="text-[10px] text-gray-500">Minh hoạ #{i + 1}</span>
@@ -619,9 +791,31 @@ export default function PostImporterClient({
                             type="button"
                             disabled={busy}
                             onClick={() => handleRegenerateImage("section", i)}
-                            className="cursor-pointer rounded border bg-white px-1.5 py-0.5 text-[10px] font-bold text-gray-700 hover:bg-emerald-50 disabled:opacity-50"
+                            className="cursor-pointer rounded border bg-gray-50 px-1.5 py-0.5 text-[10px] font-bold text-gray-700 hover:bg-emerald-50 disabled:opacity-50"
                           >
                             {regenKey === `section:${i}` ? "Đang vẽ..." : "🎨 Vẽ lại"}
+                          </button>
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              insertImageAtCursor(img, `${revTitle || "Thực dưỡng"} - minh họa ${i + 1}`)
+                            }
+                            className="flex-1 cursor-pointer rounded border border-brand/30 bg-emerald-50/70 px-1.5 py-1 text-[10px] font-bold text-brand hover:bg-emerald-100"
+                          >
+                            📥 Chèn vào con trỏ
+                          </button>
+                          <button
+                            type="button"
+                            title="Đặt làm ảnh bìa bài viết"
+                            onClick={() => {
+                              setRevCover(img);
+                              setMsg(`⭐ Đã đặt ảnh minh hoạ #${i + 1} làm ảnh bìa.`);
+                            }}
+                            className="cursor-pointer rounded border bg-amber-50 px-1.5 py-1 text-[10px] font-bold text-amber-800 hover:bg-amber-100"
+                          >
+                            ⭐
                           </button>
                         </div>
                       </div>
@@ -728,6 +922,53 @@ export default function PostImporterClient({
                           defaultValue={revContent}
                           onChange={setRevContent}
                         />
+                      </div>
+
+                      {/* Custom Standard Full-Article Rewrite */}
+                      <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3.5 space-y-2.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="font-extrabold text-indigo-950">
+                            ✨ Viết lại toàn bài theo chuẩn đề nghị (Giữ nguyên &amp; lồng bộ ảnh AI của bài)
+                          </div>
+                          {undoSnapshot && (
+                            <button
+                              type="button"
+                              onClick={handleUndoRewrite}
+                              className="cursor-pointer rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-900 hover:bg-amber-100"
+                            >
+                              ↩️ Hoàn tác bản trước
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {CUSTOM_STANDARD_PRESETS.map((preset) => (
+                            <button
+                              key={preset.label}
+                              type="button"
+                              onClick={() => setStandardPrompt(preset.prompt)}
+                              className="cursor-pointer rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-indigo-900 hover:bg-indigo-100"
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <textarea
+                            rows={2}
+                            value={standardPrompt}
+                            onChange={(e) => setStandardPrompt(e.target.value)}
+                            placeholder="Nhập chuẩn bạn đề nghị (VD: Viết lại theo giọng bác sĩ thực dưỡng, lồng 3 bảng thực đơn, tuân thủ Nghị định 15 và Google YMYL)..."
+                            className="flex-1 rounded-xl border border-indigo-200 bg-white p-2.5 text-xs outline-none focus:border-indigo-500"
+                          />
+                          <button
+                            type="button"
+                            disabled={busy || rewritingCustom || !standardPrompt.trim()}
+                            onClick={handleCustomRewrite}
+                            className="cursor-pointer self-end rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-extrabold text-white hover:bg-indigo-700 disabled:opacity-50 sm:self-stretch"
+                          >
+                            {rewritingCustom ? "Đang viết lại..." : "✨ Viết lại toàn bài"}
+                          </button>
+                        </div>
                       </div>
 
                       {products.length > 0 && (

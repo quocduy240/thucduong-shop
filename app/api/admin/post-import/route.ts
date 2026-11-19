@@ -3,6 +3,11 @@ import { NextResponse } from "next/server";
 import { currentAdmin } from "@/lib/auth";
 import { run } from "@/lib/db";
 import {
+  getCompliancePolicyConfig,
+  syncCompliancePolicyWeekly,
+} from "@/lib/medical-compliance";
+import {
+  autoDistributeImagesInDraft,
   checkDuplicatePostUrl,
   clearPostSourceTrace,
   createPostImportJob,
@@ -11,6 +16,7 @@ import {
   listPostImportJobs,
   publishPostFromImportJob,
   regenerateSinglePostImage,
+  rewriteDraftWithCustomStandard,
   savePostImportReviewDraft,
   type PostTonePreset,
 } from "@/lib/post-importer";
@@ -35,11 +41,12 @@ export async function GET(req: Request) {
     }
   }
 
-  const [jobs, workerSummary] = await Promise.all([
+  const [jobs, workerSummary, compliancePolicy] = await Promise.all([
     listPostImportJobs(40),
     getPostIdleWorkerSummary(),
+    getCompliancePolicyConfig(),
   ]);
-  return NextResponse.json({ jobs, workerSummary });
+  return NextResponse.json({ jobs, workerSummary, compliancePolicy });
 }
 
 export async function POST(req: Request) {
@@ -123,6 +130,51 @@ export async function POST(req: Request) {
         getPostIdleWorkerSummary(),
       ]);
       return NextResponse.json({ ok: true, job, newImageUrl, jobs, workerSummary });
+    }
+
+    if (action === "auto_insert_images") {
+      const jobId = Number(b.job_id);
+      const contentHtml = String(b.content_html ?? "");
+      if (!jobId) return NextResponse.json({ error: "Thiếu job_id." }, { status: 400 });
+      const { job, content_html, insertedCount } = await autoDistributeImagesInDraft(jobId, contentHtml);
+      const [jobs, workerSummary] = await Promise.all([
+        listPostImportJobs(40),
+        getPostIdleWorkerSummary(),
+      ]);
+      return NextResponse.json({ ok: true, job, content_html, insertedCount, jobs, workerSummary });
+    }
+
+    if (action === "custom_rewrite") {
+      const jobId = Number(b.job_id);
+      const standardPrompt = String(b.standard_prompt ?? "").trim();
+      const currentTitle = String(b.title ?? "").trim();
+      const currentExcerpt = String(b.excerpt ?? "").trim();
+      const currentContentHtml = String(b.content_html ?? "").trim();
+      const categoryId = Number(b.category_id) || 1;
+      if (!jobId || !standardPrompt) {
+        return NextResponse.json(
+          { error: "Vui lòng nhập chuẩn hoặc yêu cầu viết lại bài." },
+          { status: 400 },
+        );
+      }
+      const { job, draft, policyAudit } = await rewriteDraftWithCustomStandard({
+        jobId,
+        standardPrompt,
+        currentTitle,
+        currentExcerpt,
+        currentContentHtml,
+        categoryId,
+      });
+      const [jobs, workerSummary] = await Promise.all([
+        listPostImportJobs(40),
+        getPostIdleWorkerSummary(),
+      ]);
+      return NextResponse.json({ ok: true, job, draft, policyAudit, jobs, workerSummary });
+    }
+
+    if (action === "sync_compliance") {
+      const res = await syncCompliancePolicyWeekly(true);
+      return NextResponse.json({ ok: true, compliancePolicy: res.config });
     }
 
     if (action === "publish") {

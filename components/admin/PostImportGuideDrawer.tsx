@@ -42,8 +42,13 @@ const TOPICS: GuideTopic[] = [
   },
   {
     id: "policy",
-    title: "3. Kiểm tra Chính sách Y tế Google (YMYL) & Cộng đồng YouTube",
+    title: "3. Tuân thủ Pháp luật Y tế VN, Google YMYL & YouTube (Cập nhật mỗi tuần)",
+    badge: "Mới",
     items: [
+      {
+        heading: "Tự động đồng bộ chuẩn mới mỗi 7 ngày",
+        body: "Hệ thống tự động chạy ngầm đồng bộ hàng tuần (7 ngày) các quy định hiện hành của Pháp luật Việt Nam (Luật Quảng cáo, Nghị định 15/2018/NĐ-CP, Thông tư 09/2015/TT-BYT) cùng chính sách Y tế Google (YMYL/E-E-A-T) và YouTube. Có thể bấm '🔄 Cập nhật chuẩn ngay' ở thanh trạng thái đầu trang.",
+      },
       {
         heading: "Tránh tuyên truyền thông tin y tế sai lệch",
         body: "Hệ thống tự động loại bỏ các cụm từ rủi ro (như 'chữa khỏi 100%', 'bỏ thuốc bác sĩ', 'thần dược'), chuyển sang ngôn ngữ khoa học chừng mực và tự thêm hộp Lưu ý chuyên môn cuối bài.",
@@ -56,20 +61,20 @@ const TOPICS: GuideTopic[] = [
   },
   {
     id: "editor-images",
-    title: "4. Cách dùng Trình soạn thảo, Tab So sánh & Vẽ lại Ảnh AI",
+    title: "4. Chèn ảnh AI vào con trỏ, Viết lại theo Chuẩn đề nghị & Vẽ lại ảnh",
     badge: "Mới",
     items: [
       {
-        heading: "Nút Review trong bảng Lịch sử",
-        body: "Bấm nút 'Review' ở bất kỳ bài nào trong bảng Lịch sử bên dưới để nạp bài đó lên khung Biên tập và tự động cuộn màn hình tới đúng vị trí chỉnh sửa.",
+        heading: "Chèn 1-click ảnh AI từ bài này vào đúng vị trí con trỏ",
+        body: "Ở cột Bộ ảnh AI bên trái, mỗi ảnh thuộc bài viết đang Review đều có nút '📥 Chèn vào con trỏ' để chèn thẳng vào đúng chỗ đang đặt con trỏ trong trình soạn thảo, nút '⭐' đặt làm ảnh bìa, và nút '🖼️ Tự chèn bộ ảnh vào bài' để tự phân bổ ảnh còn thiếu vào các mục H2.",
+      },
+      {
+        heading: "Viết lại toàn bài theo chuẩn đề nghị (giữ nguyên bộ ảnh AI)",
+        body: "Ngay dưới khung soạn thảo có bảng '✨ Viết lại toàn bài theo chuẩn đề nghị': chọn nhanh preset hoặc nhập chuẩn riêng của bạn, AI sẽ viết lại toàn bài dựa trên nội dung đang Review + nghiên cứu Đông–Tây Y và tự lồng lại bộ ảnh AI của bài. Có nút '↩️ Hoàn tác bản trước' nếu muốn quay lại.",
       },
       {
         heading: "3 Chế độ xem & Bộ công cụ Trực quan",
-        body: "Dùng thanh công cụ trực quan (B/I/U, H2/H3, Màu chữ, Highlight, Chèn ảnh, Chèn link, Chế độ Chia đôi/HTML) để sửa bài dễ như Google Docs. Chuyển sang tab '👁️ Xem trước bài viết' để xem giao diện thật hoặc '🔬 So sánh nguồn' để đối chiếu với tài liệu gốc.",
-      },
-      {
-        heading: "Vẽ lại riêng từng ảnh chưa ưng ý",
-        body: "Ở cột Bộ ảnh AI bên trái, nếu ảnh nào chưa hợp ý bạn, bấm nút '🎨 Vẽ lại' ngay dưới ảnh đó để AI tạo riêng ảnh mới mà không phải chạy lại cả bài.",
+        body: "Dùng thanh công cụ trực quan (B/I/U, H2/H3, Màu chữ, Highlight, Chèn ảnh, Chèn link, Chế độ Chia đôi/HTML) để sửa bài dễ như Google Docs. Bấm '🎨 Vẽ lại' dưới từng ảnh nếu muốn tạo lại riêng ảnh đó.",
       },
     ],
   },

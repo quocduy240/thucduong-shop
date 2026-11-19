@@ -2,6 +2,12 @@ import "server-only";
 import { all, one, run } from "./db";
 import { callGeminiGenerateContent, resolveGeminiApiKey } from "./gemini-key";
 import { saveMediaAsset } from "./media-assets";
+import {
+  applyAndAuditCompliance,
+  getCompliancePolicyConfig,
+  isComplianceSyncDue,
+  syncCompliancePolicyWeekly,
+} from "./medical-compliance";
 import { assertSafePublicHttpUrl } from "./security";
 import { getSite } from "./settings";
 
@@ -32,6 +38,7 @@ export type PolicyAuditResult = {
   safe: boolean;
   score: number;
   status_label: string;
+  policy_version?: string;
   fixed_issues: string[];
   warnings: string[];
 };
@@ -862,12 +869,18 @@ BẢN NGHIÊN CỨU:
         }
       }
 
-      // Sanitize any lingering risky medical claims automatically & run audit
-      draft.content_html = draft.content_html
-        .replace(/chữa\s*(?:khỏi|dứt\s*điểm)\s*(?:100%|hoàn\s*toàn)/gi, "hỗ trợ cải thiện tích cực")
-        .replace(/thần\s*dược/gi, "thực phẩm hỗ trợ quý giá");
+      let policy = await getCompliancePolicyConfig();
+      if (isComplianceSyncDue(policy)) {
+        const synced = await syncCompliancePolicyWeekly(false).catch(() => null);
+        if (synced?.config) policy = synced.config;
+      }
 
-      const policyAudit = checkMedicalPolicyCompliance(`${draft.title}\n${draft.content_html}`);
+      const { sanitizedHtml, audit: policyAudit } = applyAndAuditCompliance(
+        draft.title,
+        draft.content_html,
+        policy,
+      );
+      draft.content_html = sanitizedHtml;
       const totalImgs = Math.max(3, Math.min(5, research.image_prompts?.length || job.images_target || 4));
 
       await run(
@@ -1094,7 +1107,13 @@ export async function savePostImportReviewDraft(opts: {
     combo_title: (opts.comboTitle ?? prevDraft.combo_title ?? "").trim(),
   };
 
-  const policyAudit = checkMedicalPolicyCompliance(`${nextDraft.title}\n${nextDraft.content_html}`);
+  const policy = await getCompliancePolicyConfig();
+  const { sanitizedHtml, audit: policyAudit } = applyAndAuditCompliance(
+    nextDraft.title,
+    nextDraft.content_html,
+    policy,
+  );
+  nextDraft.content_html = sanitizedHtml;
   await run(
     `UPDATE post_import_jobs
      SET draft_json = ?, policy_audit_json = ?, updated_at = datetime('now')
@@ -1105,6 +1124,139 @@ export async function savePostImportReviewDraft(opts: {
   );
 
   return { job: (await getPostImportJobById(job.id))!, policyAudit };
+}
+
+export async function autoDistributeImagesInDraft(
+  jobId: number,
+  currentHtml: string,
+): Promise<{ job: PostImportJobRow; content_html: string; insertedCount: number }> {
+  await ensurePostImportSchema();
+  const job = await getPostImportJobById(jobId);
+  if (!job) throw new Error("Không tìm thấy phiên biên tập.");
+  const draft = JSON.parse(job.draft_json || "{}") as PostDraftPayload;
+  const missing = (draft.images || []).filter((u) => u && !currentHtml.includes(u));
+  if (missing.length === 0) {
+    return { job, content_html: currentHtml, insertedCount: 0 };
+  }
+  const updatedHtml = injectImagesIntoSections(currentHtml, missing);
+  draft.content_html = updatedHtml;
+  await run(
+    "UPDATE post_import_jobs SET draft_json = ?, updated_at = datetime('now') WHERE id = ?",
+    JSON.stringify(draft),
+    job.id,
+  );
+  return { job: (await getPostImportJobById(job.id))!, content_html: updatedHtml, insertedCount: missing.length };
+}
+
+export async function rewriteDraftWithCustomStandard(opts: {
+  jobId: number;
+  standardPrompt: string;
+  currentTitle: string;
+  currentExcerpt: string;
+  currentContentHtml: string;
+  categoryId: number;
+}): Promise<{ job: PostImportJobRow; draft: PostDraftPayload; policyAudit: PolicyAuditResult }> {
+  await ensurePostImportSchema();
+  const job = await getPostImportJobById(opts.jobId);
+  if (!job) throw new Error("Không tìm thấy phiên biên tập.");
+  const apiKey = await resolveGeminiApiKey();
+  if (!apiKey) throw new Error("Chưa cấu hình Gemini API Key trong Cài đặt.");
+
+  const site = await getSite();
+  let policy = await getCompliancePolicyConfig();
+  if (isComplianceSyncDue(policy)) {
+    const synced = await syncCompliancePolicyWeekly(false).catch(() => null);
+    if (synced?.config) policy = synced.config;
+  }
+
+  const prevDraft = JSON.parse(job.draft_json || "{}") as PostDraftPayload;
+  const research = JSON.parse(job.research_json || "{}") as Partial<PostResearchBrief>;
+  const prompts = research.image_prompts || [];
+
+  const availableImages = [
+    ...(prevDraft.cover ? [{ url: prevDraft.cover, desc: prompts[0]?.heading || "Ảnh bìa chính" }] : []),
+    ...(prevDraft.images || []).map((url, idx) => ({
+      url,
+      desc: prompts[idx + 1]?.heading || `Ảnh minh hoạ #${idx + 1}`,
+    })),
+  ];
+
+  const sectionImgList = (prevDraft.images || []).map((url, idx) => ({
+    url,
+    heading: prompts[idx + 1]?.heading || `Minh hoạ phần ${idx + 1}`,
+  }));
+
+  const rewritePrompt = `Bạn là Chuyên gia Thực Dưỡng Hiện Đại – Đông Tây Y kết hợp của "${site.name}".
+Hãy VIẾT LẠI TOÀN BỘ BÀI VIẾT dựa trên:
+1. Nội dung hiện tại đang review bên dưới.
+2. Bản nghiên cứu khoa học trung gian (Đông – Tây Y).
+3. CHUẨN / YÊU CẦU RIÊNG DO QUẢN TRỊ VIÊN ĐỀ NGHỊ: "${opts.standardPrompt}"
+4. BỘ TÀI NGUYÊN ẢNH AI ĐÃ TẠO CHO BÀI NÀY (chỉ dùng đúng URL nội bộ bên dưới, TUYỆT ĐỐI không bịa URL ngoài, chèn thẻ <figure class="my-4"><img src="URL" alt="Mô tả phù hợp" class="w-full rounded-xl" /></figure> vào đúng các mục <h2> tương ứng ngữ nghĩa trong bài):
+${sectionImgList.map((im, i) => `- Ảnh ${i + 1} (${im.heading}): ${im.url}`).join("\n") || "(Chưa có ảnh minh hoạ phụ)"}
+
+5. TUÂN THỦ NGHIÊM NGẶT PHÁP LUẬT VIỆT NAM, GOOGLE YMYL & YOUTUBE Y TẾ (${policy.version}):
+${policy.vn_law_summary.map((s) => `- ${s}`).join("\n")}
+${policy.youtube_policy_summary.map((s) => `- ${s}`).join("\n")}
+
+Trả về DUY NHẤT 1 JSON object hợp lệ:
+{
+  "title": string (tiêu đề mới chuẩn SEO & pháp luật),
+  "excerpt": string (tóm tắt 2 câu <= 240 ký tự),
+  "content_html": string (bài viết HTML mới hoàn toàn đã lồng ghép các ảnh AI vào vị trí thích hợp)
+}
+
+NỘI DUNG ĐANG REVIEW HIỆN TẠI:
+- Tiêu đề: ${opts.currentTitle}
+- Tóm tắt: ${opts.currentExcerpt}
+- Nội dung: ${opts.currentContentHtml.slice(0, 9000)}
+
+BẢN NGHIÊN CỨU TRUNG GIAN:
+- Luận điểm: ${JSON.stringify(research.core_points || [])}
+- Tây y: ${research.western_medicine_view || ""}
+- Đông y & Thực dưỡng: ${research.eastern_macrobiotic_view || ""}`;
+
+  const res = await callGeminiGenerateContent(apiKey, {
+    contents: [{ role: "user", parts: [{ text: rewritePrompt }] }],
+    generationConfig: { temperature: 0.4, responseMimeType: "application/json" },
+  });
+  const json = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  const txt = (json.candidates?.[0]?.content?.parts?.[0]?.text ?? "")
+    .replace(/^```json\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+  const parsed = JSON.parse(txt) as Partial<PostDraftPayload>;
+
+  let nextHtml = String(parsed.content_html || opts.currentContentHtml).trim();
+  // Ensure every section AI image appears at least once in an appropriate section if missed by LLM
+  const missingImgs = (prevDraft.images || []).filter((u) => u && !nextHtml.includes(u));
+  if (missingImgs.length > 0) {
+    nextHtml = injectImagesIntoSections(nextHtml, missingImgs);
+  }
+
+  const nextTitle = String(parsed.title || opts.currentTitle).trim().slice(0, 220);
+  const { sanitizedHtml, audit: policyAudit } = applyAndAuditCompliance(nextTitle, nextHtml, policy);
+
+  const nextDraft: PostDraftPayload = {
+    ...prevDraft,
+    title: nextTitle,
+    excerpt: String(parsed.excerpt || opts.currentExcerpt).trim().slice(0, 300),
+    content_html: sanitizedHtml,
+    category_id: opts.categoryId || prevDraft.category_id || 1,
+    images: prevDraft.images || availableImages.slice(1).map((a) => a.url),
+  };
+
+  await run(
+    `UPDATE post_import_jobs
+     SET draft_json = ?, policy_audit_json = ?, updated_at = datetime('now')
+     WHERE id = ?`,
+    JSON.stringify(nextDraft),
+    JSON.stringify(policyAudit),
+    job.id,
+  );
+
+  return { job: (await getPostImportJobById(job.id))!, draft: nextDraft, policyAudit };
 }
 
 export async function regenerateSinglePostImage(opts: {

@@ -285,12 +285,12 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
         badge: "Mới",
         items: [
           {
-            heading: "Lấy bài Web hoặc Transcript YouTube & Nghiên cứu Đông–Tây Y",
-            body: "Vào /admin/posts/ bấm '🌐 Nhập Bài từ Link / YouTube'. Dán link bài hay hoặc link YouTube (có thể thêm 1–2 link tham khảo phụ). Worker chạy ngầm tự lấy lời nói/văn bản, lập Bản nghiên cứu trung gian Đông–Tây Y và chấm điểm tuân thủ chính sách y tế Google/YouTube (YMYL).",
+            heading: "Lấy bài Web hoặc Transcript YouTube & Tuân thủ Pháp luật VN / Google / YouTube",
+            body: "Vào /admin/posts/ bấm '🌐 Nhập Bài từ Link / YouTube'. Hệ thống tự chạy ngầm lấy văn bản/Transcript, nghiên cứu Đông–Tây Y và tự động cập nhật mỗi tuần (7 ngày) chuẩn Pháp luật Y tế & Quảng cáo Việt Nam (Luật Quảng cáo, NĐ 15/2018, TT 09/2015) cùng Google YMYL & YouTube. Có thể bấm '🔄 Cập nhật chuẩn ngay' ở thanh trạng thái.",
           },
           {
-            heading: "Tự tạo 3–5 ảnh AI, Review bằng Trình soạn thảo & Vẽ lại từng ảnh",
-            body: "AI viết lại thành bài độc bản 100%, tự sinh 3–5 ảnh mang phong cách Thực Dưỡng Phúc Thọ. Bấm 'Review' ở bảng lịch sử để cuộn lên khung Biên tập Trực quan (đầy đủ B/I/U, màu chữ, chèn ảnh, tab Xem trước, Đối chiếu nguồn gốc). Có thể bấm '🎨 Vẽ lại' từng ảnh hoặc '💾 Lưu nháp & Chấm điểm Y tế' trước khi bấm '🚀 Xuất bản vào Chuyên mục'.",
+            heading: "Chèn ảnh AI 1-click & Viết lại toàn bài theo chuẩn đề nghị",
+            body: "Ở cột Bộ ảnh AI bên trái, bấm '📥 Chèn vào con trỏ' để chèn ảnh đúng vị trí con trỏ, '⭐' đặt làm bìa, hoặc '🖼️ Tự chèn bộ ảnh vào bài'. Ngay dưới khung biên tập có bảng '✨ Viết lại toàn bài theo chuẩn đề nghị' (chọn preset hoặc nhập chuẩn riêng) để viết lại toàn bài từ nội dung đang review + giữ bộ ảnh AI của bài, kèm nút '↩️ Hoàn tác bản trước'.",
           },
         ],
       },
