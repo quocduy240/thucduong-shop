@@ -264,6 +264,7 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
             inputName="image"
             defaultPreset="800x800"
             label="🖼️ Ảnh đại diện chính sản phẩm & Tuỳ biến kích thước (Đa nguồn)"
+            allowTextBanner={false}
           />
           <ProductGalleryStudio
             defaultGallery={p?.gallery ?? ""}

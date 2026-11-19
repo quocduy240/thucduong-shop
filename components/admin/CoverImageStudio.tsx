@@ -17,11 +17,13 @@ export default function CoverImageStudio({
   inputName = "cover",
   defaultPreset = "1200x675",
   label = "🖼️ Ảnh đại diện bài viết & Tuỳ biến kích thước (Đa nguồn)",
+  allowTextBanner = true,
 }: {
   defaultCover?: string;
   inputName?: string;
   defaultPreset?: string;
   label?: string;
+  allowTextBanner?: boolean;
 }) {
   const [coverUrl, setCoverUrl] = useState(defaultCover);
   const [sourceTab, setSourceTab] = useState<"upload" | "url" | "ai">("upload");
@@ -365,30 +367,29 @@ export default function CoverImageStudio({
           <button
             type="button"
             onClick={() => setSourceTab("upload")}
-            className={`rounded-lg px-3 py-1.5 transition ${
-              sourceTab === "upload" ? "bg-brand text-white shadow-xs" : "text-gray-600 hover:text-brand"
-            }`}
+            className={`rounded-lg px-3 py-1.5 transition ${sourceTab === "upload" ? "bg-brand text-white shadow-xs" : "text-gray-600 hover:text-brand"
+              }`}
           >
             📤 Máy tính / Ctrl+V
           </button>
           <button
             type="button"
             onClick={() => setSourceTab("url")}
-            className={`rounded-lg px-3 py-1.5 transition ${
-              sourceTab === "url" ? "bg-brand text-white shadow-xs" : "text-gray-600 hover:text-brand"
-            }`}
+            className={`rounded-lg px-3 py-1.5 transition ${sourceTab === "url" ? "bg-brand text-white shadow-xs" : "text-gray-600 hover:text-brand"
+              }`}
           >
             🔗 Từ Link URL / Drive
           </button>
-          <button
-            type="button"
-            onClick={() => setSourceTab("ai")}
-            className={`rounded-lg px-3 py-1.5 transition ${
-              sourceTab === "ai" ? "bg-brand text-white shadow-xs" : "text-gray-600 hover:text-brand"
-            }`}
-          >
-            ✨ Tạo ảnh bằng AI
-          </button>
+          {allowTextBanner && (
+            <button
+              type="button"
+              onClick={() => setSourceTab("ai")}
+              className={`rounded-lg px-3 py-1.5 transition ${sourceTab === "ai" ? "bg-brand text-white shadow-xs" : "text-gray-600 hover:text-brand"
+                }`}
+            >
+              🎨 Tạo Banner chữ nhanh
+            </button>
+          )}
         </div>
       </div>
 
@@ -517,10 +518,10 @@ export default function CoverImageStudio({
             </div>
           )}
 
-          {sourceTab === "ai" && (
+          {allowTextBanner && sourceTab === "ai" && (
             <div className="space-y-2.5">
               <div className="text-xs text-gray-700">
-                <strong>✨ Thiết kế Ảnh đại diện tự động theo Ngữ cảnh bài viết:</strong> Hệ thống sẽ đọc <em>Tiêu đề</em> và <em>Mô tả ngắn</em> của bài viết để tạo ngay ảnh Banner chuẩn SEO (có tiêu đề nổi bật, thương hiệu Thực Dưỡng Phúc Thọ &amp; kích thước đúng chuẩn).
+                <strong>🎨 Tạo Banner chữ nhanh theo tiêu đề bài viết:</strong> Hệ thống tự ghép tiêu đề và mô tả ngắn lên nền thương hiệu Thực Dưỡng Phúc Thọ (phù hợp làm thumbnail bài blog).
               </div>
               <button
                 type="button"
@@ -528,7 +529,7 @@ export default function CoverImageStudio({
                 onClick={handleGenerateAiCover}
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand to-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow hover:opacity-95 disabled:opacity-50"
               >
-                ✨ {busy ? "Đang khởi tạo..." : "Tạo Ảnh Đại Diện AI Theo Ngữ Cảnh Bài Viết"}
+                🎨 {busy ? "Đang khởi tạo..." : "Tạo Banner Chữ Cho Bài Viết"}
               </button>
             </div>
           )}
@@ -561,17 +562,16 @@ export default function CoverImageStudio({
                 className="w-full rounded-lg bg-gradient-to-r from-indigo-600 to-brand px-3 py-1.5 text-[11px] font-bold text-white shadow-xs hover:opacity-95 cursor-pointer"
               >
                 {aiBgState.busy
-                  ? "⏳ AI đang tạo ảnh ngầm... (Bấm để mở)"
-                  : "🎨 Tạo lại ảnh này bằng Gemini AI Image"}
+                  ? "⏳ AI đang xử lý ảnh ngầm... (Bấm để mở)"
+                  : "✨ Làm sạch / Đổi nền ảnh bằng Gemini AI"}
               </button>
 
               {(aiBgState.busy || (!trayDismissed && aiBgState.variants.length > 0)) && (
                 <div
-                  className={`rounded-xl border p-2.5 space-y-2 ${
-                    aiBgState.busy
-                      ? "border-amber-300 bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md"
-                      : "border-emerald-300 bg-emerald-50 text-emerald-950"
-                  }`}
+                  className={`rounded-xl border p-2.5 space-y-2 ${aiBgState.busy
+                    ? "border-amber-300 bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md"
+                    : "border-emerald-300 bg-emerald-50 text-emerald-950"
+                    }`}
                 >
                   <div className="flex items-center justify-between gap-2 text-[11px]">
                     <span className="flex items-center gap-1.5 font-extrabold">
@@ -592,11 +592,10 @@ export default function CoverImageStudio({
                       <button
                         type="button"
                         onClick={() => setAiModalOpen(true)}
-                        className={`cursor-pointer rounded px-2 py-0.5 font-bold ${
-                          aiBgState.busy
-                            ? "bg-white/20 text-white hover:bg-white/30"
-                            : "border border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-100"
-                        }`}
+                        className={`cursor-pointer rounded px-2 py-0.5 font-bold ${aiBgState.busy
+                          ? "bg-white/20 text-white hover:bg-white/30"
+                          : "border border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-100"
+                          }`}
                       >
                         Mở Studio
                       </button>
@@ -618,9 +617,8 @@ export default function CoverImageStudio({
                         return (
                           <div
                             key={v.url}
-                            className={`rounded-lg border bg-white p-1.5 space-y-1 ${
-                              isSelected ? "border-emerald-500 ring-1 ring-emerald-400" : "border-gray-200"
-                            }`}
+                            className={`rounded-lg border bg-white p-1.5 space-y-1 ${isSelected ? "border-emerald-500 ring-1 ring-emerald-400" : "border-gray-200"
+                              }`}
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={v.url} alt={v.name} className="h-20 w-full rounded object-cover" />
@@ -630,11 +628,10 @@ export default function CoverImageStudio({
                                 setCoverUrl(v.url);
                                 setMsg("✨ Đã chọn ảnh AI vừa tạo làm ảnh đại diện!");
                               }}
-                              className={`w-full cursor-pointer rounded px-2 py-1 text-[10px] font-bold ${
-                                isSelected
-                                  ? "bg-emerald-600 text-white"
-                                  : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-                              }`}
+                              className={`w-full cursor-pointer rounded px-2 py-1 text-[10px] font-bold ${isSelected
+                                ? "bg-emerald-600 text-white"
+                                : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                                }`}
                             >
                               {isSelected ? "✓ Đang chọn" : "✓ Chọn dùng"}
                             </button>
@@ -675,9 +672,8 @@ export default function CoverImageStudio({
 
       {(msg || err) && (
         <div
-          className={`rounded-lg px-3 py-2 text-xs font-medium ${
-            err ? "bg-red-50 text-red-700" : "bg-green-50 text-brand"
-          }`}
+          className={`rounded-lg px-3 py-2 text-xs font-medium ${err ? "bg-red-50 text-red-700" : "bg-green-50 text-brand"
+            }`}
         >
           {err || msg}
         </div>
