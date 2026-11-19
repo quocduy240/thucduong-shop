@@ -56,8 +56,27 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
             body: "Khi chuyển đơn sang 'done', hệ thống tự cộng điểm thưởng cho thành viên (nếu có tài khoản) và đưa đơn vào hàng chờ CRM Automation (+3 ngày hướng dẫn dùng, +25 ngày nhắc mua lại).",
           },
           {
-            heading: "Xuất CSV đối soát",
-            body: "Dùng nút Xuất CSV trên trang Đơn hàng để tải danh sách đơn về Excel kiểm tra doanh thu và đối soát vận chuyển.",
+            heading: "Xuất CSV đối soát & Xuất chuẩn KiotViet",
+            body: "Dùng nút Xuất CSV trên trang Đơn hàng để tải danh sách đơn về Excel, hoặc bấm '🔗 Xuất CSV KiotViet' để xuất file đúng chuẩn Import của KiotViet.",
+          },
+        ],
+      },
+      {
+        id: "orders-pos-inventory-kiotviet",
+        title: "2. Bán hàng POS, Kho & Thẻ kho, Vận đơn COD & Kết nối KiotViet",
+        badge: "Mới",
+        items: [
+          {
+            heading: "Bán hàng nhanh tại quầy / Telesale (/admin/pos/)",
+            body: "Chọn nhanh sản phẩm theo tên hoặc mã SKU, điều chỉnh số lượng, nhập giảm giá, thông tin khách hàng và tạo đơn ngay — hệ thống tự động trừ kho, ghi Thẻ kho và ghi Phiếu Thu vào Sổ quỹ.",
+          },
+          {
+            heading: "Quản lý Kho hàng, Giá vốn, Thẻ kho & Sổ quỹ (/admin/inventory/)",
+            body: "Theo dõi giá trị tồn kho, sản phẩm sắp hết (1–5), lập Phiếu Nhập hàng NCC (cập nhật giá vốn + cộng kho + ghi Phiếu Chi), Kiểm kho thực tế và quản lý Sổ quỹ Thu – Chi.",
+          },
+          {
+            heading: "Vận đơn COD & Đẩy đơn sang KiotViet (/admin/orders/[id]/ & /admin/kiotviet/)",
+            body: "Cập nhật ĐVVC (GHN, GHTK, Viettel Post...), Mã vận đơn, Phí ship và tiền thu hộ COD ngay trong chi tiết đơn. Cấu hình ClientId/Secret/Retailer tại /admin/kiotviet/ để đẩy đơn sang KiotViet 1 chạm và nhận Webhook đồng bộ tồn kho theo SKU.",
           },
         ],
       },

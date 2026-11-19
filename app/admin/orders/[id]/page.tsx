@@ -4,8 +4,9 @@ import { Flash, PageHeader, StatusBadge, ui } from "@/components/admin/ui";
 import PrintButton from "@/components/admin/PrintButton";
 import { ORDER_STATUS, getOrder } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/auth";
+import { getOrderShippingInfo } from "@/lib/retail-ops";
 import { vnd } from "@/lib/site";
-import { updateOrderStatusAction } from "../../actions";
+import { pushOrderKiotVietAction, saveOrderShippingAction, updateOrderStatusAction } from "../../actions";
 
 export const metadata = { title: "Chi tiết đơn | Quản trị" };
 
@@ -13,7 +14,10 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
   await requireAdmin();
   const id = Number((await params).id);
   const sp = await searchParams;
-  const data = Number.isInteger(id) ? await getOrder(id) : undefined;
+  const [data, ship] = await Promise.all([
+    Number.isInteger(id) ? getOrder(id) : Promise.resolve(undefined),
+    Number.isInteger(id) ? getOrderShippingInfo(id) : Promise.resolve(undefined),
+  ]);
   if (!data) notFound();
   const { order: o, items } = data;
 
@@ -68,6 +72,98 @@ export default async function OrderDetail({ params, searchParams }: PageProps<"/
           </tbody>
           <tfoot><tr className="border-t bg-gray-50"><td colSpan={3} className={`${ui.td} text-right font-semibold`}>Tổng cộng</td><td className={`${ui.td} text-right text-lg font-bold text-accent`}>{vnd(o.total)}</td></tr></tfoot>
         </table>
+      </div>
+
+      {/* Shipping / COD & KiotViet Sync Cards (Chuẩn KiotViet) */}
+      <div className="mt-4 grid gap-4 md:grid-cols-2 print:hidden">
+        <form action={saveOrderShippingAction} className={`${ui.card} p-5 space-y-3`}>
+          <input type="hidden" name="id" value={o.id} />
+          <h2 className="text-sm font-bold text-gray-900">🚚 Vận đơn &amp; Đối soát COD</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={ui.label}>Đơn vị vận chuyển</label>
+              <select name="shipping_carrier" defaultValue={ship?.shipping_carrier ?? ""} className={ui.input}>
+                <option value="">-- Chọn ĐVVC --</option>
+                <option value="GHN">Giao Hàng Nhanh (GHN)</option>
+                <option value="GHTK">Giao Hàng Tiết Kiệm (GHTK)</option>
+                <option value="Viettel Post">Viettel Post</option>
+                <option value="J&T">J&amp;T Express</option>
+                <option value="Giao nội bộ">Giao nội bộ / Khách lấy</option>
+              </select>
+            </div>
+            <div>
+              <label className={ui.label}>Trạng thái vận đơn</label>
+              <select name="shipping_status" defaultValue={ship?.shipping_status ?? ""} className={ui.input}>
+                <option value="">Chưa tạo vận đơn</option>
+                <option value="pending">Chờ lấy hàng</option>
+                <option value="picked">Đã lấy hàng</option>
+                <option value="shipping">Đang giao hàng</option>
+                <option value="delivered">Giao thành công</option>
+                <option value="returned">Hoàn hàng</option>
+              </select>
+            </div>
+            <div>
+              <label className={ui.label}>Mã vận đơn</label>
+              <input
+                name="tracking_code"
+                defaultValue={ship?.tracking_code ?? ""}
+                placeholder="VD: GHN839201"
+                className={`${ui.input} font-mono text-xs`}
+              />
+            </div>
+            <div>
+              <label className={ui.label}>Phí ship trả ĐVVC (VNĐ)</label>
+              <input
+                name="shipping_fee"
+                type="number"
+                min={0}
+                defaultValue={ship?.shipping_fee ?? 0}
+                className={ui.input}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={ui.label}>Tiền thu hộ COD (VNĐ)</label>
+              <input
+                name="cod_amount"
+                type="number"
+                min={0}
+                defaultValue={ship?.cod_amount || (o.payment === "cod" ? o.total : 0)}
+                className={ui.input}
+              />
+            </div>
+          </div>
+          <button className={ui.primary}>💾 Lưu Vận đơn</button>
+        </form>
+
+        <div className={`${ui.card} p-5 flex flex-col justify-between space-y-3`}>
+          <div className="space-y-2">
+            <h2 className="text-sm font-bold text-gray-900">🔗 Đồng bộ sang KiotViet</h2>
+            {ship?.kiotviet_code ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+                <div>✓ Đã đẩy sang KiotViet</div>
+                <div className="mt-1 font-mono font-bold">
+                  Mã KiotViet: {ship.kiotviet_code} (ID: {ship.kiotviet_order_id})
+                </div>
+                <div className="text-[11px] text-emerald-700">Lúc: {ship.kiotviet_synced_at}</div>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">
+                Chuyển trực tiếp đơn hàng này sang KiotViet qua Public API (khớp theo SKU sản phẩm).
+              </p>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <form action={pushOrderKiotVietAction}>
+              <input type="hidden" name="id" value={o.id} />
+              <button type="submit" className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 cursor-pointer">
+                🚀 {ship?.kiotviet_code ? "Đẩy lại sang KiotViet" : "Đẩy đơn sang KiotViet"}
+              </button>
+            </form>
+            <Link href="/admin/kiotviet/" prefetch={false} className={ui.secondary}>
+              ⚙️ Cấu hình KiotViet
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

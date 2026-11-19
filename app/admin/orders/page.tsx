@@ -124,6 +124,12 @@ export default async function OrdersAdmin({ searchParams }: PageProps<"/admin/or
   return (
     <div className="mx-auto max-w-6xl space-y-4">
       <PageHeader title="Đơn hàng">
+        <Link href="/admin/pos/" prefetch={false} className={ui.primary}>
+          🛒 Lên đơn nhanh (POS)
+        </Link>
+        <a href="/admin/orders/export-kiotviet/" className={ui.secondary}>
+          🔗 Xuất CSV KiotViet
+        </a>
         <a href={buildHref({}, "/admin/orders/export")} className={ui.secondary}>
           ⬇ Xuất CSV {hasActiveFilters || status ? "(theo bộ lọc)" : ""}
         </a>

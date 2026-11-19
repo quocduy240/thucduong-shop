@@ -74,7 +74,9 @@ const EDITOR_ALLOWED_PREFIXES = [
 ];
 
 const SALES_ALLOWED_PREFIXES = [
+  "/admin/pos/",
   "/admin/orders/",
+  "/admin/inventory/",
   "/admin/products/",
   "/admin/flash-sale/",
   "/admin/crm/",

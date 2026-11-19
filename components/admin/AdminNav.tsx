@@ -19,12 +19,15 @@ const GROUPS: NavGroup[] = [
     label: "Bán hàng & Khách hàng",
     icon: "🛍️",
     items: [
+      { href: "/admin/pos/", label: "Bán hàng (POS)", icon: "🛒" },
       { href: "/admin/orders/", label: "Đơn hàng", icon: "🧾" },
+      { href: "/admin/inventory/", label: "Kho & Sổ quỹ", icon: "📦" },
       { href: "/admin/products/", label: "Sản phẩm", icon: "🛍️" },
       { href: "/admin/flash-sale/", label: "Giờ vàng săn sale", icon: "⚡" },
       { href: "/admin/crm/", label: "CRM Chăm sóc", icon: "💎" },
       { href: "/admin/loyalty/", label: "Tích điểm & Quà", icon: "🎁" },
       { href: "/admin/members/", label: "Thành viên & Email", icon: "👥" },
+      { href: "/admin/kiotviet/", label: "Kết nối KiotViet", icon: "🔗" },
     ],
   },
   {
