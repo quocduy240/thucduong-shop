@@ -586,23 +586,28 @@ export default function ProductImporterClient({
           <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
             <div className="space-y-3">
               <div className="rounded-xl border bg-gray-50/70 p-4 space-y-2">
-                <div className="text-base font-extrabold text-gray-900">{activeDraft.name}</div>
+                <div className="text-base font-extrabold text-gray-900">
+                  {activeDraft.name || activeJob.product_name || `Phiên #${activeJob.id}`}
+                </div>
                 <div className="flex flex-wrap gap-3 text-xs">
                   <span className="font-bold text-brand">
-                    Giá: {activeDraft.price > 0 ? `${activeDraft.price.toLocaleString("vi-VN")}đ` : "Liên hệ"}
+                    Giá:{" "}
+                    {Number(activeDraft.price) > 0
+                      ? `${Number(activeDraft.price).toLocaleString("vi-VN")}đ`
+                      : "Liên hệ"}
                   </span>
                   {activeDraft.brand && <span className="text-gray-600">Thương hiệu: {activeDraft.brand}</span>}
                   {activeDraft.sku && <span className="text-gray-600">SKU: {activeDraft.sku}</span>}
-                  <span className="text-gray-600">Ảnh lấy được: {activeDraft.images.length}</span>
+                  <span className="text-gray-600">Ảnh lấy được: {(activeDraft.images ?? []).length}</span>
                 </div>
                 {activeDraft.summary && (
                   <p className="text-xs leading-relaxed text-gray-700">{activeDraft.summary}</p>
                 )}
               </div>
 
-              {activeDraft.images.length > 0 && (
+              {(activeDraft.images ?? []).length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {activeDraft.images.map((img, i) => (
+                  {(activeDraft.images ?? []).map((img, i) => (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       key={`${img}-${i}`}
@@ -614,9 +619,11 @@ export default function ProductImporterClient({
                 </div>
               )}
 
-              <div className="max-h-60 overflow-y-auto rounded-xl border bg-white p-4 text-xs prose-content">
-                <div dangerouslySetInnerHTML={{ __html: activeDraft.description_html }} />
-              </div>
+              {activeDraft.description_html && (
+                <div className="max-h-60 overflow-y-auto rounded-xl border bg-white p-4 text-xs prose-content">
+                  <div dangerouslySetInnerHTML={{ __html: activeDraft.description_html }} />
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">
