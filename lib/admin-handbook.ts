@@ -81,6 +81,10 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
             heading: "Nhúng Block & Video YouTube vào mô tả",
             body: "Trong trình soạn thảo mô tả sản phẩm, bấm các nút '+ Chèn Block', '+ Chèn QR', '+ Chèn MXH & Sàn' hoặc '+ Chèn Gói/Set' để tăng tỷ lệ chuyển đổi.",
           },
+          {
+            heading: "Viết lại mô tả bằng AI & Lọc sạch dấu vết trang nguồn (Mới)",
+            body: "Ngay cuối khung Mô tả sản phẩm có nút '✨ Viết lại bằng AI' kèm nút '⚙️ Cấu hình cách viết': tự động lọc bỏ số điện thoại/Zalo cũ, nút mua hàng web nguồn, và tên miền trang web khác (tự nhận diện domain nguồn nếu SP được nhập từ link), viết lại chuẩn Thực dưỡng & YMYL kèm nút '↩️ Hoàn tác bản cũ'.",
+          },
         ],
       },
       {

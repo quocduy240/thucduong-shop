@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import ContentEditor from "@/components/admin/ContentEditor";
 import CoverImageStudio from "@/components/admin/CoverImageStudio";
+import ProductDescriptionAiPanel from "@/components/admin/ProductDescriptionAiPanel";
 import ProductGalleryStudio from "@/components/admin/ProductGalleryStudio";
 import ProductSourceNoteBanner from "@/components/admin/ProductSourceNoteBanner";
 import { getProductById, getProductCategories, getProducts, url } from "@/lib/data";
@@ -286,6 +287,10 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
             name="description"
             defaultValue={p?.description ?? ""}
             products={products}
+          />
+          <ProductDescriptionAiPanel
+            targetName="description"
+            sourceUrl={sourceRow?.source_url ?? ""}
           />
         </section>
 

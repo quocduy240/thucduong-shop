@@ -185,9 +185,21 @@ export default function ContentEditor({
         });
       }
     }
+    function onReplaceEvent(e: Event) {
+      const detail = (e as CustomEvent<{ targetName?: string; html?: string; statusMsg?: string }>).detail;
+      if (typeof detail?.html !== "string") return;
+      if (detail.targetName && detail.targetName !== name) return;
+      const cleaned = sanitizeHtml(detail.html);
+      setHtml(cleaned);
+      // nosemgrep: typescript.react.security.audit.react-unsanitized-property.react-unsanitized-property
+      if (visualRef.current) visualRef.current.innerHTML = cleaned;
+      if (detail.statusMsg) setStatusMsg(detail.statusMsg);
+    }
     window.addEventListener("td:insert-html", onInsertEvent);
+    window.addEventListener("td:replace-html", onReplaceEvent);
     return () => {
       window.removeEventListener("td:insert-html", onInsertEvent);
+      window.removeEventListener("td:replace-html", onReplaceEvent);
       try {
         recognitionRef.current?.stop();
       } catch {
