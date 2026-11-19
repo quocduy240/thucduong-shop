@@ -165,6 +165,7 @@ export default function AdminNav({
             <Link
               key={it.href}
               href={it.href}
+              prefetch={false}
               className={`flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap ${active ? "bg-brand text-white" : "bg-gray-50 text-gray-700 hover:bg-gray-100"
                 }`}
             >
@@ -199,6 +200,7 @@ export default function AdminNav({
         {/* Overview shortcut */}
         <Link
           href="/admin/"
+          prefetch={false}
           className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition ${path === "/admin/" ? "bg-brand text-white shadow-2xs" : "text-gray-800 hover:bg-gray-100"
             }`}
         >
@@ -243,6 +245,7 @@ export default function AdminNav({
                       <Link
                         key={it.href}
                         href={it.href}
+                        prefetch={false}
                         className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition ${active
                           ? "bg-brand text-white shadow-2xs"
                           : "text-gray-700 hover:bg-white hover:text-brand"

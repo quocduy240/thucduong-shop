@@ -111,6 +111,7 @@ export default async function MembersAdminPage({
       <div className={`grid gap-3 ${canManageStaff ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
         <Link
           href={buildHref({ tab: "members" })}
+          prefetch={false}
           className={`rounded-2xl border p-4 transition ${
             activeTab === "members" ? "border-brand bg-green-50/70 shadow-xs" : "bg-white hover:border-gray-300"
           }`}
@@ -124,6 +125,7 @@ export default async function MembersAdminPage({
 
         <Link
           href={buildHref({ tab: "coupons" })}
+          prefetch={false}
           className={`rounded-2xl border p-4 transition ${
             activeTab === "coupons" ? "border-brand bg-green-50/70 shadow-xs" : "bg-white hover:border-gray-300"
           }`}
@@ -137,6 +139,7 @@ export default async function MembersAdminPage({
 
         <Link
           href={buildHref({ tab: "subscribers" })}
+          prefetch={false}
           className={`rounded-2xl border p-4 transition ${
             activeTab === "subscribers" ? "border-brand bg-green-50/70 shadow-xs" : "bg-white hover:border-gray-300"
           }`}
@@ -149,6 +152,7 @@ export default async function MembersAdminPage({
         {canManageStaff && (
           <Link
             href={buildHref({ tab: "staff" })}
+            prefetch={false}
             className={`rounded-2xl border p-4 transition ${
               activeTab === "staff" ? "border-brand bg-green-50/70 shadow-xs" : "bg-white hover:border-gray-300"
             }`}
@@ -167,6 +171,7 @@ export default async function MembersAdminPage({
             <Link
               key={t.key}
               href={buildHref({ tab: t.key })}
+              prefetch={false}
               className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
                 activeTab === t.key
                   ? "bg-brand text-white shadow-xs"
@@ -196,7 +201,7 @@ export default async function MembersAdminPage({
             />
             <button className={ui.secondary}>Tìm</button>
             {q && (
-              <Link href={buildHref({ tab: activeTab, tier: activeTab === "members" ? tier : undefined })} className={ui.secondary}>
+              <Link href={buildHref({ tab: activeTab, tier: activeTab === "members" ? tier : undefined })} prefetch={false} className={ui.secondary}>
                 Xoá lọc
               </Link>
             )}
@@ -226,6 +231,7 @@ export default async function MembersAdminPage({
                 <Link
                   key={opt.val || "all"}
                   href={buildHref({ tab: "members", q, tier: opt.val || undefined })}
+                  prefetch={false}
                   className={`rounded-full border px-3 py-1 font-semibold transition ${
                     tier === opt.val
                       ? "border-brand bg-green-50 text-brand"
