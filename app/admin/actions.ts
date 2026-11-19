@@ -998,7 +998,7 @@ export async function saveFlashSaleConfigAction(formData: FormData) {
     await run("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", k, v);
   }
   refresh();
-  redirect("/admin/flash-sale/?saved=1");
+  redirect("/admin/flash-sale/?tab=config&saved=1");
 }
 
 export async function saveFlashSaleSlotAction(formData: FormData) {
@@ -1023,7 +1023,7 @@ export async function saveFlashSaleSlotAction(formData: FormData) {
     );
   }
   refresh();
-  redirect("/admin/flash-sale/?saved=1");
+  redirect("/admin/flash-sale/?tab=slots&saved=1");
 }
 
 export async function deleteFlashSaleSlotAction(formData: FormData) {
@@ -1032,7 +1032,7 @@ export async function deleteFlashSaleSlotAction(formData: FormData) {
   await run("DELETE FROM flash_sale_items WHERE slot_id = ?", id);
   await run("DELETE FROM flash_sale_slots WHERE id = ?", id);
   refresh();
-  redirect("/admin/flash-sale/?saved=1");
+  redirect("/admin/flash-sale/?tab=slots&saved=1");
 }
 
 export async function saveFlashSaleItemAction(formData: FormData) {
