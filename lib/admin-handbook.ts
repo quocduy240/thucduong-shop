@@ -279,6 +279,21 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
           },
         ],
       },
+      {
+        id: "post-import",
+        title: "2. Nghiên cứu & Viết Bài Độc Bản từ Link / YouTube (/admin/posts/import/)",
+        badge: "Mới",
+        items: [
+          {
+            heading: "Lấy bài Web hoặc Transcript YouTube & Nghiên cứu Đông–Tây Y",
+            body: "Vào /admin/posts/ bấm '🌐 Nhập Bài từ Link / YouTube'. Dán link bài hay hoặc link YouTube (có thể thêm 1–2 link tham khảo phụ). Worker chạy ngầm tự lấy lời nói/văn bản, lập Bản nghiên cứu trung gian Đông–Tây Y và chấm điểm tuân thủ chính sách y tế Google/YouTube (YMYL).",
+          },
+          {
+            heading: "Tự tạo 3–5 ảnh AI đồng bộ phong cách & Chờ Review",
+            body: "AI viết lại thành bài độc bản 100%, tự sinh 3–5 ảnh (1 ảnh bìa + ảnh minh hoạ chèn vào bài) mang phong cách Thực Dưỡng Phúc Thọ, gợi ý chuyên mục & sản phẩm liên quan. Bài nằm ở trạng thái 'Chờ Review' để bạn chỉnh sửa lần cuối trước khi bấm '🚀 Xuất bản vào Chuyên mục'.",
+          },
+        ],
+      },
     ],
   },
   {

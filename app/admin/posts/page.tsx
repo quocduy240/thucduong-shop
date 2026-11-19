@@ -20,6 +20,9 @@ export default async function PostsAdmin({ searchParams }: PageProps<"/admin/pos
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader title="Bài viết">
+        <Link href="/admin/posts/import/" className={ui.secondary}>
+          🌐 Nhập Bài từ Link / YouTube
+        </Link>
         <Link href="/admin/posts/new/" className={ui.primary}>+ Thêm bài viết</Link>
       </PageHeader>
       <Flash saved={sp.saved} error={sp.error} />
