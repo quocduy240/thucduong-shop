@@ -1,3 +1,4 @@
+import FrontendEditButton from "@/components/FrontendEditButton";
 import QuickConsultClient from "@/components/QuickConsultClient";
 import { getSite, getWidgetSettings } from "@/lib/settings";
 
@@ -15,9 +16,17 @@ export default async function QuickConsultPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 space-y-6">
       <div className="rounded-2xl bg-gradient-to-r from-brand to-emerald-700 p-6 text-white shadow-sm md:p-8">
-        <span className="inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">
-          🌿 Trợ Lý Chuyên Gia Thực Dưỡng AI
-        </span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">
+            🌿 Trợ Lý Chuyên Gia Thực Dưỡng AI
+          </span>
+          <FrontendEditButton
+            resource="quick_consult"
+            href="/admin/quick-consult/"
+            label="Quản lý Tư vấn AI"
+            variant="pill"
+          />
+        </div>
         <h1 className="mt-2 text-2xl font-bold md:text-3xl">
           Tư Vấn Nhanh Thực Dưỡng Cá Nhân Hoá
         </h1>

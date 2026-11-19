@@ -5,6 +5,7 @@ import { getSocialLinksConfig } from "@/lib/social-links";
 import RotatingHotline from "./RotatingHotline";
 import SocialLinksBlock from "./SocialLinksBlock";
 import NewsletterBar from "./NewsletterBar";
+import FrontendEditButton from "./FrontendEditButton";
 
 const TRUST_PILLARS = [
   { icon: "🌿", title: "100% Tự nhiên & Hữu cơ", desc: "Nguồn gốc minh bạch, chọn lọc kỹ" },
@@ -216,6 +217,18 @@ export default async function Footer() {
             © {new Date().getFullYear()} <strong className="text-white">{site.name}</strong> · Thực phẩm tự nhiên hỗ trợ sức khoẻ.
           </div>
           <div className="flex flex-wrap items-center gap-2 text-[11px]">
+            <FrontendEditButton
+              resource="settings"
+              href="/admin/settings/"
+              label="Sửa Footer & Hotline"
+              variant="badge"
+            />
+            <FrontendEditButton
+              resource="social"
+              href="/admin/social-links/"
+              label="Sửa Mạng xã hội"
+              variant="badge"
+            />
             <span className="rounded-md border border-white/15 bg-white/5 px-2 py-0.5 text-white">COD Tiền mặt</span>
             <span className="rounded-md border border-white/15 bg-white/5 px-2 py-0.5 text-white">Chuyển khoản BIDV</span>
             <span className="rounded-md border border-white/15 bg-white/5 px-2 py-0.5 text-emerald-200">Bảo mật SSL</span>

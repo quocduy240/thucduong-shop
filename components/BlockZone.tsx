@@ -1,4 +1,5 @@
 import { getRenderedBlocksForPosition, type BlockPosition } from "@/lib/blocks";
+import FrontendEditButton from "./FrontendEditButton";
 
 export default async function BlockZone({
   position,
@@ -17,7 +18,16 @@ export default async function BlockZone({
   return (
     <div className={className} data-block-position={position}>
       {blocks.map((b) => (
-        <div key={b.id} dangerouslySetInnerHTML={{ __html: b.html }} />
+        <div key={b.id} className="group/block relative">
+          <FrontendEditButton
+            resource="block"
+            href={`/admin/blocks/${b.id}/`}
+            label={`Sửa Block #${b.id}`}
+            variant="badge"
+            className="absolute right-2 top-2 z-20 opacity-85 group-hover/block:opacity-100"
+          />
+          <div dangerouslySetInnerHTML={{ __html: b.html }} />
+        </div>
       ))}
     </div>
   );

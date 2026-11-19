@@ -441,6 +441,21 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
           },
         ],
       },
+      {
+        id: "frontend-edit-mode",
+        title: "2. Chỉnh sửa trực tiếp ngoài Frontend & Chuyển đổi chế độ xem",
+        badge: "Mới",
+        items: [
+          {
+            heading: "Nút Sửa nhanh theo phân quyền ngay ngoài trang khách",
+            body: "Khi đang đăng nhập tài khoản quản trị, các trang Sản phẩm, Bài viết, Danh mục, Trang tĩnh, Block, Flash Sale, Video, Tài liệu, Footer và Tư vấn AI sẽ hiện nút '✏️ Sửa' tương ứng đúng với quyền của tài khoản (Super Admin / Admin / Editor / Bán hàng).",
+          },
+          {
+            heading: "Chuyển đổi qua lại: Chế độ Quản trị ↔ Xem như User thường",
+            body: "Trên thanh công cụ Quản trị trên cùng của Frontend, bấm nút '👁️ Đang bật nút Sửa · Chuyển sang Xem như User' để ẩn toàn bộ nút sửa và kiểm tra giao diện y hệt khách hàng; bấm pill 'Bật lại Quản trị' ở góc dưới trái để khôi phục bất kỳ lúc nào.",
+          },
+        ],
+      },
     ],
   },
 ];

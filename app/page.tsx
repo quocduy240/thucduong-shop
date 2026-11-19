@@ -3,6 +3,7 @@ import { getHomeCategoryProducts, getPosts, getProductCategories, url } from "@/
 import { getFlashSaleDashboard } from "@/lib/flash-sale";
 import BlockZone from "@/components/BlockZone";
 import { FlashSaleShowcase } from "@/components/FlashSaleShowcase";
+import FrontendEditButton from "@/components/FrontendEditButton";
 import { PostCard, ProductGrid, SectionTitle } from "@/components/ui";
 import { getSite } from "@/lib/settings";
 
@@ -43,6 +44,24 @@ export default async function Home() {
             <Link href="/tu-van-nhanh/" className="rounded-full border border-white/40 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20">
               ✨ Tư vấn AI miễn phí
             </Link>
+            <FrontendEditButton
+              resource="settings"
+              href="/admin/settings/"
+              label="Sửa Tên Shop & Hotline"
+              variant="pill"
+            />
+            <FrontendEditButton
+              resource="themes"
+              href="/admin/themes/"
+              label="Đổi Giao diện"
+              variant="pill"
+            />
+            <FrontendEditButton
+              resource="block"
+              href="/admin/blocks/"
+              label="Quản lý Block"
+              variant="pill"
+            />
           </div>
           <p className="mt-4 text-[11px] text-emerald-100/75">
             HKD Cửa Hàng Phúc Thọ · GPKD: 089185004882 (23/10/2025 – TP.HCM)
@@ -87,14 +106,22 @@ export default async function Home() {
         if (!products.length) return null;
         return (
           <section key={c.slug} className="my-10">
-            <SectionTitle title={c.name} href={url.productCategory(c)} />
+            <SectionTitle
+              title={c.name}
+              href={url.productCategory(c)}
+              edit={{ resource: "category", href: "/admin/categories/", label: "Sửa danh mục" }}
+            />
             <ProductGrid products={products} />
           </section>
         );
       })}
 
       <section className="my-10">
-        <SectionTitle title="Kiến thức" href="/thuc-duong/" />
+        <SectionTitle
+          title="Kiến thức"
+          href="/thuc-duong/"
+          edit={{ resource: "post", href: "/admin/posts/", label: "Quản lý bài viết" }}
+        />
         <div className="grid gap-4 md:grid-cols-2">
           {posts.map((p) => <PostCard key={p.id} p={p} />)}
         </div>

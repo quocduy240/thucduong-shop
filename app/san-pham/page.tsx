@@ -4,6 +4,7 @@ import { getFlashSaleDashboard } from "@/lib/flash-sale";
 import { Breadcrumb, ProductGrid } from "@/components/ui";
 import CategorySidebar from "@/components/CategorySidebar";
 import { FlashSaleShowcase } from "@/components/FlashSaleShowcase";
+import FrontendEditButton from "@/components/FrontendEditButton";
 import ProductFilterBar from "@/components/ProductFilterBar";
 
 export const metadata = { title: "Sản phẩm" };
@@ -43,7 +44,23 @@ export default async function ProductsPage({ searchParams }: PageProps<"/san-pha
       <div className="mx-auto grid max-w-6xl gap-6 px-4 md:grid-cols-[240px_1fr]">
         <CategorySidebar />
         <div>
-          <h1 className="mb-3 text-2xl font-bold">Tất cả sản phẩm</h1>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h1 className="text-2xl font-bold">Tất cả sản phẩm</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <FrontendEditButton
+                resource="product"
+                href="/admin/products/new/"
+                label="Thêm sản phẩm"
+                variant="inline"
+              />
+              <FrontendEditButton
+                resource="category"
+                href="/admin/categories/"
+                label="Quản lý danh mục"
+                variant="inline"
+              />
+            </div>
+          </div>
           <Suspense fallback={null}>
             <ProductFilterBar facets={facets} totalCount={products.length} />
           </Suspense>

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { filterProducts, getProductCategory, getProductFilterFacets } from "@/lib/data";
 import { Breadcrumb, ProductGrid } from "@/components/ui";
 import CategorySidebar from "@/components/CategorySidebar";
+import FrontendEditButton from "@/components/FrontendEditButton";
 import ProductFilterBar from "@/components/ProductFilterBar";
 
 export async function generateMetadata({ params }: PageProps<"/san-pham/[category]">) {
@@ -38,7 +39,23 @@ export default async function CategoryPage({ params, searchParams }: PageProps<"
       <div className="mx-auto grid max-w-6xl gap-6 px-4 md:grid-cols-[240px_1fr]">
         <CategorySidebar active={c.slug} />
         <div>
-          <h1 className="mb-3 text-2xl font-bold">{c.name}</h1>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h1 className="text-2xl font-bold">{c.name}</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <FrontendEditButton
+                resource="product"
+                href="/admin/products/new/"
+                label="Thêm sản phẩm"
+                variant="inline"
+              />
+              <FrontendEditButton
+                resource="category"
+                href="/admin/categories/"
+                label="Sửa danh mục"
+                variant="inline"
+              />
+            </div>
+          </div>
           <Suspense fallback={null}>
             <ProductFilterBar facets={facets} totalCount={products.length} />
           </Suspense>

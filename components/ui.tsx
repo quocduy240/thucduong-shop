@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { url, type Post, type Product } from "@/lib/data";
+import type { FrontendEditResource } from "@/lib/frontend-edit";
 import { vnd } from "@/lib/site";
+import FrontendEditButton from "./FrontendEditButton";
 import QuickAddButton from "./QuickAddButton";
 
 const palette = ["#e8f5e9", "#fff3e0", "#e3f2fd", "#fce4ec", "#f3e5f5", "#e0f7fa"];
@@ -56,27 +58,36 @@ export function ProductCard({ p }: { p: Product }) {
       : 0;
 
   return (
-    <div className="group flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white transition hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md">
-      <Link href={url.product(p)} className="relative block overflow-hidden">
-        <Thumb label={p.name} seed={p.id} image={p.image} className="transition duration-300 group-hover:scale-105" />
-        <div className="absolute left-2 top-2 flex flex-col gap-1">
-          {discountPct > 0 && (
-            <span className="rounded-md bg-accent px-2 py-0.5 text-xs font-bold text-white shadow-sm">
-              -{discountPct}%
+    <div className="group relative flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white transition hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md">
+      <div className="relative overflow-hidden">
+        <Link href={url.product(p)} className="block">
+          <Thumb label={p.name} seed={p.id} image={p.image} className="transition duration-300 group-hover:scale-105" />
+          <div className="absolute left-2 top-2 flex flex-col gap-1">
+            {discountPct > 0 && (
+              <span className="rounded-md bg-accent px-2 py-0.5 text-xs font-bold text-white shadow-sm">
+                -{discountPct}%
+              </span>
+            )}
+            {p.featured === 1 && (
+              <span className="rounded-md bg-amber-500 px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm">
+                ★ Bán chạy
+              </span>
+            )}
+          </div>
+          {p.stock <= 0 && (
+            <span className="absolute right-2 top-2 rounded-md bg-gray-900/80 px-2 py-0.5 text-xs font-medium text-white">
+              Hết hàng
             </span>
           )}
-          {p.featured === 1 && (
-            <span className="rounded-md bg-amber-500 px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm">
-              ★ Bán chạy
-            </span>
-          )}
-        </div>
-        {p.stock <= 0 && (
-          <span className="absolute right-2 top-2 rounded-md bg-gray-900/80 px-2 py-0.5 text-xs font-medium text-white">
-            Hết hàng
-          </span>
-        )}
-      </Link>
+        </Link>
+        <FrontendEditButton
+          resource="product"
+          href={`/admin/products/${p.id}/`}
+          label="Sửa SP"
+          variant="badge"
+          className="absolute bottom-2 right-2 z-10"
+        />
+      </div>
       <div className="flex flex-1 flex-col gap-1.5 p-3">
         {(p.brand || p.unit) && (
           <div className="flex flex-wrap items-center gap-1 text-[11px] text-gray-500">
@@ -114,7 +125,14 @@ export function ProductGrid({ products }: { products: Product[] }) {
 
 export function PostCard({ p }: { p: Post }) {
   return (
-    <article className="group flex gap-3.5 rounded-xl border border-gray-200/90 bg-white p-3.5 transition hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md">
+    <article className="group relative flex gap-3.5 rounded-xl border border-gray-200/90 bg-white p-3.5 transition hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md">
+      <FrontendEditButton
+        resource="post"
+        href={`/admin/posts/${p.id}/`}
+        label="Sửa bài"
+        variant="badge"
+        className="absolute right-2.5 top-2.5 z-10"
+      />
       <Link href={url.post(p)} className="w-24 shrink-0 overflow-hidden rounded-lg sm:w-28">
         {p.cover ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -162,11 +180,29 @@ export function Breadcrumb({ items }: { items: { label: string; href?: string }[
   );
 }
 
-export function SectionTitle({ title, href }: { title: string; href?: string }) {
+export function SectionTitle({
+  title,
+  href,
+  edit,
+}: {
+  title: string;
+  href?: string;
+  edit?: { resource: FrontendEditResource; href: string; label?: string };
+}) {
   return (
-    <div className="mb-4 flex items-end justify-between border-b-2 border-brand">
+    <div className="mb-4 flex items-end justify-between gap-2 border-b-2 border-brand">
       <h2 className="-mb-0.5 border-b-2 border-brand bg-brand px-4 py-2 text-sm font-bold uppercase text-white">{title}</h2>
-      {href && <Link href={href} className="pb-1 text-sm text-brand hover:underline">Xem tất cả »</Link>}
+      <div className="flex items-center gap-2 pb-1">
+        {edit && (
+          <FrontendEditButton
+            resource={edit.resource}
+            href={edit.href}
+            label={edit.label || "Sửa"}
+            variant="inline"
+          />
+        )}
+        {href && <Link href={href} className="text-sm text-brand hover:underline">Xem tất cả »</Link>}
+      </div>
     </div>
   );
 }

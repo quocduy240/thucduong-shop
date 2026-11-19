@@ -9,6 +9,7 @@ import { getSite } from "@/lib/settings";
 import { getSocialLinksConfig } from "@/lib/social-links";
 import { vnd } from "@/lib/site";
 import BlockZone from "@/components/BlockZone";
+import FrontendEditButton from "@/components/FrontendEditButton";
 import RotatingHotline from "@/components/RotatingHotline";
 import SocialLinksBlock from "@/components/SocialLinksBlock";
 import { Breadcrumb, Price, ProductGrid, SectionTitle } from "@/components/ui";
@@ -114,6 +115,18 @@ export default async function ProductPage({ params }: PageProps<"/san-pham/[cate
                     🌍 {p.origin}
                   </Link>
                 )}
+                <FrontendEditButton
+                  resource="product"
+                  href={`/admin/products/${p.id}/`}
+                  label="Sửa sản phẩm"
+                  variant="inline"
+                />
+                <FrontendEditButton
+                  resource="category"
+                  href="/admin/categories/"
+                  label="Sửa danh mục"
+                  variant="inline"
+                />
               </div>
 
               <h1 className="text-2xl font-extrabold leading-snug tracking-tight text-gray-900 md:text-[1.85rem]">

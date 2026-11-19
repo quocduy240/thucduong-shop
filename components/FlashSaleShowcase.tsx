@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { vnd } from "@/lib/site";
+import FrontendEditButton from "./FrontendEditButton";
 
 export type FlashSlotView = {
   id: number;
@@ -120,6 +121,12 @@ export function FlashSaleShowcase({
             <span className="hidden xl:inline-block text-xs text-amber-100 bg-black/20 px-3 py-1 rounded-full">
               {subtitle}
             </span>
+            <FrontendEditButton
+              resource="flash_sale"
+              href="/admin/flash-sale/"
+              label="Sửa Flash Sale"
+              variant="pill"
+            />
           </div>
 
           {/* Đồng hồ đếm ngược */}

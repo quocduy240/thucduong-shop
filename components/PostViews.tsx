@@ -18,6 +18,7 @@ import {
 } from "@/lib/data";
 import BlockZone from "./BlockZone";
 import DocumentLibrary from "./DocumentLibrary";
+import FrontendEditButton from "./FrontendEditButton";
 import {
   ArticleProductSet,
   CrossSellSidebarWidget,
@@ -84,6 +85,14 @@ export async function PostList({ section, category }: { section: PostSection; ca
           ]}
         />
         <div className="mx-auto max-w-6xl px-4 pb-8">
+          <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+            <FrontendEditButton
+              resource="document"
+              href="/admin/documents/"
+              label="Quản lý Tài liệu"
+              variant="inline"
+            />
+          </div>
           <DocumentLibrary documents={documents} />
         </div>
       </>
@@ -106,6 +115,14 @@ export async function PostList({ section, category }: { section: PostSection; ca
           }
         />
         <div className="mx-auto max-w-6xl px-4 pb-8">
+          <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+            <FrontendEditButton
+              resource="video"
+              href="/admin/videos/"
+              label="Quản lý Video"
+              variant="inline"
+            />
+          </div>
           <VideoLibrary videos={videos} qrBadges={videoQrBadges} />
         </div>
       </>
@@ -119,7 +136,23 @@ export async function PostList({ section, category }: { section: PostSection; ca
       <Breadcrumb items={category ? [{ label: section.name, href: url.postSection(section.slug) }, { label: category.name }] : [{ label: section.name }]} />
       <div className="mx-auto grid max-w-6xl gap-6 px-4 md:grid-cols-[1fr_280px]">
         <div>
-          <h1 className="mb-4 text-2xl font-bold">{title}</h1>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h1 className="text-2xl font-bold">{title}</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <FrontendEditButton
+                resource="post"
+                href="/admin/posts/new/"
+                label="Viết bài mới"
+                variant="inline"
+              />
+              <FrontendEditButton
+                resource="category"
+                href="/admin/categories/"
+                label="Sửa chuyên mục"
+                variant="inline"
+              />
+            </div>
+          </div>
           <div className="grid gap-4">
             {posts.length ? posts.map((p) => <PostCard key={p.id} p={p} />) : <p>Chưa có bài viết.</p>}
           </div>
@@ -154,7 +187,16 @@ export async function PostDetail({ post, section }: { post: Post; section: PostS
       <div className="mx-auto grid max-w-6xl gap-6 px-4 md:grid-cols-[1fr_300px]">
         <article className="min-w-0">
           <div className="rounded-2xl border bg-white p-5 shadow-sm md:p-7">
-            <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">{post.title}</h1>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">{post.title}</h1>
+              <FrontendEditButton
+                resource="post"
+                href={`/admin/posts/${post.id}/`}
+                label="Sửa bài viết"
+                variant="inline"
+                className="shrink-0"
+              />
+            </div>
             <p className="mt-1 text-xs text-gray-400">Ngày đăng: {post.created_at.slice(0, 10)} · Chuyên mục: {post.category_name}</p>
             {post.excerpt && (
               <p className="mt-4 rounded-xl border-l-4 border-brand bg-green-50/50 p-3.5 text-sm font-medium text-gray-800">
@@ -210,7 +252,15 @@ export async function StaticPage({ page }: { page: Page }) {
       />
       <div className="mx-auto grid max-w-6xl gap-6 px-4 md:grid-cols-[1fr_280px]">
         <article className="rounded-xl border bg-white p-6 shadow-sm">
-          <h1 className="mb-4 border-b pb-3 text-2xl font-bold text-brand">{page.title}</h1>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+            <h1 className="text-2xl font-bold text-brand">{page.title}</h1>
+            <FrontendEditButton
+              resource="page"
+              href={`/admin/pages/${encodeURIComponent(`${page.grp || "-"}__${page.slug}`)}/`}
+              label="Sửa trang tĩnh"
+              variant="inline"
+            />
+          </div>
           <div className="prose-content" dangerouslySetInnerHTML={{ __html: expandedContent }} />
         </article>
         <aside className="space-y-4 h-fit">

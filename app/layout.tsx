@@ -4,6 +4,7 @@ import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FloatingConsultWidget from "@/components/FloatingConsultWidget";
+import FrontendAdminProvider from "@/components/FrontendAdminProvider";
 import MiniCartDrawer from "@/components/MiniCartDrawer";
 import MobileBottomBar from "@/components/MobileBottomBar";
 import { getSite, getWidgetSettings } from "@/lib/settings";
@@ -40,12 +41,14 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="vi" className={`${beVietnam.variable} h-full antialiased`} suppressHydrationWarning>
       <body className="flex min-h-full flex-col font-sans">
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
-        <Header />
-        <main className="flex-1 pb-16 md:pb-0">{children}</main>
-        <Footer />
-        <FloatingConsultWidget config={widgetCfg} />
-        <MiniCartDrawer />
-        <MobileBottomBar />
+        <FrontendAdminProvider>
+          <Header />
+          <main className="flex-1 pb-16 md:pb-0">{children}</main>
+          <Footer />
+          <FloatingConsultWidget config={widgetCfg} />
+          <MiniCartDrawer />
+          <MobileBottomBar />
+        </FrontendAdminProvider>
       </body>
     </html>
   );
