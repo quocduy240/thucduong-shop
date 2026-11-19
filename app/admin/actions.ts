@@ -816,20 +816,20 @@ export async function deleteDocumentLeadAction(formData: FormData) {
 export async function addSubscriberAction(formData: FormData) {
   await requireAdmin();
   const email = str(formData, "email").toLowerCase();
-  if (!/^\S+@\S+\.\S+$/.test(email)) back("/admin/members/", "Địa chỉ email không hợp lệ.");
+  if (!/^\S+@\S+\.\S+$/.test(email)) back("/admin/members/?tab=subscribers", "Địa chỉ email không hợp lệ.");
   await run(
     "INSERT INTO newsletter_subscribers (email, source, status) VALUES (?, 'admin', 'active') ON CONFLICT(email) DO UPDATE SET status = 'active'",
     email,
   );
   refresh();
-  redirect("/admin/members/?saved=1");
+  redirect("/admin/members/?tab=subscribers&saved=1");
 }
 
 export async function deleteSubscriberAction(formData: FormData) {
   await requireAdmin();
   await run("DELETE FROM newsletter_subscribers WHERE id = ?", num(formData, "id"));
   refresh();
-  redirect("/admin/members/?saved=1");
+  redirect("/admin/members/?tab=subscribers&saved=1");
 }
 
 export async function updateMemberAction(formData: FormData) {
@@ -856,7 +856,7 @@ export async function saveCouponAction(formData: FormData) {
   await requireAdmin();
   const code = str(formData, "code").toUpperCase().replace(/[^A-Z0-9_-]/g, "");
   const title = str(formData, "title");
-  if (!code || !title) back("/admin/members/", "Vui lòng nhập Mã giảm giá và Tên chương trình ưu đãi.");
+  if (!code || !title) back("/admin/members/?tab=coupons", "Vui lòng nhập Mã giảm giá và Tên chương trình ưu đãi.");
   const description = str(formData, "description");
   const discountType = str(formData, "discount_type") === "fixed" ? "fixed" : "percent";
   const discountValue = Math.max(1, num(formData, "discount_value"));
@@ -885,7 +885,7 @@ export async function saveCouponAction(formData: FormData) {
     memberOnly,
   );
   refresh();
-  redirect("/admin/members/?saved=1");
+  redirect("/admin/members/?tab=coupons&saved=1");
 }
 
 export async function toggleCouponAction(formData: FormData) {
@@ -894,14 +894,14 @@ export async function toggleCouponAction(formData: FormData) {
   const active = num(formData, "active") ? 1 : 0;
   await run("UPDATE coupons SET active = ? WHERE id = ?", active, id);
   refresh();
-  redirect("/admin/members/?saved=1");
+  redirect("/admin/members/?tab=coupons&saved=1");
 }
 
 export async function deleteCouponAction(formData: FormData) {
   await requireAdmin();
   await run("DELETE FROM coupons WHERE id = ?", num(formData, "id"));
   refresh();
-  redirect("/admin/members/?saved=1");
+  redirect("/admin/members/?tab=coupons&saved=1");
 }
 
 // ---- Reusable Content Blocks (Các Block thường dùng) ----

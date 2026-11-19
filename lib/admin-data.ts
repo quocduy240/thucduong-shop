@@ -481,3 +481,85 @@ export async function listMembersData(opts: { q?: string } = {}) {
 
   return { members, subscribers, coupons };
 }
+
+export async function getMembersOverviewCounts(includeStaff: boolean) {
+  const [mAll, mGold, mSilver, sAll, cAll, cActive, stAll] = await Promise.all([
+    one<{ n: number }>("SELECT COUNT(*) AS n FROM members"),
+    one<{ n: number }>("SELECT COUNT(*) AS n FROM members WHERE tier = 'gold'"),
+    one<{ n: number }>("SELECT COUNT(*) AS n FROM members WHERE tier = 'silver'"),
+    one<{ n: number }>("SELECT COUNT(*) AS n FROM newsletter_subscribers"),
+    one<{ n: number }>("SELECT COUNT(*) AS n FROM coupons"),
+    one<{ n: number }>("SELECT COUNT(*) AS n FROM coupons WHERE active = 1"),
+    includeStaff ? one<{ n: number }>("SELECT COUNT(*) AS n FROM admins") : Promise.resolve(undefined),
+  ]);
+  return {
+    membersTotal: mAll?.n ?? 0,
+    membersGold: mGold?.n ?? 0,
+    membersSilver: mSilver?.n ?? 0,
+    subscribersTotal: sAll?.n ?? 0,
+    couponsTotal: cAll?.n ?? 0,
+    couponsActive: cActive?.n ?? 0,
+    staffTotal: stAll?.n ?? 0,
+  };
+}
+
+export async function listMembersPaged(opts: { q?: string; tier?: string; page: number; pageSize?: number }) {
+  const pageSize = opts.pageSize ?? 30;
+  const page = Math.max(1, opts.page || 1);
+  const where: string[] = [];
+  const params: unknown[] = [];
+  const q = opts.q?.trim();
+  if (q) {
+    where.push("(name LIKE ? OR email LIKE ? OR phone LIKE ?)");
+    const l = like(q);
+    params.push(l, l, l);
+  }
+  if (opts.tier && ["bronze", "silver", "gold"].includes(opts.tier)) {
+    where.push("tier = ?");
+    params.push(opts.tier);
+  }
+  const w = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const [countRow, rows] = await Promise.all([
+    one<{ n: number }>(`SELECT COUNT(*) AS n FROM members ${w}`, ...params),
+    all<AdminMemberRow>(
+      `SELECT id, name, email, phone, tier, points, created_at FROM members ${w} ORDER BY id DESC LIMIT ? OFFSET ?`,
+      ...params,
+      pageSize,
+      (page - 1) * pageSize,
+    ),
+  ]);
+  return { rows, total: countRow?.n ?? 0, page, pageSize };
+}
+
+export async function listSubscribersPaged(opts: { q?: string; page: number; pageSize?: number }) {
+  const pageSize = opts.pageSize ?? 30;
+  const page = Math.max(1, opts.page || 1);
+  const q = opts.q?.trim();
+  const w = q ? "WHERE email LIKE ?" : "";
+  const params = q ? [like(q)] : [];
+  const [countRow, rows] = await Promise.all([
+    one<{ n: number }>(`SELECT COUNT(*) AS n FROM newsletter_subscribers ${w}`, ...params),
+    all<AdminSubscriberRow>(
+      `SELECT id, email, source, status, created_at FROM newsletter_subscribers ${w} ORDER BY id DESC LIMIT ? OFFSET ?`,
+      ...params,
+      pageSize,
+      (page - 1) * pageSize,
+    ),
+  ]);
+  return { rows, total: countRow?.n ?? 0, page, pageSize };
+}
+
+export async function listCoupons(q?: string) {
+  const s = q?.trim();
+  if (s) {
+    const l = like(s);
+    return all<AdminCouponRow>(
+      "SELECT id, code, title, description, discount_type, discount_value, min_order, max_discount, member_only, active, used_count, created_at FROM coupons WHERE code LIKE ? OR title LIKE ? ORDER BY id ASC",
+      l,
+      l,
+    );
+  }
+  return all<AdminCouponRow>(
+    "SELECT id, code, title, description, discount_type, discount_value, min_order, max_discount, member_only, active, used_count, created_at FROM coupons ORDER BY id ASC",
+  );
+}

@@ -231,6 +231,17 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
     label: "Thành viên, Phân quyền RBAC & Tài khoản Quản trị",
     topics: [
       {
+        id: "members-tabs-kpi",
+        title: "0. Giao diện 4 Tab & Bộ lọc Thành viên theo hạng (/admin/members/)",
+        badge: "Mới",
+        items: [
+          {
+            heading: "4 Thẻ KPI & 4 Tab riêng biệt (tải nhanh theo từng mục)",
+            body: "Trang được tách thành 4 Tab: Thành viên (lọc nhanh theo hạng Đồng / Bạc / Vàng VIP, phân trang 30 người/trang), Mã giảm giá (form tạo mới thu gọn), Email nhận tin (phân trang & xuất CSV) và Nhân sự Admin (RBAC). Bấm trực tiếp vào 4 thẻ KPI trên đầu trang để chuyển nhanh giữa các mục.",
+          },
+        ],
+      },
+      {
         id: "members-rbac",
         title: "1. Phân quyền 4 vai trò Ban quản trị (RBAC)",
         badge: "Mới",
