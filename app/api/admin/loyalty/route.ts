@@ -51,6 +51,19 @@ export async function POST(req: Request) {
     const id = Number(b.id);
     const active = b.is_active ? 1 : 0;
     await run("UPDATE point_rules SET is_active = ? WHERE id = ?", active, id);
+  } else if (action === "update_rule") {
+    const id = Number(b.id);
+    const name = String(b.name ?? "").trim();
+    const formula = String(b.points_formula ?? "").trim();
+    if (!id || !name) {
+      return NextResponse.json({ error: "Vui lòng nhập tên quy tắc hợp lệ." }, { status: 400 });
+    }
+    try {
+      JSON.parse(formula);
+    } catch {
+      return NextResponse.json({ error: "Công thức điểm không hợp lệ." }, { status: 400 });
+    }
+    await run("UPDATE point_rules SET name = ?, points_formula = ? WHERE id = ?", name, formula, id);
   } else if (action === "save_reward") {
     const name = String(b.name ?? "").trim();
     const type = String(b.type ?? "discount_coupon");

@@ -9,6 +9,19 @@ import {
   TIER_MULTIPLIERS,
   todayHoChiMinh,
 } from "./loyalty";
+import { parsePointFormula, type ParsedPointFormula } from "./loyalty-rules-shared";
+
+async function loadPointRuleConfig(code: string): Promise<{ isActive: boolean; formula?: ParsedPointFormula }> {
+  const row = await one<{ is_active: number; points_formula: string }>(
+    "SELECT is_active, points_formula FROM point_rules WHERE code = ?",
+    code,
+  );
+  if (!row) return { isActive: true };
+  return {
+    isActive: row.is_active === 1,
+    formula: parsePointFormula(row.points_formula),
+  };
+}
 
 function yesterdayHoChiMinh(): string {
   const vn = new Date(Date.now() + 7 * 3600 * 1000 - 86400 * 1000);
@@ -37,8 +50,18 @@ export async function onOrderStatusChanged(orderId: number, prevStatus: string, 
   if (!profile) return;
 
   if (nextStatus === "done" && prevStatus !== "done") {
-    const multiplier = TIER_MULTIPLIERS[profile.tier] ?? 1;
-    const pts = Math.floor((Math.max(0, order.total) / 10000) * multiplier);
+    const rule = await loadPointRuleConfig("purchase_order");
+    let pts = 0;
+    let multiplier = TIER_MULTIPLIERS[profile.tier] ?? 1;
+    if (rule.isActive) {
+      const f = rule.formula;
+      if (f?.kind === "per_amount") {
+        multiplier = f.multipliers[profile.tier] ?? multiplier;
+        pts = Math.floor((Math.max(0, order.total) / Math.max(1000, f.amount)) * multiplier);
+      } else {
+        pts = Math.floor((Math.max(0, order.total) / 10000) * multiplier);
+      }
+    }
     if (pts > 0) {
       const awarded = await awardPoints({
         memberId: profile.id,
@@ -143,23 +166,33 @@ export async function attachReferralByCode(refereeProfileId: number, rawCode?: s
     return { linked: false, reason: "self_referral" };
   }
 
+  const refRule = await loadPointRuleConfig("referral_reward");
+  if (!refRule.isActive) return { linked: false, reason: "rule_disabled" };
+  const referrerPts = refRule.formula?.kind === "referral" ? refRule.formula.referrerPoints : 200;
+  const refereePts = refRule.formula?.kind === "referral" ? refRule.formula.refereePoints : 100;
+
   await run(
     `INSERT OR IGNORE INTO referrals (referrer_id, referee_id, status, referrer_bonus_points, referee_bonus_points)
-     VALUES (?, ?, 'pending', 200, 100)`,
+     VALUES (?, ?, 'pending', ?, ?)`,
     referrer.id,
     referee.id,
+    referrerPts,
+    refereePts,
   );
   return { linked: true };
 }
 
 /**
- * Priority 3: Signup bonus (50 pts, once per lifetime).
+ * Priority 3: Signup bonus (default 50 pts, once per lifetime).
  */
 export async function awardSignupBonus(profileId: number) {
+  const rule = await loadPointRuleConfig("signup_bonus");
+  if (!rule.isActive) return { awarded: false, reason: "rule_disabled" };
+  const amount = rule.formula?.kind === "fixed" && rule.formula.fixed > 0 ? rule.formula.fixed : 50;
   return awardPoints({
     memberId: profileId,
     source: "signup",
-    amount: 50,
+    amount,
     referenceType: "member",
     referenceId: profileId,
     description: "Thưởng đăng ký thành viên Thực Dưỡng Phúc Thọ",
@@ -344,19 +377,24 @@ export async function claimDailyLogin(userId: number): Promise<{
     bestStreak,
   );
 
+  const dailyRule = await loadPointRuleConfig("daily_login");
+  const dailyPts = dailyRule.formula?.kind === "daily" ? dailyRule.formula.fixed : 5;
+  const streak7Pts = dailyRule.formula?.kind === "daily" ? dailyRule.formula.streak7 : 50;
+  const streak30Pts = dailyRule.formula?.kind === "daily" ? dailyRule.formula.streak30 : 200;
+
   const dayKey = Number(today.replace(/-/g, ""));
   const dailyRes = await awardPoints({
     memberId: profile.id,
     source: "daily_login",
-    amount: 5,
+    amount: dailyPts,
     referenceType: "daily",
     referenceId: dayKey,
     description: `Điểm danh ngày ${today} (chuỗi ${nextStreak} ngày)`,
   });
 
   let streakBonus = 0;
-  if (nextStreak === 7) streakBonus = 50;
-  else if (nextStreak === 30) streakBonus = 200;
+  if (nextStreak === 7) streakBonus = streak7Pts;
+  else if (nextStreak === 30) streakBonus = streak30Pts;
 
   let finalBalance = dailyRes.balanceAfter ?? profile.current_points;
   if (streakBonus > 0) {
@@ -373,7 +411,7 @@ export async function claimDailyLogin(userId: number): Promise<{
 
   return {
     claimed: true,
-    pointsAwarded: 5 + streakBonus,
+    pointsAwarded: dailyPts + streakBonus,
     streakBonus: streakBonus || undefined,
     currentStreak: nextStreak,
     bestStreak,

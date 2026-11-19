@@ -162,8 +162,19 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
             body: "Khách mới đăng ký được tặng điểm chào mừng; mỗi đơn 'Hoàn thành' tự cộng điểm theo tỷ lệ VNĐ. Hạng Đồng → Bạc → Vàng mở khoá ưu đãi cao hơn.",
           },
           {
-            heading: "Quản lý Kho quà & Duyệt đổi quà",
-            body: "Thêm phần quà/voucher đổi bằng điểm, bật/tắt quà và xác nhận các yêu cầu đổi quà của thành viên ngay trên trang Tích điểm & Quà.",
+            heading: "Quản lý Kho quà & Sửa nhanh bằng Tiếng Việt",
+            body: "Thêm hoặc bấm '✏️ Sửa' phần quà bằng các ô chọn trực quan (Giảm tiền mặt/%, Đơn tối thiểu, Giảm tối đa hoặc Mã quà hiện vật) mà không cần nhập code JSON.",
+          },
+        ],
+      },
+      {
+        id: "loyalty-visual-rules",
+        title: "2. Chỉnh sửa Quy tắc Tích điểm trực quan (Không cần JSON)",
+        badge: "Mới",
+        items: [
+          {
+            heading: "Hiển thị & Sửa công thức theo từng hạng",
+            body: "Mỗi quy tắc hiển thị bằng câu Tiếng Việt rõ ràng (VD: 'Mỗi 10.000đ = 1 điểm gốc · Đồng ×1, Bạc ×1.2, Vàng ×1.5, Kim cương ×2'). Bấm '✏️ Sửa' để đổi số tiền, hệ số hạng, điểm giới thiệu hoặc điểm danh hằng ngày và xem ngay ví dụ tính thử với đơn 500.000đ.",
           },
         ],
       },
