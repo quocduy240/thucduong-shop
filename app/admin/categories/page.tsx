@@ -1,4 +1,4 @@
-import ConfirmButton from "@/components/admin/ConfirmButton";
+import CategoryDeleteControl from "@/components/admin/CategoryDeleteControl";
 import { Flash, PageHeader, ui } from "@/components/admin/ui";
 import { listPostCategoriesWithCount, listProductCategoriesWithCount } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/auth";
@@ -40,12 +40,15 @@ export default async function CategoriesAdmin({ searchParams }: PageProps<"/admi
                 <span className="w-20 text-xs text-gray-500">{c.n} sản phẩm</span>
                 <button className={ui.secondary}>Lưu</button>
               </form>
-              {c.n === 0 && (
-                <form action={deleteProductCategoryAction}>
-                  <input type="hidden" name="id" value={c.id} />
-                  <ConfirmButton message={`Xoá danh mục "${c.name}"?`} className={ui.danger}>Xoá</ConfirmButton>
-                </form>
-              )}
+              <CategoryDeleteControl
+                categoryId={c.id}
+                categoryName={c.name}
+                itemCount={c.n}
+                itemLabel="sản phẩm"
+                targets={productCats.map((item) => ({ id: item.id, name: item.name }))}
+                allowUnassigned={c.slug !== "chua-phan-loai"}
+                action={deleteProductCategoryAction}
+              />
             </div>
           ))}
           <form action={saveProductCategoryAction} className="flex flex-wrap items-center gap-2 bg-gray-50 p-3">
@@ -56,7 +59,7 @@ export default async function CategoriesAdmin({ searchParams }: PageProps<"/admi
             <button className={ui.primary}>+ Thêm</button>
           </form>
         </div>
-        <p className="mt-2 text-xs text-gray-500">Thứ tự nhỏ hiện trước. Chỉ xoá được danh mục chưa có sản phẩm. Đổi đường dẫn sẽ đổi URL của mọi sản phẩm trong danh mục.</p>
+        <p className="mt-2 text-xs text-gray-500">Thứ tự nhỏ hiện trước. Khi xoá danh mục đang có sản phẩm, chọn danh mục đích (hoặc &quot;? Chưa phân loại&quot;) để tự động chuyển toàn bộ sản phẩm sang trước khi xoá. Đổi đường dẫn sẽ đổi URL của mọi sản phẩm trong danh mục.</p>
       </section>
 
       <section>
@@ -74,12 +77,15 @@ export default async function CategoriesAdmin({ searchParams }: PageProps<"/admi
                 <span className="w-20 text-xs text-gray-500">{c.n} bài</span>
                 <button className={ui.secondary}>Lưu</button>
               </form>
-              {c.n === 0 && (
-                <form action={deletePostCategoryAction}>
-                  <input type="hidden" name="id" value={c.id} />
-                  <ConfirmButton message={`Xoá chuyên mục "${c.name}"?`} className={ui.danger}>Xoá</ConfirmButton>
-                </form>
-              )}
+              <CategoryDeleteControl
+                categoryId={c.id}
+                categoryName={c.name}
+                itemCount={c.n}
+                itemLabel="bài viết"
+                targets={postCats.map((item) => ({ id: item.id, name: item.name }))}
+                allowUnassigned={c.slug !== "chua-phan-loai"}
+                action={deletePostCategoryAction}
+              />
             </div>
           ))}
           <form action={savePostCategoryAction} className="flex flex-wrap items-center gap-2 bg-gray-50 p-3">

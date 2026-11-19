@@ -300,7 +300,36 @@ export async function saveProductCategoryAction(formData: FormData) {
 export async function deleteProductCategoryAction(formData: FormData) {
   await requireAdmin();
   const id = num(formData, "id");
-  if (await one("SELECT 1 AS x FROM products WHERE category_id = ?", id)) back("/admin/categories/", "Danh mục còn sản phẩm, không thể xoá.");
+  const targetRaw = str(formData, "target_category_id");
+  const productCountRow = await one<{ cnt: number }>("SELECT COUNT(*) AS cnt FROM products WHERE category_id = ?", id);
+  const hasProducts = (productCountRow?.cnt ?? 0) > 0;
+
+  if (hasProducts) {
+    let targetId = Number(targetRaw);
+    if (targetId === -1) {
+      const existing = await one<{ id: number }>(
+        "SELECT id FROM product_categories WHERE slug = 'chua-phan-loai'",
+      );
+      if (existing) {
+        targetId = existing.id;
+      } else {
+        const created = await run(
+          "INSERT INTO product_categories (slug, name, sort) VALUES ('chua-phan-loai', 'Chưa phân loại (?)', 999)",
+        );
+        targetId = Number(created.lastInsertRowid);
+      }
+    }
+    if (!targetId || targetId === id || !(await one("SELECT 1 AS x FROM product_categories WHERE id = ?", targetId))) {
+      back("/admin/categories/", "Vui lòng chọn danh mục đích hợp lệ để chuyển sản phẩm trước khi xoá.");
+    }
+    await run("UPDATE products SET category_id = ? WHERE category_id = ?", targetId, id);
+    await run(
+      "UPDATE product_import_jobs SET target_category_id = ? WHERE target_category_id = ?",
+      targetId,
+      id,
+    ).catch(() => {});
+  }
+
   await run("DELETE FROM product_categories WHERE id = ?", id);
   refresh();
   redirect("/admin/categories/?saved=1");
@@ -328,7 +357,34 @@ export async function savePostCategoryAction(formData: FormData) {
 export async function deletePostCategoryAction(formData: FormData) {
   await requireAdmin();
   const id = num(formData, "id");
-  if (await one("SELECT 1 AS x FROM posts WHERE category_id = ?", id)) back("/admin/categories/", "Chuyên mục còn bài viết, không thể xoá.");
+  const targetRaw = str(formData, "target_category_id");
+  const postCountRow = await one<{ cnt: number }>("SELECT COUNT(*) AS cnt FROM posts WHERE category_id = ?", id);
+  const hasPosts = (postCountRow?.cnt ?? 0) > 0;
+
+  if (hasPosts) {
+    let targetId = Number(targetRaw);
+    if (targetId === -1) {
+      const curCat = await one<{ section_slug: string }>("SELECT section_slug FROM post_categories WHERE id = ?", id);
+      const sec = curCat?.section_slug || "thuc-duong";
+      const existing = await one<{ id: number }>(
+        "SELECT id FROM post_categories WHERE slug = 'chua-phan-loai'",
+      );
+      if (existing) {
+        targetId = existing.id;
+      } else {
+        const created = await run(
+          "INSERT INTO post_categories (slug, name, section_slug) VALUES ('chua-phan-loai', 'Chưa phân loại (?)', ?)",
+          sec,
+        );
+        targetId = Number(created.lastInsertRowid);
+      }
+    }
+    if (!targetId || targetId === id || !(await one("SELECT 1 AS x FROM post_categories WHERE id = ?", targetId))) {
+      back("/admin/categories/", "Vui lòng chọn chuyên mục đích hợp lệ để chuyển bài viết trước khi xoá.");
+    }
+    await run("UPDATE posts SET category_id = ? WHERE category_id = ?", targetId, id);
+  }
+
   await run("DELETE FROM post_categories WHERE id = ?", id);
   refresh();
   redirect("/admin/categories/?saved=1");
