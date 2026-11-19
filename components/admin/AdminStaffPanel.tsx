@@ -6,6 +6,7 @@ import { ADMIN_ROLES, ROLE_META, type AdminRole } from "@/lib/rbac";
 export type StaffMember = {
   id: number;
   email: string;
+  phone: string;
   name: string;
   role: AdminRole;
   created_at: string;
@@ -22,9 +23,12 @@ export default function AdminStaffPanel({
 }) {
   const [staff, setStaff] = useState<StaffMember[]>(initialStaff);
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<AdminRole>("sales");
+  const [editingPhoneId, setEditingPhoneId] = useState<number | null>(null);
+  const [editingPhoneVal, setEditingPhoneVal] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
@@ -103,16 +107,17 @@ export default function AdminStaffPanel({
         onSubmit={async (e) => {
           e.preventDefault();
           const ok = await callStaffApi(
-            { action: "create", email, name, password, role },
+            { action: "create", email, phone, name, password, role },
             `✓ Đã tạo tài khoản ${ROLE_META[role].shortLabel}: ${email}`,
           );
           if (ok) {
             setEmail("");
+            setPhone("");
             setName("");
             setPassword("");
           }
         }}
-        className="grid gap-3 rounded-xl border border-purple-100 bg-purple-50/40 p-4 sm:grid-cols-5"
+        className="grid gap-3 rounded-xl border border-purple-100 bg-purple-50/40 p-4 sm:grid-cols-2 lg:grid-cols-6"
       >
         <div>
           <label className="mb-1 block text-xs font-bold text-gray-700">Họ tên nhân sự</label>
@@ -131,6 +136,16 @@ export default function AdminStaffPanel({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="nhanvien@domain.com"
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs outline-none focus:border-brand"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-bold text-gray-700">SĐT đăng nhập (tùy chọn)</label>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="090xxxxxxx"
             className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs outline-none focus:border-brand"
           />
         </div>
@@ -194,6 +209,54 @@ export default function AdminStaffPanel({
                       {s.id === myId && <span className="text-[10px] text-brand">(Bạn)</span>}
                     </div>
                     <div className="text-gray-500">{s.email}</div>
+                    {editingPhoneId === s.id ? (
+                      <div className="mt-1 flex items-center gap-1">
+                        <input
+                          type="tel"
+                          value={editingPhoneVal}
+                          onChange={(e) => setEditingPhoneVal(e.target.value)}
+                          placeholder="090xxxxxxx"
+                          className="w-32 rounded border border-gray-300 px-2 py-0.5 text-[11px] outline-none focus:border-brand"
+                        />
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={async () => {
+                            const ok = await callStaffApi(
+                              { action: "update_phone", id: s.id, phone: editingPhoneVal },
+                              `✓ Đã cập nhật SĐT cho ${s.email}`,
+                            );
+                            if (ok) setEditingPhoneId(null);
+                          }}
+                          className="cursor-pointer rounded bg-brand px-2 py-0.5 text-[11px] font-bold text-white"
+                        >
+                          Lưu
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingPhoneId(null)}
+                          className="cursor-pointer rounded border px-1.5 py-0.5 text-[11px] text-gray-600"
+                        >
+                          Huỷ
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-0.5 flex items-center gap-2 text-[11px] text-gray-500">
+                        <span>📱 {s.phone || "Chưa gắn SĐT"}</span>
+                        {!lockedSuper && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingPhoneId(s.id);
+                              setEditingPhoneVal(s.phone);
+                            }}
+                            className="cursor-pointer text-brand hover:underline"
+                          >
+                            {s.phone ? "Sửa SĐT" : "+ Gắn SĐT"}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2.5">
                     <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${meta.badge}`}>
@@ -235,7 +298,7 @@ export default function AdminStaffPanel({
                       }}
                       className="cursor-pointer rounded border px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-40"
                     >
-                      Đổi MK
+                      Đổi Passwork Mới
                     </button>
                     {s.id !== myId && !lockedSuper && (
                       <button

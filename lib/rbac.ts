@@ -64,6 +64,7 @@ const EDITOR_ALLOWED_PREFIXES = [
   "/admin/videos/",
   "/admin/documents/",
   "/admin/blocks/",
+  "/admin/social-links/",
   "/admin/qr/",
   "/admin/comments/",
   "/admin/pages/",

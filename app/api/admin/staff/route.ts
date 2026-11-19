@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
-import { createAdmin, currentAdmin, setPassword } from "@/lib/auth";
+import {
+  createAdmin,
+  currentAdmin,
+  ensureAdminSchema,
+  isValidAdminPhone,
+  normalizeAdminPhone,
+  setPassword,
+} from "@/lib/auth";
 import { all, one, run } from "@/lib/db";
 import { isValidEmail } from "@/lib/member-auth";
 import { ADMIN_ROLES, normalizeRole, type AdminRole } from "@/lib/rbac";
@@ -7,18 +14,26 @@ import { ADMIN_ROLES, normalizeRole, type AdminRole } from "@/lib/rbac";
 type StaffRow = {
   id: number;
   email: string;
+  phone: string;
   name: string;
   role: AdminRole;
   created_at: string;
 };
 
 async function listStaff(): Promise<StaffRow[]> {
-  const rows = await all<{ id: number; email: string; name?: string; role?: string; created_at: string }>(
-    "SELECT id, email, name, role, created_at FROM admins ORDER BY id ASC",
-  );
+  await ensureAdminSchema();
+  const rows = await all<{
+    id: number;
+    email: string;
+    phone?: string;
+    name?: string;
+    role?: string;
+    created_at: string;
+  }>("SELECT id, email, phone, name, role, created_at FROM admins ORDER BY id ASC");
   return rows.map((r) => ({
     id: r.id,
     email: r.email,
+    phone: r.phone ?? "",
     name: r.name ?? "",
     role: normalizeRole(r.role),
     created_at: r.created_at,
@@ -45,13 +60,18 @@ export async function POST(req: Request) {
   const action = String(b.action ?? "");
 
   if (action === "create") {
+    await ensureAdminSchema();
     const email = String(b.email ?? "").trim().toLowerCase();
+    const phone = normalizeAdminPhone(String(b.phone ?? ""));
     const name = String(b.name ?? "").trim();
     const password = String(b.password ?? "");
     const role = String(b.role ?? "sales") as AdminRole;
 
     if (!isValidEmail(email)) {
       return NextResponse.json({ error: "Email không đúng định dạng." }, { status: 400 });
+    }
+    if (phone && !isValidAdminPhone(phone)) {
+      return NextResponse.json({ error: "Số điện thoại không hợp lệ (10–11 số bắt đầu bằng 0)." }, { status: 400 });
     }
     if (password.length < 8) {
       return NextResponse.json({ error: "Mật khẩu quản trị tối thiểu 8 ký tự." }, { status: 400 });
@@ -65,8 +85,11 @@ export async function POST(req: Request) {
     if (await one("SELECT 1 FROM admins WHERE email = ?", email)) {
       return NextResponse.json({ error: "Email này đã tồn tại trong hệ thống quản trị." }, { status: 400 });
     }
+    if (phone && (await one("SELECT 1 FROM admins WHERE phone = ?", phone))) {
+      return NextResponse.json({ error: "Số điện thoại này đã được gắn cho tài khoản quản trị khác." }, { status: 400 });
+    }
 
-    await createAdmin(email, password, role, name);
+    await createAdmin(email, password, role, name, phone);
     return NextResponse.json({ ok: true, staff: await listStaff() });
   }
 
@@ -99,6 +122,16 @@ export async function POST(req: Request) {
       }
     }
     await run("UPDATE admins SET role = ? WHERE id = ?", nextRole, targetId);
+  } else if (action === "update_phone") {
+    await ensureAdminSchema();
+    const phone = normalizeAdminPhone(String(b.phone ?? ""));
+    if (phone && !isValidAdminPhone(phone)) {
+      return NextResponse.json({ error: "Số điện thoại không hợp lệ (10–11 số bắt đầu bằng 0)." }, { status: 400 });
+    }
+    if (phone && (await one("SELECT 1 FROM admins WHERE phone = ? AND id <> ?", phone, targetId))) {
+      return NextResponse.json({ error: "Số điện thoại này đã được gắn cho tài khoản quản trị khác." }, { status: 400 });
+    }
+    await run("UPDATE admins SET phone = ? WHERE id = ?", phone, targetId);
   } else if (action === "reset_password") {
     const pw = String(b.password ?? "");
     if (pw.length < 8) {

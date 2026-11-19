@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AdminHandbookDrawer from "@/components/admin/AdminHandbookDrawer";
 import AdminNav from "@/components/admin/AdminNav";
 import { getStats } from "@/lib/admin-data";
 import { currentAdmin } from "@/lib/auth";
@@ -35,6 +36,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
         </form>
       </aside>
       <div className="min-w-0 flex-1 overflow-auto p-4 md:p-8">{children}</div>
+      <AdminHandbookDrawer />
     </div>
   );
 }

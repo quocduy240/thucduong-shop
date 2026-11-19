@@ -2,9 +2,9 @@
 
 ## This is NOT the Next.js you know
 
-This version has breaking changes - APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
-This block is written and re-added by `next dev` - verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
 
@@ -91,6 +91,7 @@ data/shop.db                 SQLite DB (git-ignored, shipped in the zip)
 - Images are saved to `public/uploads/{products,posts}/` by `lib/uploads.ts`; `/admin/upload` is the route handler used by the
   post editor's "Chèn ảnh" button. `products.image` column added in `migrate()`. `serverActions.bodySizeLimit` is raised in `next.config.ts`.
 - Runtime uploads into `public/` are only served by `next dev`, not by a pre-built `next start`.
+- **Admin Handbook Auto-Sync Rule:** Whenever adding a new admin feature/module or upgrading an existing backend workflow, ALWAYS update `lib/admin-handbook.ts` (`ADMIN_HANDBOOK_SECTIONS`) with clear usage instructions and mark new items with `badge: "Mới"` so the global `AdminHandbookDrawer` across `/admin/*` stays up to date automatically.
 
 ## Reference: original site structure
 

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getPages, getProductCategories, url } from "@/lib/data";
 import { getSite, getWidgetSettings } from "@/lib/settings";
+import { getSocialLinksConfig } from "@/lib/social-links";
+import SocialLinksBlock from "./SocialLinksBlock";
 import NewsletterBar from "./NewsletterBar";
 
 const TRUST_PILLARS = [
@@ -11,11 +13,12 @@ const TRUST_PILLARS = [
 ];
 
 export default async function Footer() {
-  const [site, widget, policies, categories] = await Promise.all([
+  const [site, widget, policies, categories, socialCfg] = await Promise.all([
     getSite(),
     getWidgetSettings(),
     getPages("chinh-sach"),
     getProductCategories(),
+    getSocialLinksConfig(),
   ]);
 
   const primaryPhone =
@@ -77,6 +80,11 @@ export default async function Footer() {
               💬 Chat Zalo
             </a>
           </div>
+          {socialCfg.showInFooter && (
+            <div className="pt-1">
+              <SocialLinksBlock style="icons" dark />
+            </div>
+          )}
           <div className="pt-2">
             <a
               href="http://online.gov.vn/Home/WebDetails/138932"

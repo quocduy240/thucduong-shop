@@ -1,6 +1,8 @@
 import "server-only";
 import { all, one } from "./db";
 import { getActiveQrCodes, renderQrBlockHtml, type QrBlockRow } from "./qr";
+import { getSocialLinksConfig } from "./social-links";
+import { renderSocialBlockHtml, type SocialGroup, type SocialStyle } from "./social-links-shared";
 
 export type BlockPosition =
   | "post_top"
@@ -157,6 +159,22 @@ export async function expandNestedBlocks(
     return renderQrBlockHtml(qr);
   };
 
+  const renderSocialArg = async (arg: string): Promise<string> => {
+    const cfg = await getSocialLinksConfig();
+    const parts = (arg || "")
+      .trim()
+      .toLowerCase()
+      .split(/[:\s,]+/)
+      .filter(Boolean);
+    let style: SocialStyle | undefined;
+    let group: "all" | SocialGroup = "all";
+    for (const p of parts) {
+      if (p === "cards" || p === "pills" || p === "sidebar" || p === "icons") style = p;
+      else if (p === "social" || p === "marketplace") group = p;
+    }
+    return renderSocialBlockHtml(cfg, { style, group, trackClicks: true });
+  };
+
   // Helper to do async regex replace
   const replaceAsync = async (str: string, regex: RegExp, replacer: (slug: string) => Promise<string>) => {
     const matches = [...str.matchAll(regex)];
@@ -166,7 +184,7 @@ export async function expandNestedBlocks(
     for (const m of matches) {
       const idx = m.index ?? 0;
       res += str.slice(last, idx);
-      res += await replacer(m[1]);
+      res += await replacer(m[1] ?? "");
       last = idx + m[0].length;
     }
     return res + str.slice(last);
@@ -184,6 +202,12 @@ export async function expandNestedBlocks(
     renderQrSlug,
   );
   out = await replaceAsync(out, /\[\[\s*qr\s*:\s*([a-zA-Z0-9_-]+)\s*\]\]/gi, renderQrSlug);
+  out = await replaceAsync(
+    out,
+    /<div[^>]*data-social-block="([^"]*)"[^>]*>[\s\S]*?<\/div>/gi,
+    renderSocialArg,
+  );
+  out = await replaceAsync(out, /\[\[\s*social(?:\s*:\s*([a-zA-Z0-9_:\s,-]+))?\s*\]\]/gi, renderSocialArg);
   return out;
 }
 

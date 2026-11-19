@@ -1669,6 +1669,18 @@ export default function ContentEditor({
             >
               📱 + Chèn QR Code ({qrBlocks.length})
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                insertHtmlSnippet(
+                  `<div data-social-block="" style="border:2px dashed #0284c7;background:#f0f9ff;border-radius:12px;padding:12px;margin:14px 0;font-size:13px;color:#0c4a6e;">🌐 <strong>Block Liên kết MXH &amp; Sàn TMĐT</strong> <code>[[social]]</code></div><p></p>`,
+                );
+                setStatusMsg("✓ Đã chèn Block Liên kết MXH & Sàn [[social]] vào nội dung!");
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl border-2 border-sky-600 bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-800 shadow-xs transition hover:bg-sky-700 hover:text-white cursor-pointer"
+            >
+              🌐 + Chèn MXH &amp; Sàn
+            </button>
             {products.length > 0 && (
               <>
                 <button

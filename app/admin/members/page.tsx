@@ -31,14 +31,15 @@ export default async function MembersAdminPage({
   const [{ members, subscribers, coupons }, staffRows] = await Promise.all([
     listMembersData({ q }),
     canManageStaff
-      ? all<{ id: number; email: string; name?: string; role?: string; created_at: string }>(
-          "SELECT id, email, name, role, created_at FROM admins ORDER BY id ASC",
+      ? all<{ id: number; email: string; phone?: string; name?: string; role?: string; created_at: string }>(
+          "SELECT id, email, phone, name, role, created_at FROM admins ORDER BY id ASC",
         )
       : Promise.resolve([]),
   ]);
   const staff: StaffMember[] = staffRows.map((r) => ({
     id: r.id,
     email: r.email,
+    phone: r.phone ?? "",
     name: r.name ?? "",
     role: normalizeRole(r.role),
     created_at: r.created_at,

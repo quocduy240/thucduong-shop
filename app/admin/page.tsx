@@ -30,7 +30,23 @@ export default async function AdminHome({ searchParams }: PageProps<"/admin">) {
           {first && <p className="mb-2 text-sm text-gray-500">Chưa có admin nào. Tạo tài khoản đầu tiên để bắt đầu.</p>}
           <div className="mt-3"><Flash error={sp.error} /></div>
           <form action={first ? setupAction : loginAction} className="space-y-3">
-            <input name="email" type="email" required placeholder="Email" autoComplete="username" className={ui.input} />
+            <input
+              name={first ? "email" : "identifier"}
+              type={first ? "email" : "text"}
+              required
+              placeholder={first ? "Email" : "Email hoặc Số điện thoại"}
+              autoComplete="username"
+              className={ui.input}
+            />
+            {first && (
+              <input
+                name="phone"
+                type="tel"
+                placeholder="Số điện thoại đăng nhập (tùy chọn)"
+                autoComplete="tel"
+                className={ui.input}
+              />
+            )}
             <input
               name="password"
               type="password"

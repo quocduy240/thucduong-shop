@@ -6,8 +6,10 @@ import { getProduct, getRelatedProducts, url } from "@/lib/data";
 import { sanitizeHtml } from "@/lib/sanitize-html";
 import { getProductFlashSale } from "@/lib/flash-sale";
 import { getSite } from "@/lib/settings";
+import { getSocialLinksConfig } from "@/lib/social-links";
 import { vnd } from "@/lib/site";
 import BlockZone from "@/components/BlockZone";
+import SocialLinksBlock from "@/components/SocialLinksBlock";
 import { Breadcrumb, Price, ProductGrid, SectionTitle } from "@/components/ui";
 import AddToCart from "@/components/AddToCart";
 import Comments from "@/components/Comments";
@@ -190,6 +192,10 @@ export default async function ProductPage({ params }: PageProps<"/san-pham/[cate
                 <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-sm text-amber-900">
                   Vui lòng liên hệ hotline <strong>{site.hotline}</strong> để được báo giá và đặt mua.
                 </p>
+              )}
+
+              {(await getSocialLinksConfig()).showOnProductPage && (
+                <SocialLinksBlock style="pills" group="marketplace" className="mt-3" />
               )}
 
               {/* Quick Consultation Hotline / Zalo Callout */}

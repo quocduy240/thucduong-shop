@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
-  checkPassword, createAdmin, currentToken, endSession, hasAdmin, removeAdmin, requireAdmin, setPassword,
-  startSession, verifyLogin,
+  checkPassword, createAdmin, currentToken, endSession, hasAdmin, isValidAdminPhone, normalizeAdminPhone,
+  removeAdmin, requireAdmin, setPassword, startSession, verifyLogin,
 } from "@/lib/auth";
 import { isOrderStatus } from "@/lib/admin-data";
 import { all, batch, one, run } from "@/lib/db";
@@ -35,9 +35,9 @@ const refresh = () => revalidatePath("/", "layout");
 
 // ---- Auth ----
 export async function loginAction(formData: FormData) {
-  const email = str(formData, "email").toLowerCase();
-  const id = await verifyLogin(email, str(formData, "password"));
-  if (!id) back("/admin/", "Sai email hoặc mật khẩu.");
+  const identifier = str(formData, "identifier") || str(formData, "email");
+  const id = await verifyLogin(identifier, str(formData, "password"));
+  if (!id) back("/admin/", "Sai email/số điện thoại hoặc mật khẩu.");
   await startSession(id!);
   redirect("/admin/");
 }
@@ -46,11 +46,13 @@ export async function loginAction(formData: FormData) {
 export async function setupAction(formData: FormData) {
   if (await hasAdmin()) redirect("/admin/");
   const email = str(formData, "email").toLowerCase();
+  const phone = normalizeAdminPhone(str(formData, "phone"));
   const password = str(formData, "password");
   if (!/^\S+@\S+\.\S+$/.test(email)) back("/admin/", "Email không hợp lệ.");
+  if (phone && !isValidAdminPhone(phone)) back("/admin/", "Số điện thoại không hợp lệ (10–11 số bắt đầu bằng 0).");
   if (password.length < 8) back("/admin/", "Mật khẩu tối thiểu 8 ký tự.");
   if (password !== str(formData, "password2")) back("/admin/", "Hai mật khẩu không khớp.");
-  await startSession(await createAdmin(email, password));
+  await startSession(await createAdmin(email, password, "super_admin", "", phone));
   redirect("/admin/");
 }
 
