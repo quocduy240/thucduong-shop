@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import ContentEditor from "@/components/admin/ContentEditor";
 import CoverImageStudio from "@/components/admin/CoverImageStudio";
+import ProductEditTabs from "@/components/admin/ProductEditTabs";
 import ProductGalleryStudio from "@/components/admin/ProductGalleryStudio";
 import ProductSourceNoteBanner from "@/components/admin/ProductSourceNoteBanner";
 import { getProductById, getProductCategories, getProducts, url } from "@/lib/data";
@@ -105,6 +106,18 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
 
       <form action={saveProductAction} className="space-y-6">
         <input type="hidden" name="id" value={id} />
+
+        <ProductEditTabs
+          isNew={!p}
+          productUrl={p ? url.product(p) : undefined}
+          checks={{
+            hasBasic: Boolean(p?.name?.trim() && p?.category_id),
+            hasPrice: Boolean(p && p.price > 0),
+            hasMedia: Boolean(p?.image?.trim()),
+            hasDescription: Boolean(p?.description && p.description.replace(/<[^>]+>/g, "").trim().length > 20),
+          }}
+          basicTab={
+            <>
 
         {/* Section 1: Core Identity (Highlighted Priority Card) */}
         <section className="rounded-2xl border-2 border-emerald-200 bg-white p-5 shadow-sm space-y-4">
@@ -245,11 +258,12 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
             </div>
           </div>
         </section>
-
-        {/* Section 4: Media (Cover + Gallery + YouTube Video) */}
+            </>
+          }
+          mediaTab={
         <section className="rounded-2xl border bg-white p-5 shadow-sm space-y-5">
           <h2 className="border-b pb-2.5 text-sm font-extrabold text-gray-800">
-            4. Hình ảnh Sản phẩm, Bộ sưu tập Gallery &amp; Video
+            Hình ảnh Sản phẩm, Bộ sưu tập Gallery &amp; Video
           </h2>
           <CoverImageStudio
             defaultCover={p?.image ?? ""}
@@ -271,15 +285,15 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
             />
           </div>
         </section>
-
-        {/* Section 5: Rich Content Editor */}
+          }
+          contentTab={
         <section className="rounded-2xl border bg-white p-5 shadow-sm space-y-3">
           <div className="border-b pb-2.5">
             <h2 className="text-sm font-extrabold text-gray-800">
-              5. Bài viết Giới thiệu Chi tiết Sản phẩm
+              Mô tả Chi tiết Sản phẩm &amp; Trợ lý AI
             </h2>
             <p className="text-xs text-gray-500">
-              Hỗ trợ kéo thả khối block, chèn QR/Video/Sản phẩm liên quan, nhập giọng nói và viết lại văn bản bằng AI.
+              Giao diện soạn thảo tinh gọn: dùng thanh công cụ cơ bản ở trên hoặc bấm &quot;+ Công cụ nâng cao&quot; khi cần chèn bảng, video hay block sản phẩm.
             </p>
           </div>
           <ContentEditor
@@ -288,26 +302,11 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
             products={products}
             sourceUrl={sourceRow?.source_url ?? ""}
             enableProductAiRewrite
+            variant="product"
           />
         </section>
-
-        {/* Sticky Bottom Save Bar */}
-        <div className="sticky bottom-3 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-white/95 px-5 py-3 shadow-lg backdrop-blur-sm">
-          <span className="text-xs text-gray-500">
-            Kiểm tra lại Tên, Giá bán và Hình ảnh trước khi lưu xuất bản.
-          </span>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/admin/products/"
-              className="rounded-xl border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              Huỷ / Quay lại
-            </Link>
-            <button className="rounded-xl bg-brand px-7 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-dark cursor-pointer">
-              💾 Lưu Thông Tin Sản Phẩm
-            </button>
-          </div>
-        </div>
+          }
+        />
       </form>
 
       {p && (

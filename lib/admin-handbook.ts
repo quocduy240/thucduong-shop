@@ -71,8 +71,17 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
     topics: [
       {
         id: "products-crud",
-        title: "1. Đăng & Cập nhật Sản phẩm chuẩn SEO",
+        title: "1. Đăng & Cập nhật Sản phẩm chuẩn SEO (Quy trình 3 bước)",
+        badge: "Mới",
         items: [
+          {
+            heading: "Giao diện 3 Bước (Tab) & Thanh kiểm tra tình trạng hồ sơ",
+            body: "Trang sửa sản phẩm được chia thành 3 bước rõ ràng: Bước 1 (Thông tin & Giá bán), Bước 2 (Hình ảnh & Video), Bước 3 (Mô tả chi tiết & AI). Các nhãn trạng thái ở trên giúp kiểm tra nhanh mục nào đã đủ, bấm vào nhãn để nhảy thẳng tới bước cần sửa; bấm Lưu ở thanh đáy sẽ lưu toàn bộ cả 3 bước cùng lúc.",
+          },
+          {
+            heading: "Trình soạn thảo Mô tả tinh gọn cho Sản phẩm",
+            body: "Ở Bước 3, thanh công cụ chỉ giữ lại các nút thiết yếu (Tiêu đề mục H2/H3, Đậm/Nghiêng, Danh sách, Chèn ảnh, Liên kết) và đặt thanh '✨ Viết lại bằng AI' ngay đầu khung soạn thảo. Khi cần chèn Bảng, Video, Block hoặc nhập giọng nói, bấm '+ Công cụ nâng cao'.",
+          },
           {
             heading: "Giá bán, Giá khuyến mãi & Tồn kho",
             body: "Nhập giá gốc và giá khuyến mãi (phải nhỏ hơn giá gốc). Nếu đặt Giá = 0, nút mua sẽ tự chuyển thành 'Liên hệ'. Đặt Tồn kho = 0 sẽ hiển thị hết hàng.",

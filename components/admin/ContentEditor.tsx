@@ -48,6 +48,7 @@ export default function ContentEditor({
   defaultComboTitle = "",
   sourceUrl = "",
   enableProductAiRewrite = false,
+  variant = "post",
 }: {
   name: string;
   defaultValue: string;
@@ -56,7 +57,10 @@ export default function ContentEditor({
   defaultComboTitle?: string;
   sourceUrl?: string;
   enableProductAiRewrite?: boolean;
+  variant?: "post" | "product";
 }) {
+  const isProductMode = variant === "product";
+  const [showAdvancedTools, setShowAdvancedTools] = useState(!isProductMode);
   const [html, setHtml] = useState(defaultValue);
   const [mode, setMode] = useState<"visual" | "split" | "html">("visual");
   const [fullscreen, setFullscreen] = useState(false);
@@ -979,7 +983,8 @@ export default function ContentEditor({
       <input type="hidden" name="related_product_ids" value={comboIds.join(",")} />
       <input type="hidden" name="combo_title" value={comboTitle} />
 
-      {/* AI GEMINI MULTI-SOURCE & EXPANDABLE MOTIF ARTICLE STUDIO */}
+      {/* AI GEMINI MULTI-SOURCE & EXPANDABLE MOTIF ARTICLE STUDIO (Blog / Post mode only) */}
+      {!isProductMode && (
       <div className="rounded-2xl border-2 border-emerald-300/80 bg-gradient-to-r from-green-50/90 via-emerald-50/50 to-teal-50/70 p-4 shadow-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
@@ -1371,6 +1376,7 @@ export default function ContentEditor({
           </div>
         )}
       </div>
+      )}
 
       {/* GOOGLE DOCS WORKSPACE CONTAINER */}
       <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-gray-300 bg-gray-100 shadow-sm">
@@ -1381,7 +1387,9 @@ export default function ContentEditor({
               📝
             </span>
             <div>
-              <div className="text-xs font-bold text-gray-800">Google Docs Article Studio</div>
+              <div className="text-xs font-bold text-gray-800">
+                {isProductMode ? "Trình soạn thảo Mô tả Sản phẩm" : "Google Docs Article Studio"}
+              </div>
               <div className="text-[11px] text-gray-400">
                 {stats.words} từ · {stats.chars} ký tự · ~{stats.readMins} phút đọc
               </div>
@@ -1429,7 +1437,21 @@ export default function ContentEditor({
           </div>
         </div>
 
-        {/* Ribbon Row 1: Standard Google Docs Formatting Tools */}
+        {/* Hidden file input always mounted so both basic & advanced image buttons work */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          hidden
+          disabled={busy}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void uploadImage(f);
+            e.target.value = "";
+          }}
+        />
+
+        {/* Ribbon Row 1: Essential Formatting Tools (+ Advanced tools when expanded) */}
         <div className="flex flex-wrap items-center gap-1 border-b border-gray-200 bg-[#edf2fa] px-3 py-1.5">
           <button type="button" onClick={() => execCmd("undo")} className={tbtn} title="Hoàn tác (Ctrl+Z)">
             ↶
@@ -1456,30 +1478,32 @@ export default function ContentEditor({
               Kiểu đoạn văn...
             </option>
             <option value="P">Văn bản thường</option>
-            <option value="H1">Tiêu đề 1 (H1)</option>
-            <option value="H2">Tiêu đề 2 (H2)</option>
-            <option value="H3">Tiêu đề 3 (H3)</option>
+            {!isProductMode && <option value="H1">Tiêu đề 1 (H1)</option>}
+            <option value="H2">Tiêu đề mục (H2)</option>
+            <option value="H3">Tiêu đề nhỏ (H3)</option>
             <option value="BLOCKQUOTE">Trích dẫn (Quote)</option>
           </select>
 
-          {/* Font size */}
-          <select
-            onChange={(e) => {
-              if (e.target.value) execCmd("fontSize", e.target.value);
-              e.target.value = "";
-            }}
-            defaultValue=""
-            className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 outline-none"
-          >
-            <option value="" disabled>
-              Cỡ chữ...
-            </option>
-            <option value="2">Nhỏ</option>
-            <option value="3">Bình thường</option>
-            <option value="4">Lớn vừa</option>
-            <option value="5">Lớn</option>
-            <option value="6">Rất lớn</option>
-          </select>
+          {/* Font size (Advanced) */}
+          {showAdvancedTools && (
+            <select
+              onChange={(e) => {
+                if (e.target.value) execCmd("fontSize", e.target.value);
+                e.target.value = "";
+              }}
+              defaultValue=""
+              className="rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 outline-none"
+            >
+              <option value="" disabled>
+                Cỡ chữ...
+              </option>
+              <option value="2">Nhỏ</option>
+              <option value="3">Bình thường</option>
+              <option value="4">Lớn vừa</option>
+              <option value="5">Lớn</option>
+              <option value="6">Rất lớn</option>
+            </select>
+          )}
 
           <span className="mx-1 h-4 w-px bg-gray-300" />
 
@@ -1489,135 +1513,168 @@ export default function ContentEditor({
           <button type="button" onClick={() => execCmd("italic")} className={`${tbtn} italic`} title="In nghiêng (Ctrl+I)">
             I
           </button>
-          <button type="button" onClick={() => execCmd("underline")} className={`${tbtn} underline`} title="Gạch chân (Ctrl+U)">
-            U
-          </button>
-          <button type="button" onClick={() => execCmd("strikeThrough")} className={`${tbtn} line-through`} title="Gạch ngang">
-            S
-          </button>
+          {showAdvancedTools && (
+            <>
+              <button type="button" onClick={() => execCmd("underline")} className={`${tbtn} underline`} title="Gạch chân (Ctrl+U)">
+                U
+              </button>
+              <button type="button" onClick={() => execCmd("strikeThrough")} className={`${tbtn} line-through`} title="Gạch ngang">
+                S
+              </button>
 
-          {/* Google Docs Style Text Color (A + indicator bar) & Highlight Color (Marker + indicator bar) */}
-          <div className="relative inline-flex items-center gap-0.5">
-            {/* Text Color Button */}
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => toggleColorPopover("text")}
-              className="inline-flex flex-col items-center justify-center rounded border border-transparent px-2 py-0.5 hover:border-gray-300 hover:bg-white transition cursor-pointer"
-              title="Màu chữ (Text Color)"
-            >
-              <span className="text-[13px] font-extrabold leading-none text-gray-800">A</span>
-              <span
-                className="mt-0.5 h-[3px] w-4 rounded-full"
-                style={{ backgroundColor: textColor }}
-              />
-            </button>
+              {/* Google Docs Style Text Color (A + indicator bar) & Highlight Color (Marker + indicator bar) */}
+              <div className="relative inline-flex items-center gap-0.5">
+                {/* Text Color Button */}
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => toggleColorPopover("text")}
+                  className="inline-flex flex-col items-center justify-center rounded border border-transparent px-2 py-0.5 hover:border-gray-300 hover:bg-white transition cursor-pointer"
+                  title="Màu chữ (Text Color)"
+                >
+                  <span className="text-[13px] font-extrabold leading-none text-gray-800">A</span>
+                  <span
+                    className="mt-0.5 h-[3px] w-4 rounded-full"
+                    style={{ backgroundColor: textColor }}
+                  />
+                </button>
 
-            {/* Highlight / Fill Color Button */}
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => toggleColorPopover("highlight")}
-              className="inline-flex flex-col items-center justify-center rounded border border-transparent px-2 py-0.5 hover:border-gray-300 hover:bg-white transition cursor-pointer"
-              title="Màu nền chữ (Highlight Color)"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-3.5 w-3.5 text-gray-800"
-              >
-                <path d="m9 11-6 6v3h9l3-3" />
-                <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" />
-              </svg>
-              <span
-                className="mt-0.5 h-[3px] w-4 rounded-full border border-gray-300/60"
-                style={{ backgroundColor: highlightColor }}
-              />
-            </button>
+                {/* Highlight / Fill Color Button */}
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => toggleColorPopover("highlight")}
+                  className="inline-flex flex-col items-center justify-center rounded border border-transparent px-2 py-0.5 hover:border-gray-300 hover:bg-white transition cursor-pointer"
+                  title="Màu nền chữ (Highlight Color)"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-3.5 w-3.5 text-gray-800"
+                  >
+                    <path d="m9 11-6 6v3h9l3-3" />
+                    <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" />
+                  </svg>
+                  <span
+                    className="mt-0.5 h-[3px] w-4 rounded-full border border-gray-300/60"
+                    style={{ backgroundColor: highlightColor }}
+                  />
+                </button>
 
-            {/* Color Swatch Grid Popover */}
-            {colorPopover && (
-              <EditorColorPopover
-                kind={colorPopover}
-                currentTextColor={textColor}
-                currentHighlightColor={highlightColor}
-                onApply={(c) => applyColor(colorPopover, c)}
-                onClose={() => setColorPopover(null)}
-              />
-            )}
-          </div>
+                {/* Color Swatch Grid Popover */}
+                {colorPopover && (
+                  <EditorColorPopover
+                    kind={colorPopover}
+                    currentTextColor={textColor}
+                    currentHighlightColor={highlightColor}
+                    onApply={(c) => applyColor(colorPopover, c)}
+                    onClose={() => setColorPopover(null)}
+                  />
+                )}
+              </div>
+
+              <span className="mx-1 h-4 w-px bg-gray-300" />
+
+              {/* Alignment */}
+              <button type="button" onClick={() => execCmd("justifyLeft")} className={tbtn} title="Căn trái">
+                ⬅
+              </button>
+              <button type="button" onClick={() => execCmd("justifyCenter")} className={tbtn} title="Căn giữa">
+                ⬌
+              </button>
+              <button type="button" onClick={() => execCmd("justifyRight")} className={tbtn} title="Căn phải">
+                ➡
+              </button>
+              <button type="button" onClick={() => execCmd("justifyFull")} className={tbtn} title="Căn đều 2 bên">
+                ☰
+              </button>
+            </>
+          )}
 
           <span className="mx-1 h-4 w-px bg-gray-300" />
 
-          {/* Alignment */}
-          <button type="button" onClick={() => execCmd("justifyLeft")} className={tbtn} title="Căn trái">
-            ⬅
-          </button>
-          <button type="button" onClick={() => execCmd("justifyCenter")} className={tbtn} title="Căn giữa">
-            ⬌
-          </button>
-          <button type="button" onClick={() => execCmd("justifyRight")} className={tbtn} title="Căn phải">
-            ➡
-          </button>
-          <button type="button" onClick={() => execCmd("justifyFull")} className={tbtn} title="Căn đều 2 bên">
-            ☰
-          </button>
-
-          <span className="mx-1 h-4 w-px bg-gray-300" />
-
-          {/* Lists & Indentation */}
+          {/* Lists */}
           <button type="button" onClick={() => execCmd("insertUnorderedList")} className={tbtn} title="Danh sách chấm">
             • Danh sách
           </button>
           <button type="button" onClick={() => execCmd("insertOrderedList")} className={tbtn} title="Danh sách số">
             1. Đánh số
           </button>
-          <button type="button" onClick={() => execCmd("outdent")} className={tbtn} title="Giảm thụt lề">
-            ⇤
-          </button>
-          <button type="button" onClick={() => execCmd("indent")} className={tbtn} title="Tăng thụt lề">
-            ⇥
-          </button>
 
-          <span className="mx-1 h-4 w-px bg-gray-300" />
+          {showAdvancedTools && (
+            <>
+              <button type="button" onClick={() => execCmd("outdent")} className={tbtn} title="Giảm thụt lề">
+                ⇤
+              </button>
+              <button type="button" onClick={() => execCmd("indent")} className={tbtn} title="Tăng thụt lề">
+                ⇥
+              </button>
 
-          {/* Voice-to-Text Dictation (vi-VN) */}
-          <button
-            type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={toggleVoiceDictation}
-            title="Đặt con trỏ vào vị trí cần nhập rồi bấm để đọc thành văn bản tiếng Việt"
-            className={`inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
-              voiceListening
-                ? "animate-pulse border-red-400 bg-red-600 text-white shadow-xs"
-                : "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-600 hover:text-white"
-            }`}
-          >
-            <span>{voiceListening ? "🔴" : "🎤"}</span>
-            <span>{voiceListening ? "Đang nghe... (Dừng)" : "Nhập giọng nói"}</span>
-          </button>
+              <span className="mx-1 h-4 w-px bg-gray-300" />
+
+              {/* Voice-to-Text Dictation (vi-VN) */}
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={toggleVoiceDictation}
+                title="Đặt con trỏ vào vị trí cần nhập rồi bấm để đọc thành văn bản tiếng Việt"
+                className={`inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
+                  voiceListening
+                    ? "animate-pulse border-red-400 bg-red-600 text-white shadow-xs"
+                    : "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-600 hover:text-white"
+                }`}
+              >
+                <span>{voiceListening ? "🔴" : "🎤"}</span>
+                <span>{voiceListening ? "Đang nghe... (Dừng)" : "Nhập giọng nói"}</span>
+              </button>
+            </>
+          )}
+
+          {isProductMode && (
+            <>
+              <span className="mx-1 h-4 w-px bg-gray-300" />
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => fileInputRef.current?.click()}
+                className="rounded border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:border-brand hover:text-brand"
+              >
+                {busy ? "Đang tải..." : "🖼️ Chèn ảnh"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const u = prompt("Nhập đường dẫn liên kết (URL):", "https://");
+                  if (u) execCmd("createLink", u);
+                }}
+                className="rounded border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:border-brand hover:text-brand"
+              >
+                🔗 Liên kết
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAdvancedTools((v) => !v)}
+                className={`ml-auto rounded-lg border px-2.5 py-1 text-xs font-bold transition cursor-pointer ${
+                  showAdvancedTools
+                    ? "border-brand bg-brand text-white"
+                    : "border-gray-300 bg-white text-gray-700 hover:border-brand hover:text-brand"
+                }`}
+              >
+                {showAdvancedTools ? "− Ẩn công cụ nâng cao" : "+ Công cụ nâng cao"}
+              </button>
+            </>
+          )}
         </div>
 
         {/* Ribbon Row 2: Rich Media Inserts + Shoppable Product & Combo Blocks */}
+        {showAdvancedTools && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-white px-3 py-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              hidden
-              disabled={busy}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void uploadImage(f);
-                e.target.value = "";
-              }}
-            />
             <button
               type="button"
               disabled={busy}
@@ -1752,6 +1809,17 @@ export default function ContentEditor({
             )}
           </div>
         </div>
+        )}
+
+        {/* In Product mode, place the 1-click AI Rewrite bar right above the paper so it's immediately accessible */}
+        {isProductMode && (enableProductAiRewrite || name === "description") && (
+          <div className="border-b border-indigo-100 bg-indigo-50/30 px-4 py-3">
+            <ProductDescriptionAiPanel
+              targetName={name}
+              sourceUrl={sourceUrl}
+            />
+          </div>
+        )}
 
         {/* Live Voice Dictation Interim Bar */}
         {voiceListening && (
@@ -2034,7 +2102,7 @@ export default function ContentEditor({
           )}
         </div>
 
-        {(enableProductAiRewrite || name === "description") && (
+        {!isProductMode && (enableProductAiRewrite || name === "description") && (
           <div className="border-t border-indigo-100 bg-indigo-50/20 px-4 py-3">
             <ProductDescriptionAiPanel
               targetName={name}
@@ -2054,8 +2122,8 @@ export default function ContentEditor({
         )}
       </div>
 
-      {/* ATTACHED PRODUCT SET / COMBO PANEL FOR THIS POST */}
-      {products.length > 0 && (
+      {/* ATTACHED PRODUCT SET / COMBO PANEL FOR THIS POST (Blog / Post mode only) */}
+      {!isProductMode && products.length > 0 && (
         <div className="rounded-2xl border border-green-200 bg-green-50/40 p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
