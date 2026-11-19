@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getPages, getPostCategories, getPostSections, getProductCategories, url } from "@/lib/data";
+import { getMenuProductCategories, getPages, getPostCategories, getPostSections, url } from "@/lib/data";
 import { getSite } from "@/lib/settings";
 import { getThemeSettings } from "@/lib/theme-settings";
 import HeaderAccountCart from "./HeaderAccountCart";
@@ -19,7 +19,7 @@ export default async function Header() {
     getSite(),
     getPostSections(),
     getPostCategories(),
-    getProductCategories(),
+    getMenuProductCategories(),
     getPages("chinh-sach"),
     getThemeSettings(),
   ]);
@@ -30,10 +30,7 @@ export default async function Header() {
     {
       label: "Sản phẩm",
       href: "/san-pham/",
-      children: [
-        { label: "🌿 Canh Dưỡng Sinh King Kung", href: "/canh-duong-sinh/", featured: true },
-        ...productCats.map((c) => ({ label: c.name, href: url.productCategory(c) })),
-      ],
+      children: productCats.map((c) => ({ label: c.name, href: url.productCategory(c) })),
     },
     ...sections.map((s) => ({
       label: s.name,

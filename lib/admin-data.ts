@@ -242,11 +242,17 @@ export const getPageRow = (grp: string, slug: string) =>
   );
 
 // ---- categories ----
-export const listProductCategoriesWithCount = () =>
-  all<{ id: number; slug: string; name: string; sort: number; n: number }>(
-    `SELECT c.id, c.slug, c.name, c.sort, (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id) AS n
+export const listProductCategoriesWithCount = async () => {
+  const cols = await all<{ name: string }>("PRAGMA table_info(product_categories)");
+  if (!cols.some((c) => c.name === "show_in_menu")) {
+    await all("ALTER TABLE product_categories ADD COLUMN show_in_menu INTEGER NOT NULL DEFAULT 1").catch(() => {});
+  }
+  return all<{ id: number; slug: string; name: string; sort: number; show_in_menu: number; n: number }>(
+    `SELECT c.id, c.slug, c.name, c.sort, COALESCE(c.show_in_menu, 1) AS show_in_menu,
+            (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id) AS n
      FROM product_categories c ORDER BY c.sort, c.id`,
   );
+};
 export const listPostCategoriesWithCount = () =>
   all<{ id: number; slug: string; name: string; section_slug: string; n: number }>(
     `SELECT c.id, c.slug, c.name, c.section_slug, (SELECT COUNT(*) FROM posts p WHERE p.category_id = c.id) AS n

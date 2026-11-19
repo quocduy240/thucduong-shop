@@ -35,9 +35,19 @@ export default async function CategoriesAdmin({ searchParams }: PageProps<"/admi
               <form action={saveProductCategoryAction} className="flex flex-1 flex-wrap items-center gap-2">
                 <input type="hidden" name="id" value={c.id} />
                 <input name="name" defaultValue={c.name} required className={`${small} min-w-48 flex-1`} />
-                <input name="slug" defaultValue={c.slug} required className={`${small} w-56`} title="Đường dẫn" />
-                <input name="sort" type="number" defaultValue={c.sort} className={`${small} w-20`} title="Thứ tự" />
-                <span className="w-20 text-xs text-gray-500">{c.n} sản phẩm</span>
+                <input name="slug" defaultValue={c.slug} required className={`${small} w-48`} title="Đường dẫn" />
+                <input name="sort" type="number" defaultValue={c.sort} className={`${small} w-16`} title="Thứ tự" />
+                <label className="flex cursor-pointer items-center gap-1 text-xs font-medium text-gray-700" title="Bật/tắt hiển thị danh mục này trong dropdown menu Sản phẩm">
+                  <input
+                    type="checkbox"
+                    name="show_in_menu"
+                    value="1"
+                    defaultChecked={c.show_in_menu !== 0}
+                    className="h-3.5 w-3.5 accent-brand"
+                  />
+                  <span>Hiện Menu</span>
+                </label>
+                <span className="w-16 text-xs text-gray-500">{c.n} SP</span>
                 <button className={ui.secondary}>Lưu</button>
               </form>
               <CategoryDeleteControl
@@ -54,8 +64,12 @@ export default async function CategoriesAdmin({ searchParams }: PageProps<"/admi
           <form action={saveProductCategoryAction} className="flex flex-wrap items-center gap-2 bg-gray-50 p-3">
             <input type="hidden" name="id" value="0" />
             <input name="name" required placeholder="Tên danh mục mới" className={`${small} min-w-48 flex-1`} />
-            <input name="slug" placeholder="Đường dẫn (tự tạo nếu trống)" className={`${small} w-56`} />
-            <input name="sort" type="number" placeholder="Thứ tự" className={`${small} w-20`} />
+            <input name="slug" placeholder="Đường dẫn (tự tạo nếu trống)" className={`${small} w-48`} />
+            <input name="sort" type="number" placeholder="Thứ tự" className={`${small} w-16`} />
+            <label className="flex cursor-pointer items-center gap-1 text-xs font-medium text-gray-700">
+              <input type="checkbox" name="show_in_menu" value="1" defaultChecked className="h-3.5 w-3.5 accent-brand" />
+              <span>Hiện Menu</span>
+            </label>
             <button className={ui.primary}>+ Thêm</button>
           </form>
         </div>

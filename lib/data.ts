@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { all, one } from "./db";
+import { all, one, run } from "./db";
 
 export type ProductCategory = { id: number; slug: string; name: string };
 export type Product = {
@@ -66,10 +66,33 @@ export const url = {
   page: (p: { grp: string; slug: string }) => (p.grp ? `/${p.grp}/${p.slug}.html` : `/${p.slug}.html`),
 };
 
+let ensuredCatMenuCol: Promise<void> | null = null;
+export async function ensureProductCategoryMenuColumn() {
+  if (!ensuredCatMenuCol) {
+    ensuredCatMenuCol = (async () => {
+      const cols = await all<{ name: string }>("PRAGMA table_info(product_categories)");
+      if (!cols.some((c) => c.name === "show_in_menu")) {
+        await run("ALTER TABLE product_categories ADD COLUMN show_in_menu INTEGER NOT NULL DEFAULT 1");
+      }
+    })().catch((err) => {
+      ensuredCatMenuCol = null;
+      throw err;
+    });
+  }
+  await ensuredCatMenuCol;
+}
+
 // ---- Products ----
 export const getProductCategories = cache(() =>
-  all<ProductCategory>("SELECT id, slug, name FROM product_categories ORDER BY sort"),
+  all<ProductCategory>("SELECT id, slug, name FROM product_categories ORDER BY sort, id"),
 );
+
+export const getMenuProductCategories = cache(async () => {
+  await ensureProductCategoryMenuColumn();
+  return all<ProductCategory>(
+    "SELECT id, slug, name FROM product_categories WHERE COALESCE(show_in_menu, 1) = 1 ORDER BY sort, id",
+  );
+});
 
 export const getProductCategory = cache((slug: string) =>
   one<ProductCategory>("SELECT id, slug, name FROM product_categories WHERE slug = ?", slug),

@@ -282,12 +282,26 @@ export async function saveProductCategoryAction(formData: FormData) {
   const slug = slugify(str(formData, "slug") || name);
   if (!name || !slug) back("/admin/categories/", "Nhập tên danh mục.");
   const hasSort = str(formData, "sort") !== "";
+  const showInMenu = formData.get("show_in_menu") === "1" ? 1 : 0;
   try {
     if (id) {
-      await run("UPDATE product_categories SET name = ?, slug = ?, sort = ? WHERE id = ?", name, slug, num(formData, "sort"), id);
+      await run(
+        "UPDATE product_categories SET name = ?, slug = ?, sort = ?, show_in_menu = ? WHERE id = ?",
+        name,
+        slug,
+        num(formData, "sort"),
+        showInMenu,
+        id,
+      );
     } else {
       const next = (await one<{ n: number }>("SELECT COALESCE(MAX(sort), 0) + 1 AS n FROM product_categories"))!.n;
-      await run("INSERT INTO product_categories (name, slug, sort) VALUES (?, ?, ?)", name, slug, hasSort ? num(formData, "sort") : next);
+      await run(
+        "INSERT INTO product_categories (name, slug, sort, show_in_menu) VALUES (?, ?, ?, ?)",
+        name,
+        slug,
+        hasSort ? num(formData, "sort") : next,
+        showInMenu,
+      );
     }
   } catch (e) {
     if (String(e).includes("UNIQUE")) back("/admin/categories/", "Đường dẫn đã được dùng cho danh mục khác.");
