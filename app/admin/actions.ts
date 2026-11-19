@@ -818,7 +818,7 @@ export async function deleteDocumentLeadAction(formData: FormData) {
   await requireAdmin();
   await run("DELETE FROM document_leads WHERE id = ?", num(formData, "id"));
   refresh();
-  redirect("/admin/documents/?saved=1");
+  redirect("/admin/documents/?tab=leads&saved=1");
 }
 
 // ---- Members, Newsletter Subscribers & Coupons ----

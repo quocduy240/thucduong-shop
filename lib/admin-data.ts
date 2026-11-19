@@ -368,7 +368,30 @@ export type AdminDocumentRow = {
   created_at: string;
 };
 
-export async function listDocuments(opts: { q?: string; folder?: string; docType?: string; accessMode?: string; page: number }) {
+export async function getDocumentsOverview() {
+  const [docAgg, leadsRow, foldersRow] = await Promise.all([
+    one<{ docsTotal: number; totalDownloads: number }>(
+      "SELECT COUNT(*) AS docsTotal, COALESCE(SUM(downloads), 0) AS totalDownloads FROM documents",
+    ),
+    one<{ n: number }>("SELECT COUNT(*) AS n FROM document_leads"),
+    one<{ n: number }>("SELECT COUNT(DISTINCT folder_path) AS n FROM documents"),
+  ]);
+  return {
+    docsTotal: docAgg?.docsTotal ?? 0,
+    totalDownloads: docAgg?.totalDownloads ?? 0,
+    leadsTotal: leadsRow?.n ?? 0,
+    foldersCount: foldersRow?.n ?? 0,
+  };
+}
+
+export async function listDocuments(opts: {
+  q?: string;
+  folder?: string;
+  docType?: string;
+  accessMode?: string;
+  page: number;
+  includeLeads?: boolean;
+}) {
   const where: string[] = [];
   const params: (string | number)[] = [];
   if (opts.q) {
@@ -407,18 +430,20 @@ export async function listDocuments(opts: { q?: string; folder?: string; docType
     all<{ folder_path: string; n: number }>(
       "SELECT folder_path, COUNT(*) AS n FROM documents GROUP BY folder_path ORDER BY folder_path ASC",
     ),
-    all<{
-      id: number;
-      name: string;
-      contact: string;
-      answer: string;
-      created_at: string;
-      doc_title: string;
-    }>(
-      `SELECT l.id, l.name, l.contact, l.answer, l.created_at, d.title AS doc_title
-       FROM document_leads l JOIN documents d ON d.id = l.document_id
-       ORDER BY l.id DESC LIMIT 10`,
-    ),
+    opts.includeLeads !== false
+      ? all<{
+          id: number;
+          name: string;
+          contact: string;
+          answer: string;
+          created_at: string;
+          doc_title: string;
+        }>(
+          `SELECT l.id, l.name, l.contact, l.answer, l.created_at, d.title AS doc_title
+           FROM document_leads l JOIN documents d ON d.id = l.document_id
+           ORDER BY l.id DESC LIMIT 30`,
+        )
+      : Promise.resolve([]),
   ]);
   return { rows, total: totalRow?.n ?? 0, folders, recentLeads };
 }
