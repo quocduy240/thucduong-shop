@@ -1488,3 +1488,392 @@ export async function queueSelectedUncleanedProducts(productIds: number[]): Prom
   }
   return { queued };
 }
+
+export type CleanProductStylePreset = "expert_east_west" | "seo_sales" | "senior_friendly";
+
+function stripSourceFormattingAndTraces(rawHtml: string, sourceDomain: string): string {
+  let html = String(rawHtml || "");
+  // 1. Remove scripts, styles, forms, buttons, iframes from source site
+  html = html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, "")
+    .replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gi, "")
+    .replace(/<form\b[^>]*>[\s\S]*?<\/form>/gi, "")
+    .replace(/<button\b[^>]*>[\s\S]*?<\/button>/gi, "")
+    .replace(/<input\b[^>]*>/gi, "");
+
+  // 2. Remove buy/marketplace links and external links
+  html = html.replace(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi, (_full, attrs: string, inner: string) => {
+    const hrefMatch = attrs.match(/\bhref=["']([^"']*)["']/i);
+    const href = (hrefMatch?.[1] || "").toLowerCase();
+    const text = inner.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const isBuyOrPlatform =
+      href.startsWith("tel:") ||
+      href.startsWith("mailto:") ||
+      /shopee|lazada|tiki|sendo|tiktok|zalo\.me|facebook\.com|fb\.com|m\.me|cart|checkout|dat-hang|mua-ngay/i.test(
+        `${href} ${text}`,
+      );
+    if (isBuyOrPlatform) return "";
+    if (/https?:\/\/|www\.|\.[a-z]{2,6}\b/i.test(text)) return "";
+    return text;
+  });
+
+  // 3. Strip all inline styles, classes, ids, data-* attributes, and font/span wrappers
+  html = html
+    .replace(/\s(?:style|class|id|width|height|bgcolor|align|valign|border|cellpadding|cellspacing|data-[a-z0-9_-]+)=["'][^"']*["']/gi, "")
+    .replace(/<\/?(?:font|span|section|article|header|footer|aside|nav)\b[^>]*>/gi, "");
+
+  // 4. Convert remaining HTML into clean plain paragraphs/headings (strip remaining tags except basic structure)
+  html = html
+    .replace(/<\/?(?:div|table|tbody|thead|tr)\b[^>]*>/gi, "\n")
+    .replace(/<(?:td|th)\b[^>]*>/gi, " ")
+    .replace(/<\/(?:td|th)>/gi, " · ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<(h[1-6])\b[^>]*>([\s\S]*?)<\/\1>/gi, (_m, _tag: string, txt: string) => {
+      const clean = txt.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      return clean ? `\n### ${clean}\n` : "";
+    })
+    .replace(/<li\b[^>]*>([\s\S]*?)<\/li>/gi, (_m, txt: string) => {
+      const clean = txt.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      return clean ? `\n- ${clean}` : "";
+    })
+    .replace(/<[^>]+>/g, " ");
+
+  // 5. Decode common HTML entities
+  let plain = html
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+
+  // 6. Strip phones, emails, external URLs, source domain, marketplace mentions & copyright lines
+  plain = plain
+    .replace(/(?:\+?84|0)(?:[\s.\-]*\d){8,10}\b/g, "")
+    .replace(/\b(?:1900|1800)[\s.\-]?\d{4,6}\b/g, "")
+    .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, "")
+    .replace(/https?:\/\/[^\s)]+/gi, "")
+    .replace(/\bwww\.[a-z0-9.-]+\.[a-z]{2,}\b/gi, "");
+
+  if (sourceDomain) {
+    const escaped = sourceDomain.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    plain = plain.replace(new RegExp(`\\b(?:www\\.)?${escaped}\\b`, "gi"), "");
+  }
+
+  const cleanedLines = plain
+    .split(/\r?\n/)
+    .map((l) => l.replace(/\s+/g, " ").trim())
+    .filter((line) => {
+      if (!line) return false;
+      if (/^(?:copyright|©|bản quyền|nguồn\s*:|xem thêm tại|đặt mua tại|mua trên shopee|lazada|tiki|tiktok)/i.test(line)) {
+        return false;
+      }
+      if (/(?:hotline|sđt|điện thoại|zalo)\s*[:\-–]?\s*$/i.test(line)) {
+        return false;
+      }
+      return true;
+    });
+
+  return cleanedLines.join("\n").slice(0, 12000);
+}
+
+function buildPersonalizedFallbackHtml(
+  draft: ParsedProductDraft,
+  cleanText: string,
+  siteName: string,
+  cleanImages: string[],
+): string {
+  const lines = cleanText.split(/\r?\n/).filter(Boolean);
+  const blocks: string[] = [];
+  blocks.push(`<h2>Giới thiệu ${draft.name} tại ${siteName}</h2>`);
+  blocks.push(
+    `<p><strong>${draft.name}</strong> là sản phẩm được tuyển chọn kỹ lưỡng tại <strong>${siteName}</strong>, mang đến giải pháp dinh dưỡng thực dưỡng tự nhiên, an tâm về nguồn gốc và chất lượng cho gia đình bạn.</p>`,
+  );
+
+  const specs = [
+    draft.brand ? `<li><strong>Thương hiệu / Nhà sản xuất:</strong> ${draft.brand}</li>` : "",
+    draft.origin ? `<li><strong>Xuất xứ:</strong> ${draft.origin}</li>` : "",
+    draft.unit ? `<li><strong>Quy cách đóng gói:</strong> ${draft.unit}</li>` : "",
+  ]
+    .filter(Boolean)
+    .join("");
+  if (specs) {
+    blocks.push(`<h3>Thông tin chi tiết sản phẩm</h3><ul>${specs}</ul>`);
+  }
+
+  if (cleanImages[0]) {
+    blocks.push(
+      `<figure class="my-4"><img src="${cleanImages[0]}" alt="${draft.name}" class="w-full rounded-xl" /></figure>`,
+    );
+  }
+
+  let listBuf: string[] = [];
+  const flushList = () => {
+    if (listBuf.length > 0) {
+      blocks.push(`<ul>${listBuf.map((it) => `<li>${it}</li>`).join("")}</ul>`);
+      listBuf = [];
+    }
+  };
+
+  for (const line of lines.slice(0, 40)) {
+    if (line.startsWith("### ")) {
+      flushList();
+      blocks.push(`<h3>${line.slice(4)}</h3>`);
+    } else if (line.startsWith("- ")) {
+      listBuf.push(line.slice(2));
+    } else {
+      flushList();
+      blocks.push(`<p>${line}</p>`);
+    }
+  }
+  flushList();
+
+  if (cleanImages[1]) {
+    blocks.push(
+      `<figure class="my-4"><img src="${cleanImages[1]}" alt="${draft.name} - ${siteName}" class="w-full rounded-xl" /></figure>`,
+    );
+  }
+
+  blocks.push(
+    `<h3>Cam kết chất lượng từ ${siteName}</h3><p>Sản phẩm phân phối chính hãng, bảo quản chuẩn sạch. Thực phẩm dinh dưỡng tự nhiên hỗ trợ chăm sóc sức khoẻ hàng ngày, không phải là thuốc và không có tác dụng thay thế thuốc chữa bệnh.</p>`,
+  );
+  return blocks.join("\n");
+}
+
+/**
+ * Full 4-step data cleaner for an imported product job (works BEFORE or AFTER importing to products):
+ * 1. Strip all source HTML/CSS formatting and reformat to match our shop's .prose-content standard
+ * 2. Strip all source domain mentions, phones, emails, external buy buttons/platforms & copyright notices
+ * 3. AI-clean product images containing external website logos/phones (preserving original manufacturer packaging)
+ * 4. Personalized AI rewrite for our shop combining admin's custom instructions
+ */
+export async function cleanProductJobData(opts: {
+  jobId: number;
+  stylePreset?: CleanProductStylePreset;
+  customInstruction?: string;
+  cleanImages?: boolean;
+}): Promise<{
+  job: ProductImportJobRow;
+  traces: LegacyTraceWarning[];
+  stats: { imagesProcessed: number; imagesRecreated: number; usedAiText: boolean };
+}> {
+  await ensureProductImportSchema();
+  const job = await getImportJobById(opts.jobId);
+  if (!job) throw new Error("Không tìm thấy tác vụ nhập sản phẩm.");
+
+  const draft = JSON.parse(job.normalized_payload || "{}") as ParsedProductDraft;
+  const site = await getSite();
+  const apiKey = await resolveGeminiApiKey();
+
+  // Step 1 & 2: Strip all HTML/CSS formatting & source traces
+  const cleanPlainText = stripSourceFormattingAndTraces(
+    draft.description_html || draft.summary || "",
+    job.source_domain,
+  );
+
+  // Step 3: Clean images (AI remove external store logo/phone, keep manufacturer brand)
+  const rawImgs = Array.isArray(draft.images) ? draft.images.slice(0, 5) : [];
+  const cleanedImgs: string[] = [];
+  let imagesProcessed = 0;
+  let imagesRecreated = 0;
+
+  for (let i = 0; i < rawImgs.length; i++) {
+    const imgUrl = rawImgs[i];
+    if (!imgUrl) continue;
+    if (imgUrl.startsWith("/api/media/") || imgUrl.startsWith("/uploads/")) {
+      cleanedImgs.push(imgUrl);
+      continue;
+    }
+
+    if (opts.cleanImages === false) {
+      cleanedImgs.push(imgUrl);
+      continue;
+    }
+
+    const fetched = await fetchImageBytes(imgUrl);
+    if (!fetched) {
+      cleanedImgs.push(imgUrl);
+      continue;
+    }
+    imagesProcessed++;
+    let outBase64 = fetched.base64;
+    let outMime = fetched.mimeType;
+
+    if (apiKey) {
+      const hasWatermark = await detectWatermarkOrContact(apiKey, fetched.base64, fetched.mimeType);
+      if (hasWatermark) {
+        const recreated = await recreateCleanImageWithGemini(
+          apiKey,
+          fetched.base64,
+          fetched.mimeType,
+          draft.name,
+        );
+        if (recreated) {
+          outBase64 = recreated.base64;
+          outMime = recreated.mimeType;
+          imagesRecreated++;
+        }
+      }
+    }
+
+    try {
+      const savedUrl = await saveMediaAsset(`clean-${job.id}-${i + 1}`, outMime, outBase64);
+      cleanedImgs.push(savedUrl);
+    } catch {
+      cleanedImgs.push(imgUrl);
+    }
+  }
+
+  // Step 4: Personalized AI rewrite for our website + custom instructions
+  const stylePreset: CleanProductStylePreset =
+    opts.stylePreset === "seo_sales" || opts.stylePreset === "senior_friendly"
+      ? opts.stylePreset
+      : "expert_east_west";
+
+  const styleGuide =
+    stylePreset === "seo_sales"
+      ? "Viết theo phong cách chuẩn SEO thương mại điện tử: nêu bật lợi ích cốt lõi, bảng/danh sách thông số rõ ràng, lời khuyên mua chính hãng tại website của shop."
+      : stylePreset === "senior_friendly"
+        ? "Viết câu ngắn gọn, ân cần, rõ ràng, dễ đọc cho người lớn tuổi và gia đình Việt; hướng dẫn cách dùng chi tiết từng bước."
+        : "Viết theo phong cách Chuyên gia Thực dưỡng hiện đại (Đông – Tây Y kết hợp): phân tích giá trị dinh dưỡng tự nhiên khách quan, tuân thủ NĐ 15/2018 & Google YMYL.";
+
+  let finalHtml = "";
+  let finalSummary = draft.summary || "";
+  let usedAiText = false;
+
+  if (apiKey && cleanPlainText) {
+    const imgPromptLines = cleanedImgs
+      .slice(0, 4)
+      .map((u, idx) => `- Ảnh ${idx + 1}: src="${u}" alt="${draft.name} - ${site.name}"`)
+      .join("\n");
+
+    const prompt = [
+      `Bạn là Chuyên gia Biên tập Nội dung Sản phẩm Cá nhân hoá cho website "${site.name}".`,
+      `Nhiệm vụ: Chuyển toàn bộ thông tin sản phẩm "${draft.name}" thành bài mô tả ĐỘC BẢN, cá nhân hoá riêng cho website "${site.name}", bỏ hoàn toàn định dạng cũ của trang nguồn.`,
+      ``,
+      `THÔNG SỐ GỐC CỦA HÃNG SẢN PHẨM (GIỮ CHÍNH XÁC):`,
+      `- Tên sản phẩm: ${draft.name}`,
+      draft.brand ? `- Thương hiệu / Hãng sản xuất: ${draft.brand}` : "",
+      draft.origin ? `- Xuất xứ: ${draft.origin}` : "",
+      draft.unit ? `- Quy cách: ${draft.unit}` : "",
+      ``,
+      `PHONG CÁCH & ĐỀ NGHỊ BỔ SUNG:`,
+      `- ${styleGuide}`,
+      opts.customInstruction?.trim() ? `- Đề nghị bổ sung của quản trị viên: ${opts.customInstruction.trim()}` : "",
+      ``,
+      `QUY TẮC BẮT BUỘC:`,
+      `- Xoá sạch mọi dấu vết trang cũ: tuyệt đối KHÔNG có tên miền lạ (${job.source_domain || "web khác"}), KHÔNG có số điện thoại/Zalo/Email cũ, KHÔNG có link hoặc lời kêu gọi mua trên Shopee/Lazada/Tiki/TikTok/web khác, KHÔNG có dòng bản quyền nguồn cũ.`,
+      `- Tuân thủ Luật Quảng cáo & NĐ 15/2018 Việt Nam + Google YMYL: không khẳng định thay thế thuốc chữa bệnh hay chữa dứt điểm bệnh.`,
+      `- Chỉ dùng các thẻ HTML chuẩn sạch của website (.prose-content): <h2>, <h3>, <p>, <ul>, <li>, <strong>, <figure class="my-4"><img src="..." alt="..." class="w-full rounded-xl" /></figure>. Tuyệt đối KHÔNG dùng style inline hay class lạ.`,
+      imgPromptLines ? `- Chèn các ảnh sạch sau vào đúng ngữ cảnh trong bài:\n${imgPromptLines}` : "",
+      ``,
+      `DỮ LIỆU NGUỒN ĐÃ TẨY ĐỊNH DẠNG:`,
+      cleanPlainText,
+      ``,
+      `TRẢ VỀ JSON HỢP LỆ (không markdown \`\`\`json):`,
+      `{"summary": "Tóm tắt ngắn 1-2 câu chuẩn SEO cho sản phẩm tại ${site.name}", "description_html": "<h2>...</h2>..."}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    try {
+      const res = await callGeminiGenerateContent(apiKey, {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.5, maxOutputTokens: 4096 },
+      });
+      if (res.ok) {
+        const json = (await res.json()) as {
+          candidates?: { content?: { parts?: { text?: string }[] } }[];
+        };
+        const rawText =
+          json.candidates?.[0]?.content?.parts
+            ?.map((p) => p.text ?? "")
+            .join("")
+            .trim() ?? "";
+        const cleanedJson = rawText
+          .replace(/^```(?:json)?\s*/i, "")
+          .replace(/```\s*$/i, "")
+          .trim();
+        const parsed = JSON.parse(cleanedJson) as { summary?: string; description_html?: string };
+        if (parsed.description_html && parsed.description_html.length >= 80) {
+          finalHtml = parsed.description_html;
+          if (parsed.summary) finalSummary = parsed.summary;
+          usedAiText = true;
+        }
+      }
+    } catch {
+      /* fallback below */
+    }
+  }
+
+  if (!finalHtml) {
+    finalHtml = buildPersonalizedFallbackHtml(draft, cleanPlainText, site.name, cleanedImgs);
+  }
+
+  // Final safety pass on generated HTML to guarantee 0 phones/emails/source domain leaks
+  finalHtml = finalHtml
+    .replace(/(?:\+?84|0)(?:[\s.\-]*\d){8,10}\b/g, "")
+    .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, "");
+  if (job.source_domain) {
+    finalHtml = finalHtml.replace(
+      new RegExp(job.source_domain.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"),
+      site.name,
+    );
+  }
+
+  const nextDraft: ParsedProductDraft = {
+    ...draft,
+    summary: finalSummary,
+    description_html: finalHtml,
+    images: cleanedImgs,
+  };
+  const nextTraces = scanLegacyTraces(finalHtml, job.source_domain, cleanedImgs);
+  const nextStatus: ImportJobStatus = job.product_id ? "cleaned" : "fetched";
+
+  await run(
+    `UPDATE product_import_jobs
+     SET normalized_payload = ?,
+         audit_notes = ?,
+         working_images = ?,
+         images_total = ?,
+         images_cleaned = ?,
+         images_recreated = ?,
+         status = ?,
+         progress_pct = 100,
+         current_step = ?,
+         estimated_seconds = 0,
+         locked_until = NULL,
+         updated_at = datetime('now')
+     WHERE id = ?`,
+    JSON.stringify(nextDraft),
+    JSON.stringify(nextTraces),
+    JSON.stringify(cleanedImgs),
+    cleanedImgs.length,
+    cleanedImgs.length,
+    imagesRecreated,
+    nextStatus,
+    `✓ Đã làm sạch & cá nhân hoá dữ liệu (${imagesRecreated} ảnh vẽ lại AI)`,
+    job.id,
+  );
+
+  // Sync to products table if already imported
+  if (job.product_id) {
+    await run(
+      `UPDATE products SET summary = ?, description = ?, image = ?, gallery = ? WHERE id = ?`,
+      finalSummary,
+      finalHtml,
+      cleanedImgs[0] ?? null,
+      cleanedImgs.slice(1).join("\n"),
+      job.product_id,
+    );
+  }
+
+  const updatedJob = (await getImportJobById(job.id))!;
+  return {
+    job: updatedJob,
+    traces: nextTraces,
+    stats: { imagesProcessed, imagesRecreated, usedAiText },
+  };
+}

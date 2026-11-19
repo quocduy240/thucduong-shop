@@ -122,6 +122,10 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
             heading: "Lịch sử cập nhật & Xoá note nguồn",
             body: "Mọi link đã lấy được lưu trong Lịch sử kèm nút '🔄 Cập nhật nguồn'. Khi sản phẩm đã sạch hoàn toàn, bấm '🧹 Xoá note nguồn' để xoá link nguồn khỏi hồ sơ sản phẩm.",
           },
+          {
+            heading: "Nút '🧹 Làm sạch dữ liệu ngay' & Cá nhân hoá sản phẩm (Mới)",
+            body: "Ngay dưới mục 'Dấu vết trang cũ phát hiện', bấm '🧹 Làm sạch dữ liệu ngay' (kèm nút '⚙️ Đề nghị bổ sung cho AI') để: (1) tẩy sạch 100% HTML/CSS cũ, chuẩn hoá theo giao diện web mình; (2) lọc bỏ tên miền, SĐT, link mua sàn khác & bản quyền; (3) AI xoá logo/SĐT web cũ trên ảnh nhưng giữ nguyên nhãn hãng sản phẩm; (4) viết lại cá nhân hoá thành sản phẩm của Thực Dưỡng Phúc Thọ.",
+          },
         ],
       },
     ],

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type {
+  CleanProductStylePreset,
   DuplicateCheckResult,
   IdleWorkerSummary,
   LegacyTraceWarning,
@@ -10,6 +11,7 @@ import type {
   ProductImportJobRow,
   UncleanedProductItem,
 } from "@/lib/product-importer";
+import { formatEtaText, useAiIdleQueue } from "./AiIdleQueueProvider";
 
 type CategoryOption = { id: number; name: string; slug: string };
 
@@ -72,6 +74,14 @@ export default function ProductImporterClient({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+
+  // 4-step data cleaner & AI personalization state
+  const { enqueueAiTask, getTaskByKey } = useAiIdleQueue();
+  const [cleanConfigOpen, setCleanConfigOpen] = useState(false);
+  const [cleanStylePreset, setCleanStylePreset] = useState<CleanProductStylePreset>("expert_east_west");
+  const [cleanCustomInstruction, setCleanCustomInstruction] = useState("");
+  const [cleanImages, setCleanImages] = useState(true);
+  const [cleaningData, setCleaningData] = useState(false);
 
   const activeJob = useMemo(
     () => jobs.find((j) => j.id === activeJobId) ?? jobs[0] ?? null,
@@ -646,6 +656,138 @@ export default function ProductImporterClient({
                   </ul>
                 )}
               </div>
+
+              {/* Clean Data & Personalize for Our Shop (4-step pipeline) */}
+              {(() => {
+                const cleanTask = getTaskByKey(`clean_product:${activeJob.id}`);
+                const isRunningClean =
+                  cleaningData || cleanTask?.status === "running" || cleanTask?.status === "queued";
+                return (
+                  <div className="rounded-xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50/70 via-white to-emerald-50/40 p-3.5 text-xs space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="font-extrabold text-indigo-950">
+                        🧹 Làm sạch dữ liệu &amp; Cá nhân hoá cho Web mình
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCleanConfigOpen((v) => !v)}
+                        className="cursor-pointer rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-[11px] font-bold text-indigo-800 hover:bg-indigo-50"
+                      >
+                        ⚙️ {cleanConfigOpen ? "Ẩn đề nghị AI" : "Đề nghị bổ sung cho AI"}
+                      </button>
+                    </div>
+
+                    <p className="text-[11px] leading-relaxed text-gray-600">
+                      Tự động: (1) Bỏ hết HTML/CSS trang nguồn, chuẩn hoá theo định dạng web mình · (2) Lọc sạch tên miền, SĐT, link mua sàn/web khác &amp; bản quyền · (3) AI xoá logo/SĐT web cũ trên ảnh (giữ nguyên hãng gốc) · (4) Viết lại cá nhân hoá sản phẩm của shop.
+                    </p>
+
+                    {cleanConfigOpen && (
+                      <div className="space-y-2.5 rounded-xl border border-indigo-100 bg-white p-3">
+                        <div>
+                          <label className="mb-1 block font-bold text-gray-700">
+                            Phong cách viết lại cá nhân hoá
+                          </label>
+                          <select
+                            value={cleanStylePreset}
+                            onChange={(e) => setCleanStylePreset(e.target.value as CleanProductStylePreset)}
+                            className="w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 font-semibold text-gray-800"
+                          >
+                            <option value="expert_east_west">🩺 Chuyên gia Thực dưỡng (Đông–Tây Y &amp; YMYL)</option>
+                            <option value="seo_sales">🛍️ Chuẩn SEO &amp; Tối ưu chuyển đổi bán hàng</option>
+                            <option value="senior_friendly">👵 Ngắn gọn, dễ đọc cho người lớn tuổi</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="mb-1 block font-bold text-gray-700">
+                            Đề nghị bổ sung cho AI khi viết lại
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={cleanCustomInstruction}
+                            onChange={(e) => setCleanCustomInstruction(e.target.value)}
+                            placeholder="VD: Nhấn mạnh nguồn gốc hữu cơ, thêm hướng dẫn pha chế chi tiết, nhấn mạnh chính sách giao hàng của shop..."
+                            className="w-full rounded-lg border border-gray-300 p-2 text-xs outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                        <label className="flex cursor-pointer items-center gap-2 font-semibold text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={cleanImages}
+                            onChange={(e) => setCleanImages(e.target.checked)}
+                            className="h-3.5 w-3.5 accent-indigo-600"
+                          />
+                          <span>Dùng AI làm sạch ảnh có logo/SĐT web khác (giữ nguyên nhãn hãng sản phẩm)</span>
+                        </label>
+                      </div>
+                    )}
+
+                    {isRunningClean && (
+                      <div className="flex items-center justify-between gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-2 text-[11px] font-extrabold text-white shadow-sm">
+                        <span className="flex items-center gap-1.5">
+                          <span className="inline-block h-2 w-2 animate-ping rounded-full bg-white" />
+                          <span>
+                            {cleanTask?.status === "queued"
+                              ? `⏳ Đang xếp hàng (#${cleanTask.queuePosition})`
+                              : "⚡ Đang tẩy HTML cũ, lọc dấu vết, sửa ảnh & viết lại..."}
+                          </span>
+                        </span>
+                        <span className="rounded-full bg-white/20 px-2 py-0.5">
+                          Còn {formatEtaText(cleanTask?.remainingSeconds ?? 14)}
+                        </span>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      disabled={busy || isRunningClean}
+                      onClick={async () => {
+                        setCleaningData(true);
+                        setErr("");
+                        setMsg("");
+                        try {
+                          await enqueueAiTask({
+                            key: `clean_product:${activeJob.id}`,
+                            kind: "product_rewrite",
+                            title: `Làm sạch SP: ${(activeDraft?.name || `#${activeJob.id}`).slice(0, 22)}`,
+                            run: async () => {
+                              const res = await fetch("/api/admin/product-import", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  action: "clean_data",
+                                  job_id: activeJob.id,
+                                  style_preset: cleanStylePreset,
+                                  custom_instruction: cleanCustomInstruction,
+                                  clean_images: cleanImages,
+                                }),
+                              });
+                              const d = await res.json().catch(() => ({}));
+                              if (!res.ok) {
+                                throw new Error(d.error || "Không thể làm sạch dữ liệu.");
+                              }
+                              if (Array.isArray(d.jobs)) setJobs(d.jobs);
+                              if (d.workerSummary) setSummary(d.workerSummary);
+                              if (Array.isArray(d.uncleanedProducts)) setUncleaned(d.uncleanedProducts);
+                              if (d.job?.id) setActiveJobId(d.job.id);
+                              const st = d.stats ?? {};
+                              setMsg(
+                                `✓ Đã làm sạch & cá nhân hoá dữ liệu! (${st.imagesProcessed ?? 0} ảnh xử lý, ${st.imagesRecreated ?? 0} ảnh AI vẽ sạch logo/SĐT).`,
+                              );
+                            },
+                          });
+                        } catch (e) {
+                          setErr((e as Error).message || "Không thể làm sạch dữ liệu.");
+                        } finally {
+                          setCleaningData(false);
+                        }
+                      }}
+                      className="w-full cursor-pointer rounded-xl bg-gradient-to-r from-indigo-600 to-brand px-4 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:opacity-95 disabled:opacity-50"
+                    >
+                      {isRunningClean ? "⏳ Đang làm sạch dữ liệu..." : "🧹 Làm sạch dữ liệu ngay"}
+                    </button>
+                  </div>
+                );
+              })()}
 
               {!activeJob.product_id ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-3 text-xs">

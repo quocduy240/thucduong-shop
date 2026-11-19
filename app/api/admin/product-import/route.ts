@@ -4,6 +4,7 @@ import { currentAdmin } from "@/lib/auth";
 import { all, run } from "@/lib/db";
 import {
   checkDuplicateProductUrl,
+  cleanProductJobData,
   clearProductSourceTrace,
   enqueueBulkUrls,
   fetchAndCreateImportJob,
@@ -15,6 +16,7 @@ import {
   queueAutoCleanJob,
   queueSelectedUncleanedProducts,
   recleanExistingProduct,
+  type CleanProductStylePreset,
 } from "@/lib/product-importer";
 import { canAccessAdminPath } from "@/lib/rbac";
 
@@ -92,6 +94,30 @@ export async function POST(req: Request) {
       const job = await queueAutoCleanJob(jobId);
       const [jobs, workerSummary] = await Promise.all([listImportJobs(50), getIdleWorkerSummary()]);
       return NextResponse.json({ ok: true, job, jobs, workerSummary });
+    }
+
+    if (action === "clean_data") {
+      const jobId = Number(b.job_id);
+      if (!jobId) return NextResponse.json({ error: "Thiếu job_id." }, { status: 400 });
+      const stylePreset: CleanProductStylePreset =
+        b.style_preset === "seo_sales" || b.style_preset === "senior_friendly"
+          ? b.style_preset
+          : "expert_east_west";
+      const customInstruction = String(b.custom_instruction ?? "");
+      const cleanImages = b.clean_images !== false;
+      const result = await cleanProductJobData({
+        jobId,
+        stylePreset,
+        customInstruction,
+        cleanImages,
+      });
+      revalidatePath("/", "layout");
+      const [jobs, workerSummary, uncleanedProducts] = await Promise.all([
+        listImportJobs(50),
+        getIdleWorkerSummary(),
+        listUncleanedImportedProducts(100),
+      ]);
+      return NextResponse.json({ ok: true, ...result, jobs, workerSummary, uncleanedProducts });
     }
 
     if (action === "reclean_existing") {
