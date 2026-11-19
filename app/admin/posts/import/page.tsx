@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PostImportGuideDrawer from "@/components/admin/PostImportGuideDrawer";
 import PostImporterClient from "@/components/admin/PostImporterClient";
 import { PageHeader, ui } from "@/components/admin/ui";
 import { requireRole } from "@/lib/auth";
@@ -19,6 +20,7 @@ export default async function PostImportPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-12">
       <PageHeader title="🧠 Nghiên cứu &amp; Viết Bài Độc Bản từ Link / YouTube">
+        <PostImportGuideDrawer />
         <Link href="/admin/posts/" className={ui.secondary}>
           ← Danh sách bài viết
         </Link>

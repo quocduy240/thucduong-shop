@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   PolicyAuditResult,
   PostDraftPayload,
@@ -10,6 +10,7 @@ import type {
   PostResearchBrief,
   PostTonePreset,
 } from "@/lib/post-importer";
+import RichTextEditor from "./RichTextEditor";
 
 type CategoryOption = { id: number; slug: string; section_slug: string; name: string };
 type ProductOption = { id: number; name: string };
@@ -64,7 +65,9 @@ export default function PostImporterClient({
     queuedJob: { id: number; current_step: string; progress_pct: number } | null;
   } | null>(null);
 
-  // Review editor fields for activeJob
+  // Review editor fields & tabs
+  const [reviewTab, setReviewTab] = useState<"edit" | "preview" | "compare">("edit");
+  const [editorRevision, setEditorRevision] = useState(0);
   const [revTitle, setRevTitle] = useState("");
   const [revExcerpt, setRevExcerpt] = useState("");
   const [revContent, setRevContent] = useState("");
@@ -76,8 +79,12 @@ export default function PostImporterClient({
 
   const [workerPaused, setWorkerPaused] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [regenKey, setRegenKey] = useState("");
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+
+  const reviewSectionRef = useRef<HTMLElement>(null);
+  const loadedJobKeyRef = useRef<string>("");
 
   const activeJob = useMemo(
     () => jobs.find((j) => j.id === activeJobId) ?? jobs[0] ?? null,
@@ -111,9 +118,12 @@ export default function PostImporterClient({
     }
   }, [activeJob]);
 
-  // Sync review inputs when switching activeJob or when job finishes generating
+  // Only sync review fields when switching job OR when job finishes transitioning to ready_review/published
   useEffect(() => {
-    if (!activeDraft) return;
+    if (!activeJob || !activeDraft) return;
+    const key = `${activeJob.id}:${activeJob.status}`;
+    if (loadedJobKeyRef.current === key) return;
+    loadedJobKeyRef.current = key;
     setRevTitle(activeDraft.title || "");
     setRevExcerpt(activeDraft.excerpt || "");
     setRevContent(activeDraft.content_html || "");
@@ -121,7 +131,17 @@ export default function PostImporterClient({
     setRevCover(activeDraft.cover || "");
     setRevComboTitle(activeDraft.combo_title || "");
     setRevProductIds(activeDraft.related_product_ids || []);
-  }, [activeJob?.id, activeJob?.status, activeDraft, categories]);
+    setEditorRevision((v) => v + 1);
+  }, [activeJob, activeDraft, categories]);
+
+  function selectJobForReview(jobId: number) {
+    loadedJobKeyRef.current = "";
+    setActiveJobId(jobId);
+    setReviewTab("edit");
+    setTimeout(() => {
+      reviewSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+  }
 
   // Instant URL check (YouTube detection + duplicate check)
   useEffect(() => {
@@ -209,6 +229,38 @@ export default function PostImporterClient({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handleRegenerateImage(role: "cover" | "section", sectionIndex = 0) {
+    if (!activeJob) return;
+    const key = `${role}:${sectionIndex}`;
+    setRegenKey(key);
+    const customPrompt = prompt("Nhập mô tả thêm cho ảnh mới (hoặc để trống để AI tự vẽ theo chủ đề bài):");
+    if (customPrompt === null) {
+      setRegenKey("");
+      return;
+    }
+    const res = await callApi(
+      {
+        action: "regenerate_image",
+        job_id: activeJob.id,
+        role,
+        section_index: sectionIndex,
+        custom_prompt: customPrompt,
+      },
+      "✓ Đã vẽ lại ảnh AI mới và tự động cập nhật vào bài viết!",
+    );
+    if (res?.job?.draft_json) {
+      try {
+        const updatedDraft = JSON.parse(res.job.draft_json) as PostDraftPayload;
+        setRevCover(updatedDraft.cover || "");
+        setRevContent(updatedDraft.content_html || "");
+        setEditorRevision((v) => v + 1);
+      } catch {
+        /* ignore */
+      }
+    }
+    setRegenKey("");
   }
 
   return (
@@ -442,7 +494,10 @@ export default function PostImporterClient({
 
       {/* 2. Review & Publish Staging */}
       {activeJob && (
-        <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-2xs space-y-4">
+        <section
+          ref={reviewSectionRef}
+          className="scroll-mt-4 rounded-2xl border-2 border-emerald-300 bg-white p-5 shadow-sm space-y-4"
+        >
           <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
             <div>
               <div className="flex flex-wrap items-center gap-2">
@@ -472,7 +527,7 @@ export default function PostImporterClient({
             )}
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
+          <div className="grid gap-5 lg:grid-cols-[340px_1fr]">
             {/* Left Column: Intermediate Research + Policy Audit + AI Gallery */}
             <div className="space-y-4 text-xs">
               {activeResearch && (
@@ -522,33 +577,53 @@ export default function PostImporterClient({
                 </div>
               )}
 
-              {/* Generated AI Images */}
+              {/* Generated AI Images with Individual Regenerate */}
               {activeDraft && (activeDraft.cover || (activeDraft.images ?? []).length > 0) && (
-                <div className="rounded-xl border bg-gray-50 p-3.5 space-y-2">
+                <div className="rounded-xl border bg-gray-50 p-3.5 space-y-2.5">
                   <div className="font-extrabold text-gray-900">
                     🎨 Bộ ảnh AI đồng bộ Thực Dưỡng ({(activeDraft.cover ? 1 : 0) + (activeDraft.images?.length || 0)} ảnh)
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2.5">
                     {activeDraft.cover && (
                       <div className="space-y-1">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={activeDraft.cover}
+                          src={revCover || activeDraft.cover}
                           alt="Ảnh bìa AI"
                           className="h-24 w-full rounded-lg border object-cover"
                         />
-                        <div className="text-[10px] font-bold text-brand">Ảnh bìa chính</div>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[10px] font-bold text-brand">Ảnh bìa</span>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => handleRegenerateImage("cover", 0)}
+                            className="cursor-pointer rounded border bg-white px-1.5 py-0.5 text-[10px] font-bold text-gray-700 hover:bg-emerald-50 disabled:opacity-50"
+                          >
+                            {regenKey === "cover:0" ? "Đang vẽ..." : "🎨 Vẽ lại"}
+                          </button>
+                        </div>
                       </div>
                     )}
                     {(activeDraft.images ?? []).map((img, i) => (
-                      <div key={img} className="space-y-1">
+                      <div key={`${img}-${i}`} className="space-y-1">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={img}
                           alt={`Ảnh minh hoạ ${i + 1}`}
                           className="h-24 w-full rounded-lg border object-cover"
                         />
-                        <div className="text-[10px] text-gray-500">Minh hoạ #{i + 1}</div>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[10px] text-gray-500">Minh hoạ #{i + 1}</span>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => handleRegenerateImage("section", i)}
+                            className="cursor-pointer rounded border bg-white px-1.5 py-0.5 text-[10px] font-bold text-gray-700 hover:bg-emerald-50 disabled:opacity-50"
+                          >
+                            {regenKey === `section:${i}` ? "Đang vẽ..." : "🎨 Vẽ lại"}
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -556,7 +631,7 @@ export default function PostImporterClient({
               )}
             </div>
 
-            {/* Right Column: Final Review Editor & Publish */}
+            {/* Right Column: Final Review Editor with RichTextEditor + Preview + Source Compare */}
             <div className="space-y-3 text-xs">
               {!activeDraft ? (
                 <div className="rounded-xl border border-dashed p-8 text-center text-gray-500">
@@ -566,89 +641,158 @@ export default function PostImporterClient({
                 </div>
               ) : (
                 <>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="sm:col-span-2">
-                      <label className="mb-1 block font-bold text-gray-700">Tiêu đề bài viết (Chỉnh sửa trước khi xuất bản) *</label>
-                      <input
-                        value={revTitle}
-                        onChange={(e) => setRevTitle(e.target.value)}
-                        className="w-full rounded-xl border border-gray-300 px-3.5 py-2 text-sm font-bold outline-none focus:border-brand"
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {(
+                        [
+                          ["edit", "📝 Biên tập Trực quan (Đầy đủ công cụ)"],
+                          ["preview", "👁️ Xem trước Bài viết thật"],
+                          ["compare", "🔬 Đối chiếu Tài liệu gốc"],
+                        ] as const
+                      ).map(([tabId, label]) => (
+                        <button
+                          key={tabId}
+                          type="button"
+                          onClick={() => setReviewTab(tabId)}
+                          className={`cursor-pointer rounded-lg px-3 py-1.5 font-bold ${
+                            reviewTab === tabId
+                              ? "bg-brand text-white"
+                              : "border bg-gray-50 text-gray-700 hover:bg-gray-100"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {reviewTab === "edit" && (
+                    <div className="space-y-3">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="sm:col-span-2">
+                          <label className="mb-1 block font-bold text-gray-700">
+                            Tiêu đề bài viết (Chỉnh sửa trước khi xuất bản) *
+                          </label>
+                          <input
+                            value={revTitle}
+                            onChange={(e) => setRevTitle(e.target.value)}
+                            className="w-full rounded-xl border border-gray-300 px-3.5 py-2 text-sm font-bold outline-none focus:border-brand"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block font-bold text-gray-700">
+                            Chuyên mục bài viết (AI gợi ý) *
+                          </label>
+                          <select
+                            value={revCategoryId}
+                            onChange={(e) => setRevCategoryId(Number(e.target.value))}
+                            className="w-full cursor-pointer rounded-xl border border-gray-300 bg-white px-3 py-2 font-semibold text-gray-900"
+                          >
+                            {categories.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.section_slug} / {c.name}
+                                {activeResearch?.suggested_category_id === c.id ? " ★ (AI gợi ý)" : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="mb-1 block font-bold text-gray-700">
+                            Tiêu đề khối Sản phẩm gợi ý cuối bài
+                          </label>
+                          <input
+                            value={revComboTitle}
+                            onChange={(e) => setRevComboTitle(e.target.value)}
+                            className="w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:border-brand"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block font-bold text-gray-700">Tóm tắt ngắn (Excerpt SEO)</label>
+                        <textarea
+                          rows={2}
+                          value={revExcerpt}
+                          onChange={(e) => setRevExcerpt(e.target.value)}
+                          className="w-full rounded-xl border border-gray-300 p-2.5 outline-none focus:border-brand"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block font-bold text-gray-700">
+                          Nội dung bài viết độc bản (Trình soạn thảo trực quan đầy đủ công cụ)
+                        </label>
+                        <RichTextEditor
+                          key={`${activeJob.id}-${editorRevision}`}
+                          name="review_content_html"
+                          defaultValue={revContent}
+                          onChange={setRevContent}
+                        />
+                      </div>
+
+                      {products.length > 0 && (
+                        <div>
+                          <label className="mb-1 block font-bold text-gray-700">
+                            Sản phẩm liên quan gắn cuối bài ({revProductIds.length} đã chọn)
+                          </label>
+                          <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto rounded-xl border bg-gray-50 p-2">
+                            {products.slice(0, 24).map((p) => {
+                              const on = revProductIds.includes(p.id);
+                              return (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setRevProductIds((prev) =>
+                                      on ? prev.filter((id) => id !== p.id) : [...prev, p.id],
+                                    )
+                                  }
+                                  className={`cursor-pointer rounded-lg border px-2 py-1 text-[11px] font-semibold ${
+                                    on
+                                      ? "border-brand bg-brand text-white"
+                                      : "bg-white text-gray-700 hover:bg-gray-100"
+                                  }`}
+                                >
+                                  {p.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {reviewTab === "preview" && (
+                    <article className="rounded-2xl border bg-white p-5 space-y-4">
+                      {revCover && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={revCover}
+                          alt={revTitle}
+                          className="max-h-72 w-full rounded-xl object-cover"
+                        />
+                      )}
+                      <h1 className="text-xl font-extrabold text-gray-900">{revTitle}</h1>
+                      {revExcerpt && (
+                        <p className="rounded-xl bg-emerald-50/70 p-3 text-xs italic text-emerald-950">
+                          {revExcerpt}
+                        </p>
+                      )}
+                      <div
+                        className="prose-content text-sm leading-relaxed"
+                        dangerouslySetInnerHTML={{ __html: revContent }}
                       />
-                    </div>
-                    <div>
-                      <label className="mb-1 block font-bold text-gray-700">Chuyên mục bài viết (AI gợi ý) *</label>
-                      <select
-                        value={revCategoryId}
-                        onChange={(e) => setRevCategoryId(Number(e.target.value))}
-                        className="w-full cursor-pointer rounded-xl border border-gray-300 bg-white px-3 py-2 font-semibold text-gray-900"
-                      >
-                        {categories.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.section_slug} / {c.name}
-                            {activeResearch?.suggested_category_id === c.id ? " ★ (AI gợi ý)" : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="mb-1 block font-bold text-gray-700">Tiêu đề khối Sản phẩm gợi ý cuối bài</label>
-                      <input
-                        value={revComboTitle}
-                        onChange={(e) => setRevComboTitle(e.target.value)}
-                        className="w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:border-brand"
-                      />
-                    </div>
-                  </div>
+                    </article>
+                  )}
 
-                  <div>
-                    <label className="mb-1 block font-bold text-gray-700">Tóm tắt ngắn (Excerpt SEO)</label>
-                    <textarea
-                      rows={2}
-                      value={revExcerpt}
-                      onChange={(e) => setRevExcerpt(e.target.value)}
-                      className="w-full rounded-xl border border-gray-300 p-2.5 outline-none focus:border-brand"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block font-bold text-gray-700">
-                      Nội dung HTML bài viết độc bản (có thể sửa trực tiếp hoặc vào Sửa chi tiết sau khi xuất bản)
-                    </label>
-                    <textarea
-                      rows={10}
-                      value={revContent}
-                      onChange={(e) => setRevContent(e.target.value)}
-                      className="w-full rounded-xl border border-gray-300 p-3 font-mono text-[11px] outline-none focus:border-brand"
-                    />
-                  </div>
-
-                  {products.length > 0 && (
-                    <div>
-                      <label className="mb-1 block font-bold text-gray-700">
-                        Sản phẩm liên quan gắn cuối bài ({revProductIds.length} đã chọn)
-                      </label>
-                      <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto rounded-xl border bg-gray-50 p-2">
-                        {products.slice(0, 24).map((p) => {
-                          const on = revProductIds.includes(p.id);
-                          return (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onClick={() =>
-                                setRevProductIds((prev) =>
-                                  on ? prev.filter((id) => id !== p.id) : [...prev, p.id],
-                                )
-                              }
-                              className={`cursor-pointer rounded-lg border px-2 py-1 text-[11px] font-semibold ${
-                                on
-                                  ? "border-brand bg-brand text-white"
-                                  : "bg-white text-gray-700 hover:bg-gray-100"
-                              }`}
-                            >
-                              {p.name}
-                            </button>
-                          );
-                        })}
+                  {reviewTab === "compare" && (
+                    <div className="rounded-xl border bg-gray-50 p-4 space-y-2">
+                      <div className="font-extrabold text-gray-800">
+                        📄 Văn bản / Transcript trích xuất từ nguồn gốc ({activeJob.source_url})
+                      </div>
+                      <div className="max-h-96 overflow-y-auto whitespace-pre-wrap rounded-lg border bg-white p-3 text-xs leading-relaxed text-gray-700">
+                        {activeJob.raw_text || "Chưa có dữ liệu thô."}
                       </div>
                     </div>
                   )}
@@ -664,30 +808,55 @@ export default function PostImporterClient({
                         />
                         Lưu kín link nguồn trong Admin để đối chiếu (tắt nếu muốn xoá dấu vết nguồn ngay)
                       </label>
-                      <button
-                        type="button"
-                        disabled={busy || activeJob.status !== "ready_review"}
-                        onClick={() =>
-                          callApi(
-                            {
-                              action: "publish",
-                              job_id: activeJob.id,
-                              title: revTitle,
-                              excerpt: revExcerpt,
-                              content_html: revContent,
-                              category_id: revCategoryId,
-                              cover: revCover,
-                              related_product_ids: revProductIds,
-                              combo_title: revComboTitle,
-                              keep_source_url: keepSourceUrl,
-                            },
-                            "✓ Đã xuất bản bài viết độc bản vào chuyên mục thành công!",
-                          )
-                        }
-                        className="cursor-pointer rounded-xl bg-brand px-5 py-2.5 text-sm font-extrabold text-white shadow hover:bg-brand-dark disabled:opacity-50"
-                      >
-                        🚀 Xuất bản vào Chuyên mục
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() =>
+                            callApi(
+                              {
+                                action: "save_review_draft",
+                                job_id: activeJob.id,
+                                title: revTitle,
+                                excerpt: revExcerpt,
+                                content_html: revContent,
+                                category_id: revCategoryId,
+                                cover: revCover,
+                                related_product_ids: revProductIds,
+                                combo_title: revComboTitle,
+                              },
+                              "✓ Đã lưu bản nháp chỉnh sửa & chấm điểm lại Chính sách Y tế!",
+                            )
+                          }
+                          className="cursor-pointer rounded-xl border border-brand bg-white px-4 py-2.5 text-xs font-extrabold text-brand hover:bg-emerald-50 disabled:opacity-50"
+                        >
+                          💾 Lưu nháp &amp; Chấm điểm Y tế
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy || activeJob.status !== "ready_review"}
+                          onClick={() =>
+                            callApi(
+                              {
+                                action: "publish",
+                                job_id: activeJob.id,
+                                title: revTitle,
+                                excerpt: revExcerpt,
+                                content_html: revContent,
+                                category_id: revCategoryId,
+                                cover: revCover,
+                                related_product_ids: revProductIds,
+                                combo_title: revComboTitle,
+                                keep_source_url: keepSourceUrl,
+                              },
+                              "✓ Đã xuất bản bài viết độc bản vào chuyên mục thành công!",
+                            )
+                          }
+                          className="cursor-pointer rounded-xl bg-brand px-5 py-2.5 text-sm font-extrabold text-white shadow hover:bg-brand-dark disabled:opacity-50"
+                        >
+                          🚀 Xuất bản vào Chuyên mục
+                        </button>
+                      </div>
                     </div>
                   )}
                 </>
@@ -725,11 +894,11 @@ export default function PostImporterClient({
                     cls: "bg-gray-100 text-gray-700",
                   };
                   return (
-                    <tr key={j.id} className={activeJob?.id === j.id ? "bg-emerald-50/30" : ""}>
+                    <tr key={j.id} className={activeJob?.id === j.id ? "bg-emerald-50/40" : ""}>
                       <td className="px-3 py-2.5">
                         <button
                           type="button"
-                          onClick={() => setActiveJobId(j.id)}
+                          onClick={() => selectJobForReview(j.id)}
                           className="cursor-pointer text-left font-bold text-gray-900 hover:text-brand"
                         >
                           {j.post_title || `Phiên #${j.id} (${j.source_type === "youtube" ? "YouTube" : "Web"})`}
@@ -755,10 +924,14 @@ export default function PostImporterClient({
                       <td className="px-3 py-2.5 text-right space-x-1.5 whitespace-nowrap">
                         <button
                           type="button"
-                          onClick={() => setActiveJobId(j.id)}
-                          className="cursor-pointer rounded border px-2 py-1 font-semibold text-gray-700 hover:bg-gray-50"
+                          onClick={() => selectJobForReview(j.id)}
+                          className={`cursor-pointer rounded px-2.5 py-1 font-bold ${
+                            activeJob?.id === j.id
+                              ? "bg-brand text-white"
+                              : "border text-gray-700 hover:bg-gray-50"
+                          }`}
                         >
-                          Review
+                          {activeJob?.id === j.id ? "Đang Review ↑" : "Review"}
                         </button>
                         {j.status === "failed" && (
                           <button

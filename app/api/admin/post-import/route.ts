@@ -10,6 +10,8 @@ import {
   getPostImportJobById,
   listPostImportJobs,
   publishPostFromImportJob,
+  regenerateSinglePostImage,
+  savePostImportReviewDraft,
   type PostTonePreset,
 } from "@/lib/post-importer";
 import { canAccessAdminPath } from "@/lib/rbac";
@@ -73,6 +75,54 @@ export async function POST(req: Request) {
         getPostIdleWorkerSummary(),
       ]);
       return NextResponse.json({ ok: true, job, jobs, workerSummary });
+    }
+
+    if (action === "save_review_draft") {
+      const jobId = Number(b.job_id);
+      const categoryId = Number(b.category_id);
+      const title = String(b.title ?? "").trim();
+      const excerpt = String(b.excerpt ?? "").trim();
+      const contentHtml = String(b.content_html ?? "").trim();
+      const cover = String(b.cover ?? "").trim();
+      const comboTitle = String(b.combo_title ?? "").trim();
+      const relatedProductIds = Array.isArray(b.related_product_ids)
+        ? b.related_product_ids.map(Number)
+        : [];
+      if (!jobId) return NextResponse.json({ error: "Thiếu job_id." }, { status: 400 });
+      const { job, policyAudit } = await savePostImportReviewDraft({
+        jobId,
+        title,
+        excerpt,
+        content_html: contentHtml,
+        categoryId,
+        cover,
+        relatedProductIds,
+        comboTitle,
+      });
+      const [jobs, workerSummary] = await Promise.all([
+        listPostImportJobs(40),
+        getPostIdleWorkerSummary(),
+      ]);
+      return NextResponse.json({ ok: true, job, policyAudit, jobs, workerSummary });
+    }
+
+    if (action === "regenerate_image") {
+      const jobId = Number(b.job_id);
+      const role = b.role === "cover" ? "cover" : "section";
+      const sectionIndex = Number(b.section_index) || 0;
+      const customPrompt = String(b.custom_prompt ?? "");
+      if (!jobId) return NextResponse.json({ error: "Thiếu job_id." }, { status: 400 });
+      const { job, newImageUrl } = await regenerateSinglePostImage({
+        jobId,
+        role,
+        sectionIndex,
+        customPrompt,
+      });
+      const [jobs, workerSummary] = await Promise.all([
+        listPostImportJobs(40),
+        getPostIdleWorkerSummary(),
+      ]);
+      return NextResponse.json({ ok: true, job, newImageUrl, jobs, workerSummary });
     }
 
     if (action === "publish") {

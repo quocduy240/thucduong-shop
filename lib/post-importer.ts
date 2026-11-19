@@ -1061,3 +1061,99 @@ export async function clearPostSourceTrace(postId: number): Promise<void> {
     postId,
   );
 }
+
+export async function savePostImportReviewDraft(opts: {
+  jobId: number;
+  title: string;
+  excerpt: string;
+  content_html: string;
+  categoryId: number;
+  cover?: string;
+  relatedProductIds?: number[];
+  comboTitle?: string;
+}): Promise<{ job: PostImportJobRow; policyAudit: PolicyAuditResult }> {
+  await ensurePostImportSchema();
+  const job = await getPostImportJobById(opts.jobId);
+  if (!job) throw new Error("Không tìm thấy phiên biên tập.");
+
+  let prevDraft: Partial<PostDraftPayload> = {};
+  try {
+    prevDraft = JSON.parse(job.draft_json || "{}") as Partial<PostDraftPayload>;
+  } catch {
+    prevDraft = {};
+  }
+
+  const nextDraft: PostDraftPayload = {
+    title: opts.title.trim() || prevDraft.title || "Bài viết mới",
+    excerpt: opts.excerpt.trim(),
+    content_html: opts.content_html,
+    cover: (opts.cover ?? prevDraft.cover ?? "").trim(),
+    images: prevDraft.images ?? [],
+    category_id: opts.categoryId || prevDraft.category_id || 1,
+    related_product_ids: opts.relatedProductIds ?? prevDraft.related_product_ids ?? [],
+    combo_title: (opts.comboTitle ?? prevDraft.combo_title ?? "").trim(),
+  };
+
+  const policyAudit = checkMedicalPolicyCompliance(`${nextDraft.title}\n${nextDraft.content_html}`);
+  await run(
+    `UPDATE post_import_jobs
+     SET draft_json = ?, policy_audit_json = ?, updated_at = datetime('now')
+     WHERE id = ?`,
+    JSON.stringify(nextDraft),
+    JSON.stringify(policyAudit),
+    job.id,
+  );
+
+  return { job: (await getPostImportJobById(job.id))!, policyAudit };
+}
+
+export async function regenerateSinglePostImage(opts: {
+  jobId: number;
+  role: "cover" | "section";
+  sectionIndex?: number;
+  customPrompt?: string;
+}): Promise<{ job: PostImportJobRow; newImageUrl: string }> {
+  await ensurePostImportSchema();
+  const job = await getPostImportJobById(opts.jobId);
+  if (!job) throw new Error("Không tìm thấy phiên biên tập.");
+  const apiKey = await resolveGeminiApiKey();
+  if (!apiKey) throw new Error("Chưa cấu hình Gemini API Key.");
+
+  const draft = JSON.parse(job.draft_json || "{}") as PostDraftPayload;
+  const research = JSON.parse(job.research_json || "{}") as Partial<PostResearchBrief>;
+  const prompts = research.image_prompts || [];
+
+  const promptIndex = opts.role === "cover" ? 0 : (opts.sectionIndex ?? 0) + 1;
+  const promptText =
+    (opts.customPrompt || "").trim() ||
+    prompts[promptIndex]?.prompt ||
+    `Ảnh minh hoạ thực dưỡng hiện đại tinh tế cho chủ đề "${draft.title}"`;
+
+  const generated = await generateBrandImageWithGemini(apiKey, promptText);
+  if (!generated) {
+    throw new Error("Không thể tạo ảnh AI lúc này, vui lòng thử lại.");
+  }
+
+  const slug = `post-ai-${job.id}-regen-${Date.now().toString(36)}`;
+  const newUrl = await saveMediaAsset(slug, generated.mimeType, generated.base64);
+
+  if (opts.role === "cover") {
+    draft.cover = newUrl;
+  } else {
+    const idx = Math.max(0, opts.sectionIndex ?? 0);
+    const oldUrl = draft.images?.[idx];
+    const nextImgs = [...(draft.images || [])];
+    nextImgs[idx] = newUrl;
+    draft.images = nextImgs;
+    if (oldUrl && draft.content_html.includes(oldUrl)) {
+      draft.content_html = draft.content_html.split(oldUrl).join(newUrl);
+    }
+  }
+
+  await run(
+    "UPDATE post_import_jobs SET draft_json = ?, updated_at = datetime('now') WHERE id = ?",
+    JSON.stringify(draft),
+    job.id,
+  );
+  return { job: (await getPostImportJobById(job.id))!, newImageUrl: newUrl };
+}

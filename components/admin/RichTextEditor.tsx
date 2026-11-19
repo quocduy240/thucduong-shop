@@ -9,11 +9,13 @@ export default function RichTextEditor({
   defaultValue = "",
   highlightsName = "highlights",
   defaultHighlights = "",
+  onChange,
 }: {
   name: string;
   defaultValue?: string;
   highlightsName?: string;
   defaultHighlights?: string;
+  onChange?: (nextHtml: string) => void;
 }) {
   const [html, setHtml] = useState(defaultValue);
   const [highlights, setHighlights] = useState(defaultHighlights);
@@ -26,6 +28,12 @@ export default function RichTextEditor({
   const savedRangeRef = useRef<Range | null>(null);
   const visualRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  useEffect(() => {
+    onChangeRef.current?.(html);
+  }, [html]);
 
   useEffect(() => {
     if (visualRef.current && visualRef.current.innerHTML !== html) {
