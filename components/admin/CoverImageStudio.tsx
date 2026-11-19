@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import AiImageRegenerateModal from "./AiImageRegenerateModal";
+import { useCallback, useEffect, useRef, useState } from "react";
+import AiImageRegenerateModal, { type AiGeneratedVariant } from "./AiImageRegenerateModal";
 
 const SIZE_PRESETS = [
   { id: "1200x675", label: "16:9 Chuẩn SEO / Blog (1200 × 675 px)", w: 1200, h: 675 },
@@ -34,6 +34,20 @@ export default function CoverImageStudio({
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiBgState, setAiBgState] = useState<{
+    busy: boolean;
+    variants: AiGeneratedVariant[];
+    error: string;
+  }>({ busy: false, variants: [], error: "" });
+  const [trayDismissed, setTrayDismissed] = useState(false);
+
+  const handleAiBgState = useCallback(
+    (next: { busy: boolean; variants: AiGeneratedVariant[]; error: string }) => {
+      setAiBgState(next);
+      if (next.busy || next.variants.length > 0) setTrayDismissed(false);
+    },
+    [],
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -543,8 +557,72 @@ export default function CoverImageStudio({
                 onClick={() => setAiModalOpen(true)}
                 className="w-full rounded-lg bg-gradient-to-r from-indigo-600 to-brand px-3 py-1.5 text-[11px] font-bold text-white shadow-xs hover:opacity-95 cursor-pointer"
               >
-                🎨 Tạo lại ảnh này bằng Gemini AI Image
+                {aiBgState.busy
+                  ? "⏳ AI đang tạo ảnh ngầm... (Bấm để mở)"
+                  : "🎨 Tạo lại ảnh này bằng Gemini AI Image"}
               </button>
+
+              {(aiBgState.busy || (!trayDismissed && aiBgState.variants.length > 0)) && (
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-2.5 space-y-2">
+                  <div className="flex items-center justify-between gap-2 text-[11px]">
+                    <span className="font-bold text-indigo-950">
+                      {aiBgState.busy
+                        ? "⏳ Đang phân tích & tạo ảnh chạy ngầm..."
+                        : `✨ Đã tạo ${aiBgState.variants.length} ảnh AI — Chọn làm ảnh đại diện:`}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setAiModalOpen(true)}
+                        className="cursor-pointer rounded border border-indigo-200 bg-white px-2 py-0.5 font-semibold text-indigo-800 hover:bg-indigo-100"
+                      >
+                        Mở Studio
+                      </button>
+                      {!aiBgState.busy && (
+                        <button
+                          type="button"
+                          onClick={() => setTrayDismissed(true)}
+                          className="cursor-pointer px-1 text-gray-400 hover:text-gray-700"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {aiBgState.variants.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2">
+                      {aiBgState.variants.map((v) => {
+                        const isSelected = coverUrl === v.url;
+                        return (
+                          <div
+                            key={v.url}
+                            className={`rounded-lg border bg-white p-1.5 space-y-1 ${
+                              isSelected ? "border-emerald-500 ring-1 ring-emerald-400" : "border-gray-200"
+                            }`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={v.url} alt={v.name} className="h-20 w-full rounded object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCoverUrl(v.url);
+                                setMsg("✨ Đã chọn ảnh AI vừa tạo làm ảnh đại diện!");
+                              }}
+                              className={`w-full cursor-pointer rounded px-2 py-1 text-[10px] font-bold ${
+                                isSelected
+                                  ? "bg-emerald-600 text-white"
+                                  : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                              }`}
+                            >
+                              {isSelected ? "✓ Đang chọn" : "✓ Chọn dùng"}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex items-center justify-between gap-2 pt-1 text-[11px]">
                 <select
                   value={displayWidthPct}
@@ -591,6 +669,8 @@ export default function CoverImageStudio({
           ""
         }
         onClose={() => setAiModalOpen(false)}
+        onReopen={() => setAiModalOpen(true)}
+        onBackgroundStateChange={handleAiBgState}
         onApply={(newUrl, _newName, syncedRows) => {
           setCoverUrl(newUrl);
           setMsg(

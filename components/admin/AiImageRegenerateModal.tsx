@@ -51,18 +51,33 @@ const IMAGE_PRESETS = [
   },
 ];
 
+export type AiGeneratedVariant = {
+  url: string;
+  name: string;
+  syncedRows: number;
+  note?: string;
+};
+
 export default function AiImageRegenerateModal({
   open,
   originalUrl,
   contextTitle = "",
   onClose,
   onApply,
+  onReopen,
+  onBackgroundStateChange,
 }: {
   open: boolean;
   originalUrl: string;
   contextTitle?: string;
   onClose: () => void;
   onApply: (newUrl: string, newName: string, syncedRows: number) => void;
+  onReopen?: () => void;
+  onBackgroundStateChange?: (state: {
+    busy: boolean;
+    variants: AiGeneratedVariant[];
+    error: string;
+  }) => void;
 }) {
   const [selectedPresets, setSelectedPresets] = useState<string[]>([
     IMAGE_PRESETS[0].prompt,
@@ -162,16 +177,29 @@ async function enhanceOriginalImageOnCanvas(
   const [generatedUrl, setGeneratedUrl] = useState("");
   const [syncedRows, setSyncedRows] = useState(0);
   const [analysisNote, setAnalysisNote] = useState("");
+  const [variants, setVariants] = useState<AiGeneratedVariant[]>([]);
+  const [lastOriginalUrl, setLastOriginalUrl] = useState(originalUrl);
+  const [bgToastVisible, setBgToastVisible] = useState(false);
 
   useEffect(() => {
-    if (open) {
+    if (originalUrl && originalUrl !== lastOriginalUrl) {
+      setLastOriginalUrl(originalUrl);
       setNewName(suggestSeoImageName(contextTitle, originalUrl));
-      setGeneratedUrl("");
-      setErr("");
+      if (!busy) {
+        setGeneratedUrl("");
+        setVariants([]);
+        setErr("");
+        setAnalysisNote("");
+        setBgToastVisible(false);
+      }
     }
-  }, [open, contextTitle, originalUrl]);
+  }, [originalUrl, lastOriginalUrl, contextTitle, busy]);
 
-  if (!open || !originalUrl) return null;
+  useEffect(() => {
+    onBackgroundStateChange?.({ busy, variants, error: err });
+  }, [busy, variants, err, onBackgroundStateChange]);
+
+  if (!originalUrl) return null;
 
   function togglePreset(prompt: string) {
     setSelectedPresets((prev) =>
@@ -239,6 +267,11 @@ async function enhanceOriginalImageOnCanvas(
         setGeneratedUrl(upData.url);
         setSyncedRows(synced);
         if (data.tuning.analysisNote) setAnalysisNote(data.tuning.analysisNote);
+        setVariants((prev) => [
+          { url: upData.url!, name: seoName, syncedRows: synced, note: data.tuning?.analysisNote },
+          ...prev.filter((v) => v.url !== upData.url),
+        ].slice(0, 4));
+        setBgToastVisible(true);
         return;
       }
 
@@ -247,6 +280,11 @@ async function enhanceOriginalImageOnCanvas(
       }
       setGeneratedUrl(data.newUrl);
       setSyncedRows(data.syncedRows ?? 0);
+      setVariants((prev) => [
+        { url: data.newUrl!, name: seoName, syncedRows: data.syncedRows ?? 0 },
+        ...prev.filter((v) => v.url !== data.newUrl),
+      ].slice(0, 4));
+      setBgToastVisible(true);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -255,14 +293,81 @@ async function enhanceOriginalImageOnCanvas(
   }
 
   return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border bg-white p-5 shadow-2xl space-y-4"
-      >
+    <>
+      {!open && (busy || (bgToastVisible && (generatedUrl || err))) && (
+        <div className="fixed bottom-5 left-5 z-[68] flex max-w-sm items-center gap-3 rounded-2xl border border-indigo-200 bg-white/95 p-3 text-xs shadow-2xl backdrop-blur">
+          <div className="min-w-0 flex-1 space-y-1">
+            {busy ? (
+              <div className="flex items-center gap-2 font-bold text-indigo-800">
+                <span className="inline-block h-2.5 w-2.5 animate-ping rounded-full bg-indigo-600" />
+                <span>Gemini AI đang tạo ảnh chạy ngầm...</span>
+              </div>
+            ) : err ? (
+              <div className="font-bold text-red-700">⚠️ Lỗi tạo ảnh AI: {err}</div>
+            ) : (
+              <div className="flex items-center gap-2.5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={generatedUrl}
+                  alt="Ảnh AI mới"
+                  className="h-11 w-11 shrink-0 rounded-lg border object-cover"
+                />
+                <div className="min-w-0">
+                  <div className="font-extrabold text-emerald-800">✨ Ảnh AI mới đã tạo xong!</div>
+                  <div className="truncate text-[11px] text-gray-500">
+                    Bấm Chọn để áp dụng ngay hoặc mở Studio để xem.
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {onReopen && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBgToastVisible(false);
+                    onReopen();
+                  }}
+                  className="cursor-pointer rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-800 hover:bg-indigo-100"
+                >
+                  👁️ Mở Studio
+                </button>
+              )}
+              {!busy && generatedUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onApply(generatedUrl, newName.trim() || contextTitle, syncedRows);
+                    setBgToastVisible(false);
+                  }}
+                  className="cursor-pointer rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-emerald-700"
+                >
+                  ✓ Dùng ảnh này
+                </button>
+              )}
+              {!busy && (
+                <button
+                  type="button"
+                  onClick={() => setBgToastVisible(false)}
+                  className="cursor-pointer rounded-lg px-2 py-1 text-[11px] text-gray-500 hover:bg-gray-100"
+                >
+                  Ẩn
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {open && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border bg-white p-5 shadow-2xl space-y-4"
+          >
         <div className="flex items-center justify-between border-b pb-3">
           <div>
             <h3 className="text-base font-bold text-gray-900">
@@ -403,36 +508,74 @@ async function enhanceOriginalImageOnCanvas(
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-          >
-            Đóng
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={runGenerate}
-            className="rounded-xl bg-gradient-to-r from-indigo-600 to-brand px-5 py-2 text-xs font-bold text-white shadow-sm hover:opacity-95 disabled:opacity-50 cursor-pointer"
-          >
-            {busy ? "⏳ Đang tạo ảnh AI..." : generatedUrl ? "🔄 Tạo lại phiên bản khác" : "✨ Phân tích & Tạo ảnh mới bằng Gemini AI"}
-          </button>
-          {generatedUrl && (
+        {variants.length > 1 && (
+          <div className="rounded-xl border bg-gray-50/70 p-3 space-y-2">
+            <div className="text-[11px] font-bold text-gray-600">
+              🖼️ Các phiên bản AI vừa tạo trong phiên ({variants.length} ảnh — bấm để xem &amp; chọn):
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {variants.map((v) => {
+                const active = v.url === generatedUrl;
+                return (
+                  <button
+                    key={v.url}
+                    type="button"
+                    onClick={() => {
+                      setGeneratedUrl(v.url);
+                      setSyncedRows(v.syncedRows);
+                      if (v.note) setAnalysisNote(v.note);
+                    }}
+                    className={`cursor-pointer overflow-hidden rounded-lg border-2 p-0.5 transition ${
+                      active ? "border-brand ring-2 ring-brand/20" : "border-gray-200 hover:border-gray-400"
+                    }`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={v.url} alt={v.name} className="h-14 w-14 rounded object-cover" />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
+          <span className="text-[11px] text-gray-500">
+            {busy ? "💡 Có thể đóng cửa sổ ngay — AI vẫn chạy ẩn và báo kết quả khi xong." : ""}
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => {
-                onApply(generatedUrl, newName.trim() || contextTitle, syncedRows);
-                onClose();
-              }}
-              className="rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 cursor-pointer"
+              onClick={onClose}
+              className="cursor-pointer rounded-xl border px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
             >
-              ✓ Thay thế ảnh ngay
+              {busy ? "🔽 Đóng & Chạy ngầm" : "Đóng"}
             </button>
-          )}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={runGenerate}
+              className="rounded-xl bg-gradient-to-r from-indigo-600 to-brand px-5 py-2 text-xs font-bold text-white shadow-sm hover:opacity-95 disabled:opacity-50 cursor-pointer"
+            >
+              {busy ? "⏳ Đang tạo ảnh AI..." : generatedUrl ? "🔄 Tạo lại phiên bản khác" : "✨ Phân tích & Tạo ảnh mới bằng Gemini AI"}
+            </button>
+            {generatedUrl && (
+              <button
+                type="button"
+                onClick={() => {
+                  onApply(generatedUrl, newName.trim() || contextTitle, syncedRows);
+                  setBgToastVisible(false);
+                  onClose();
+                }}
+                className="rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 cursor-pointer"
+              >
+                ✓ Thay thế ảnh ngay
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
+      )}
+    </>
   );
 }
