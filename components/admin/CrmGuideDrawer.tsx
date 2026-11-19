@@ -67,21 +67,71 @@ const TOPICS: GuideTopic[] = [
   },
   {
     id: "notes",
-    title: "4. Ghi Nhật ký Tư vấn & Hẹn gọi lại",
+    title: "4. Nhắc việc 'Cần gọi hôm nay' & Nhật ký Tư vấn",
+    badge: "Mới",
     items: [
       {
-        heading: "Ghi chú thể trạng & sở thích",
-        body: "Luôn ghi ngắn gọn thông tin quan trọng của khách (VD: 'Cô Lan bị tiểu đường, thích Trà Bancha, không thích đồ ngọt') để lần sau bất kỳ nhân viên nào mở lên cũng hiểu ngay khách hàng.",
+        heading: "Badge nhắc việc trên Menu Admin",
+        body: "Số lượng khách có ngày hẹn gọi lại <= hôm nay sẽ hiện thành badge màu vàng cam ngay cạnh mục '💎 CRM Chăm sóc' ở thanh menu bên trái.",
       },
       {
-        heading: "Đặt ngày hẹn gọi lại",
-        body: "Chọn ô ngày bên dưới khung ghi chú trước khi bấm 'Lưu ghi chú'. Ngày hẹn sẽ hiển thị nổi bật màu vàng ngay dưới ghi chú để nhắc bạn theo dõi.",
+        heading: "Bộ lọc '🔔 Cần gọi hôm nay' & Nút '✓ Đã xử lý'",
+        body: "Bấm tab lọc '🔔 Cần gọi hôm nay' để xem đúng danh sách khách đến hạn. Sau khi gọi xong, bấm '✓ Đã xử lý' (hoặc lưu ghi chú mới) để đóng lịch hẹn cũ và giảm số badge.",
+      },
+      {
+        heading: "Ghi chú thể trạng & Đặt lịch hẹn mới",
+        body: "Ghi ngắn gọn thể trạng/sở thích của khách và chọn ngày hẹn tiếp theo ở ô chọn ngày trước khi bấm 'Lưu ghi chú'.",
+      },
+    ],
+  },
+  {
+    id: "tags",
+    title: "5. Gắn Thẻ phân loại Bệnh lý / Nhu cầu (Tags)",
+    badge: "Mới",
+    items: [
+      {
+        heading: "Gắn tag 1 chạm hoặc tự nhập",
+        body: "Trong hồ sơ khách hàng bên phải, bấm vào các tag gợi ý (#Tiểu_đường, #Dạ_dày, #Tim_mạch, #Ăn_chay, #Khách_biếu_tặng, #Mẹ_bầu) hoặc gõ tag mới vào ô bên dưới rồi bấm 'Gắn'.",
+      },
+      {
+        heading: "Lọc danh sách theo Tag",
+        body: "Khi có bài viết kiến thức hoặc combo mới, bấm vào thanh '🏷️ Lọc theo Tag' phía trên danh sách để tìm đúng nhóm khách có nhu cầu tương ứng.",
+      },
+    ],
+  },
+  {
+    id: "automation",
+    title: "6. Tab '🤖 Tự động hóa +3/+25 ngày' (Email & Zalo)",
+    badge: "Mới",
+    items: [
+      {
+        heading: "Tự động lọc đơn hoàn thành (done)",
+        body: "Hệ thống tự đưa vào hàng chờ các đơn hàng đạt mốc 3–7 ngày (gửi hướng dẫn dùng) và 25–35 ngày (nhắc mua lại định kỳ).",
+      },
+      {
+        heading: "Chạy gửi Email tự động & Gửi Zalo 1 chạm",
+        body: "Bấm '▶ Chạy gửi Email tự động ngay' để gửi email hàng loạt cho các khách có email (yêu cầu đã cấu hình SMTP trong Cài đặt). Với khách dùng Zalo, bấm 'Mở Zalo ↗' → '📋 Copy nội dung' → '✓ Đánh dấu đã gửi' để chống gửi trùng.",
+      },
+    ],
+  },
+  {
+    id: "retention",
+    title: "7. Tab '📊 Báo cáo Tỷ lệ Quay lại (Retention Rate)'",
+    badge: "Mới",
+    items: [
+      {
+        heading: "Theo dõi sức khỏe doanh thu",
+        body: "Xem nhanh Tổng khách đã mua, số khách mua từ 2 đơn trở lên (% Retention Rate), và thanh tỷ trọng Doanh thu Khách mới vs Khách quay lại.",
+      },
+      {
+        heading: "Hiệu quả theo Tư vấn viên",
+        body: "Bảng thống kê cuối trang cho biết mỗi tài khoản Admin đã chăm sóc bao nhiêu khách, tổng số ghi chú và số lịch hẹn đã xử lý.",
       },
     ],
   },
   {
     id: "loyalty",
-    title: "5. Kết hợp CRM với Điểm thưởng & Voucher",
+    title: "8. Kết hợp CRM với Điểm thưởng & Voucher",
     items: [
       {
         heading: "Mời khách vãng lai đăng ký nhận điểm",
@@ -95,24 +145,16 @@ const TOPICS: GuideTopic[] = [
   },
   {
     id: "roadmap",
-    title: "6. Gợi ý các tính năng mới nên tích hợp thêm",
-    badge: "Đề xuất",
+    title: "9. Gợi ý nâng cấp mở rộng tiếp theo",
+    badge: "Tương lai",
     items: [
       {
-        heading: "🔔 Nhắc việc 'Khách cần gọi hôm nay'",
-        body: "Thêm bộ lọc riêng những khách có Ngày hẹn gọi lại <= hôm nay và hiển thị badge số lượng ngay trên menu Admin để nhân viên không bao giờ quên lịch hẹn.",
+        heading: "🤖 Kết nối Zalo OA / ZNS chính thức",
+        body: "Khi cửa hàng có Zalo OA xác thực, có thể gắn API Token để hệ thống tự bắn tin ZNS ở mốc Ngày +3 và Ngày +25 hoàn toàn tự động.",
       },
       {
-        heading: "🏷️ Gắn thẻ phân loại bệnh lý / nhu cầu (Tags)",
-        body: "Gắn tag như #Tiểu_đường, #Dạ_dày, #Ăn_chay, #Khách_biếu_tặng để lọc gửi bài viết kiến thức hoặc combo sản phẩm đúng nhu cầu từng nhóm.",
-      },
-      {
-        heading: "🤖 Tích hợp Zalo OA / Email Automation",
-        body: "Tự động gửi tin nhắn hướng dẫn sử dụng sau 3 ngày giao hàng thành công (`done`) và tự động nhắc mua lại sau 25 ngày mà không cần bấm tay.",
-      },
-      {
-        heading: "📊 Báo cáo Tỷ lệ Quay lại (Retention Rate)",
-        body: "Biểu đồ thống kê tỷ lệ khách mua lần 2, doanh thu từ khách cũ vs khách mới, và hiệu quả chăm sóc của từng tư vấn viên.",
+        heading: "🧪 Liên kết hồ sơ Xét nghiệm AI & Tư vấn nhanh AI",
+        body: "Hiển thị thêm lịch sử xét nghiệm / câu hỏi tư vấn nhanh AI của khách ngay trong cột hồ sơ CRM 360°.",
       },
     ],
   },
