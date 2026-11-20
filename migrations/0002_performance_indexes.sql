@@ -4,7 +4,7 @@
 
 -- Product catalog & storefront listings
 CREATE INDEX IF NOT EXISTS idx_products_cat_pub_feat ON products(category_id, is_published, featured DESC, id DESC);
-CREATE INDEX IF NOT EXISTS idx_products_pub_created ON products(is_published, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_products_pub_id ON products(is_published, featured DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_product_categories_active_sort ON product_categories(is_active, sort, id);
 
 -- Comments & product ratings (eliminates correlated subquery full scans in PRODUCT_COLS)
