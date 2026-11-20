@@ -105,7 +105,7 @@ export async function getFlashSaleItems(onlyActive = true): Promise<FlashSaleIte
      FROM flash_sale_items f
      JOIN products p ON p.id = f.product_id
      JOIN product_categories c ON c.id = p.category_id
-     ${onlyActive ? "WHERE f.active = 1 AND p.stock > 0" : ""}
+     ${onlyActive ? "WHERE f.active = 1 AND p.stock > 0 AND COALESCE(p.is_published, 1) = 1" : ""}
      ORDER BY f.sort ASC, f.id ASC`,
   );
 }
@@ -177,7 +177,7 @@ export async function getProductFlashSale(
      FROM flash_sale_items f
      JOIN products p ON p.id = f.product_id
      JOIN product_categories c ON c.id = p.category_id
-     WHERE f.product_id = ? AND f.active = 1 AND f.sold < f.quota AND p.stock > 0
+     WHERE f.product_id = ? AND f.active = 1 AND f.sold < f.quota AND p.stock > 0 AND COALESCE(p.is_published, 1) = 1
      ORDER BY f.flash_price ASC LIMIT 1`,
     productId,
   );
