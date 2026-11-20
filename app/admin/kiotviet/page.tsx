@@ -86,6 +86,29 @@ export default async function KiotVietAdminPage({
           </label>
         </div>
 
+        <details className="rounded-xl border border-blue-200 bg-blue-50/40 p-3.5 text-xs text-gray-700">
+          <summary className="cursor-pointer font-bold text-blue-800 select-none">
+            📖 Hướng dẫn lấy Client ID &amp; Client Secret từ KiotViet (Bấm để xem)
+          </summary>
+          <div className="mt-3 space-y-2 border-t border-blue-200/70 pt-3 leading-relaxed">
+            <p>
+              <strong>Bước 1 — Đảm bảo gian hàng đã bật Kết nối API:</strong> Đăng nhập KiotViet (tài khoản Admin chủ gian hàng) →{" "}
+              <strong>Thiết lập (⚙️) → Cửa hàng → Kết nối API</strong>. Nếu chưa thấy mục này, hãy gọi tổng đài{" "}
+              <strong>1900 6522</strong> hoặc gửi email tới <strong>hotro@kiotviet.com</strong> yêu cầu bật tính năng{" "}
+              <em>&ldquo;Kết nối API (Public API)&rdquo;</em> cho gian hàng <code>{cfg.retailer || "phuoctho88"}</code>.
+            </p>
+            <p>
+              <strong>Bước 2 — Tạo mã bảo mật (có OTP):</strong> Trong mục <em>Kết nối API</em> bấm <strong>Chỉnh sửa</strong> → nhập SĐT đăng ký hợp đồng → bấm{" "}
+              <strong>Nhận mã xác thực (OTP)</strong> → bấm <strong>Tạo mã</strong> tại ô <em>Mã bảo mật (Client Secret)</em> → tích{" "}
+              <strong>Đồng ý</strong> và <strong>tích chọn quyền truy xuất Khách hàng, Hoá đơn, Đặt hàng</strong> → bấm <strong>Lưu</strong>.
+            </p>
+            <p>
+              <strong>Bước 3 — Kết nối:</strong> Copy <strong>Client ID</strong> và <strong>Client Secret</strong> dán vào các ô bên dưới → bấm{" "}
+              <strong>🔌 Lưu &amp; Kiểm tra kết nối API</strong>.
+            </p>
+          </div>
+        </details>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className={ui.label}>Tên gian hàng (Retailer) *</label>
