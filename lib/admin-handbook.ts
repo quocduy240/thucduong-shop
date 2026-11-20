@@ -75,6 +75,10 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
             body: "Theo dõi giá trị tồn kho, sản phẩm sắp hết (1–5), lập Phiếu Nhập hàng NCC (cập nhật giá vốn + cộng kho + ghi Phiếu Chi), Kiểm kho thực tế và quản lý Sổ quỹ Thu – Chi.",
           },
           {
+            heading: "Nhập & Đồng bộ Sản phẩm từ Excel KiotViet (/admin/kiotviet/)",
+            body: "Tải trực tiếp file .xlsx hoặc .csv xuất từ KiotViet để xem trước (Preview) và đồng bộ hàng loạt vào website. Hệ thống tự tách bỏ dòng Dịch vụ, lưu mã KiotViet vào cả sku và kv_code để đồng bộ 2 chiều, tự tạo danh mục mới theo Nhóm hàng KiotViet, chuẩn hoá ĐVT và ghi đè giá bán, giá vốn, tồn kho (tồn âm tự đưa về 0).",
+          },
+          {
             heading: "Vận đơn COD & Đẩy đơn sang KiotViet (/admin/orders/[id]/ & /admin/kiotviet/)",
             body: "Cập nhật ĐVVC (GHN, GHTK, Viettel Post...), Mã vận đơn, Phí ship và tiền thu hộ COD ngay trong chi tiết đơn. Cấu hình ClientId/Secret/Retailer tại /admin/kiotviet/ để đẩy đơn sang KiotViet 1 chạm và nhận Webhook đồng bộ tồn kho theo SKU.",
           },

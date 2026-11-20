@@ -4,6 +4,7 @@ import {
   syncKiotVietInventoryAction,
   testKiotVietAction,
 } from "@/app/admin/actions";
+import KiotVietExcelImport from "@/components/admin/KiotVietExcelImport";
 import { Flash, PageHeader, ui } from "@/components/admin/ui";
 import { requireRole } from "@/lib/auth";
 import { getKiotVietConfig } from "@/lib/kiotviet";
@@ -35,6 +36,8 @@ export default async function KiotVietAdminPage({
           ✓ {sp.msg}
         </div>
       )}
+
+      <KiotVietExcelImport />
 
       {/* Status + Sync Actions */}
       <div className="grid gap-4 md:grid-cols-2">

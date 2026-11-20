@@ -210,7 +210,8 @@ export async function syncInventoryFromKiotViet(createdBy = "admin"): Promise<{ 
     const code = (kp.code ?? "").trim();
     if (!code) continue;
     const local = await one<{ id: number; stock: number }>(
-      "SELECT id, stock FROM products WHERE sku = ? LIMIT 1",
+      "SELECT id, stock FROM products WHERE kv_code = ? OR sku = ? LIMIT 1",
+      code,
       code,
     );
     if (!local) continue;

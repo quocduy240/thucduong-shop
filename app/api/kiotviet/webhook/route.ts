@@ -53,7 +53,8 @@ export async function POST(req: NextRequest) {
     for (const item of items) {
       if (typeof item.onHand !== "number") continue;
       const prod = await one<{ id: number; stock: number }>(
-        "SELECT id, stock FROM products WHERE sku = ? LIMIT 1",
+        "SELECT id, stock FROM products WHERE kv_code = ? OR sku = ? LIMIT 1",
+        item.code,
         item.code,
       );
       if (!prod) continue;
