@@ -200,7 +200,7 @@ export async function buildSitemapEntries(): Promise<{
     config.groups.product_categories.enabled ? getProductCategories() : Promise.resolve([]),
     config.groups.products.enabled
       ? all<{ slug: string; category_slug: string }>(
-          "SELECT p.slug, c.slug AS category_slug FROM products p JOIN product_categories c ON c.id = p.category_id ORDER BY p.id DESC",
+          "SELECT p.slug, c.slug AS category_slug FROM products p JOIN product_categories c ON c.id = p.category_id WHERE COALESCE(p.is_published, 1) = 1 AND COALESCE(c.is_active, 1) = 1 ORDER BY p.id DESC",
         )
       : Promise.resolve([]),
     config.groups.post_categories.enabled ? getPostSections() : Promise.resolve([]),

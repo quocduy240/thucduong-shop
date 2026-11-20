@@ -94,6 +94,10 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
         badge: "Mới",
         items: [
           {
+            heading: "Ẩn/Công khai sản phẩm & thao tác hàng loạt (Mới)",
+            body: "Mỗi sản phẩm có ô '🌐 Công khai' ở Bước 2: bỏ chọn thì sản phẩm bị ẩn hoàn toàn khỏi website (trang chủ, danh mục, tìm kiếm, sitemap, giỏ hàng; mở link trực tiếp báo 404) nhưng vẫn thấy trong Admin với nhãn 'Đang ẩn'. Ở danh sách Sản phẩm, tick nhiều sản phẩm rồi dùng thanh 'Thao tác hàng loạt' để chuyển danh mục và/hoặc Công khai/Ẩn cùng lúc. Danh mục 'Chưa Phân Loại' (mã CPL-xxx) chứa các sản phẩm chờ kiểm duyệt.",
+          },
+          {
             heading: "Giao diện 3 Bước (Tab) & Thanh kiểm tra tình trạng hồ sơ",
             body: "Trang sửa sản phẩm được chia thành 3 bước rõ ràng: Bước 1 (Thông tin & Giá bán), Bước 2 (Hình ảnh & Video), Bước 3 (Mô tả chi tiết & AI). Các nhãn trạng thái ở trên giúp kiểm tra nhanh mục nào đã đủ, bấm vào nhãn để nhảy thẳng tới bước cần sửa; bấm Lưu ở thanh đáy sẽ lưu toàn bộ cả 3 bước cùng lúc.",
           },

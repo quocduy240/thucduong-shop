@@ -119,11 +119,12 @@ export const getProductCategory = cache(async (slug: string) => {
   );
 });
 
+const PUB = "COALESCE(p.is_published, 1) = 1";
 const CDS_FIRST = "CASE WHEN LOWER(p.name) LIKE '%canh dưỡng sinh%' OR LOWER(p.name) LIKE '%canh duong sinh%' THEN 0 ELSE 1 END";
 
 export const getProducts = cache((limit = 1000) =>
   all<Product>(
-    `SELECT ${PRODUCT_COLS} FROM products p JOIN product_categories c ON c.id = p.category_id ORDER BY ${CDS_FIRST}, p.featured DESC, c.sort, p.id DESC LIMIT ?`,
+    `SELECT ${PRODUCT_COLS} FROM products p JOIN product_categories c ON c.id = p.category_id WHERE ${PUB} ORDER BY ${CDS_FIRST}, p.featured DESC, c.sort, p.id DESC LIMIT ?`,
     limit,
   ),
 );
@@ -131,7 +132,7 @@ export const getProducts = cache((limit = 1000) =>
 export const getProductsByCategory = cache((categoryId: number, limit = 1000) =>
   all<Product>(
     `SELECT ${PRODUCT_COLS} FROM products p JOIN product_categories c ON c.id = p.category_id
-     WHERE p.category_id = ? ORDER BY ${CDS_FIRST}, p.featured DESC, p.id DESC LIMIT ?`,
+     WHERE p.category_id = ? AND ${PUB} ORDER BY ${CDS_FIRST}, p.featured DESC, p.id DESC LIMIT ?`,
     categoryId,
     limit,
   ),
@@ -148,6 +149,7 @@ export const getHomeCategoryProducts = cache(async (limitPerCategory = 4): Promi
          ) AS rn
        FROM products p
        JOIN product_categories c ON c.id = p.category_id
+        WHERE ${PUB}
      ) WHERE rn <= ?
      ORDER BY category_id, rn`,
     limitPerCategory,
@@ -164,7 +166,7 @@ export const getHomeCategoryProducts = cache(async (limitPerCategory = 4): Promi
 export const getProduct = cache((categorySlug: string, slug: string) =>
   one<Product>(
     `SELECT ${PRODUCT_COLS} FROM products p JOIN product_categories c ON c.id = p.category_id
-     WHERE c.slug = ? AND p.slug = ?`,
+     WHERE c.slug = ? AND p.slug = ? AND ${PUB}`,
     categorySlug,
     slug,
   ),
@@ -174,7 +176,7 @@ export const getProductsByIds = async (ids: number[]): Promise<Product[]> =>
   ids.length
     ? all<Product>(
         `SELECT ${PRODUCT_COLS} FROM products p JOIN product_categories c ON c.id = p.category_id
-         WHERE p.id IN (${ids.map(() => "?").join(",")})`,
+         WHERE p.id IN (${ids.map(() => "?").join(",")}) AND ${PUB}`,
         ...ids,
       )
     : [];
@@ -182,7 +184,7 @@ export const getProductsByIds = async (ids: number[]): Promise<Product[]> =>
 export const getRelatedProducts = (p: Product, limit = 4) =>
   all<Product>(
     `SELECT ${PRODUCT_COLS} FROM products p JOIN product_categories c ON c.id = p.category_id
-     WHERE p.category_id = ? AND p.id <> ? LIMIT ?`,
+     WHERE p.category_id = ? AND p.id <> ? AND ${PUB} LIMIT ?`,
     p.category_id,
     p.id,
     limit,
@@ -201,7 +203,7 @@ export type ProductFilterOptions = {
 };
 
 export async function filterProducts(opts: ProductFilterOptions = {}): Promise<Product[]> {
-  const where: string[] = [];
+  const where: string[] = [PUB];
   const params: (string | number)[] = [];
   if (opts.categoryId) {
     where.push("p.category_id = ?");
@@ -260,11 +262,11 @@ export async function getProductFilterFacets(categoryId?: number) {
   const args = categoryId ? [categoryId] : [];
   const [brands, origins] = await Promise.all([
     all<{ brand: string; count: number }>(
-      `SELECT brand, COUNT(*) AS count FROM products WHERE brand <> '' ${cond} GROUP BY brand ORDER BY count DESC, brand ASC`,
+      `SELECT brand, COUNT(*) AS count FROM products WHERE COALESCE(is_published, 1) = 1 AND brand <> '' ${cond} GROUP BY brand ORDER BY count DESC, brand ASC`,
       ...args,
     ),
     all<{ origin: string; count: number }>(
-      `SELECT origin, COUNT(*) AS count FROM products WHERE origin <> '' ${cond} GROUP BY origin ORDER BY count DESC, origin ASC`,
+      `SELECT origin, COUNT(*) AS count FROM products WHERE COALESCE(is_published, 1) = 1 AND origin <> '' ${cond} GROUP BY origin ORDER BY count DESC, origin ASC`,
       ...args,
     ),
   ]);
@@ -322,7 +324,7 @@ export async function getPostComboProducts(post: Post): Promise<Product[]> {
   }
   return all<Product>(
     `SELECT ${PRODUCT_COLS} FROM products p JOIN product_categories c ON c.id = p.category_id
-     WHERE p.price > 0 AND p.stock > 0 ORDER BY p.featured DESC, p.id ASC LIMIT 3`,
+     WHERE ${PUB} AND p.price > 0 AND p.stock > 0 ORDER BY p.featured DESC, p.id ASC LIMIT 3`,
   );
 }
 
@@ -331,7 +333,7 @@ export function getBestSellingProducts(limit = 4): Promise<Product[]> {
     `SELECT ${PRODUCT_COLS},
             COALESCE((SELECT SUM(oi.qty) FROM order_items oi WHERE oi.product_id = p.id), 0) AS sold_qty
      FROM products p JOIN product_categories c ON c.id = p.category_id
-     WHERE p.price > 0 AND p.stock > 0
+     WHERE ${PUB} AND p.price > 0 AND p.stock > 0
      ORDER BY sold_qty DESC, p.featured DESC, rating_count DESC, p.id ASC
      LIMIT ?`,
     limit,
@@ -344,7 +346,7 @@ export function getCrossSellProducts(excludeIds: number[] = [], limit = 4): Prom
   return all<Product>(
     `SELECT ${PRODUCT_COLS}
      FROM products p JOIN product_categories c ON c.id = p.category_id
-     WHERE p.price > 0 AND p.stock > 0 ${notIn}
+     WHERE ${PUB} AND p.price > 0 AND p.stock > 0 ${notIn}
      ORDER BY (p.sale_price IS NOT NULL AND p.sale_price < p.price) DESC, p.featured DESC, p.id DESC
      LIMIT ?`,
     ...validExclude,
@@ -366,7 +368,7 @@ export async function search(q: string, limit = 8) {
   const [products, posts] = await Promise.all([
     all<Product>(
       `SELECT ${PRODUCT_COLS} FROM products p JOIN product_categories c ON c.id = p.category_id
-       WHERE p.name LIKE ? LIMIT ?`,
+       WHERE p.name LIKE ? AND ${PUB} LIMIT ?`,
       like,
       limit,
     ),
@@ -382,8 +384,8 @@ export async function search(q: string, limit = 8) {
 
 // ---- Admin lookups (by id) ----
 export const getProductById = (id: number) =>
-  one<Product & { featured: number }>(
-    `SELECT ${PRODUCT_COLS}, p.featured FROM products p JOIN product_categories c ON c.id = p.category_id WHERE p.id = ?`,
+  one<Product & { featured: number; is_published: number }>(
+    `SELECT ${PRODUCT_COLS}, p.featured, COALESCE(p.is_published, 1) AS is_published FROM products p JOIN product_categories c ON c.id = p.category_id WHERE p.id = ?`,
     id,
   );
 export const getPostById = (id: number) =>

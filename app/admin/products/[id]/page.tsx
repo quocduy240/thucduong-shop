@@ -184,6 +184,10 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
             <h2 className="text-sm font-extrabold text-amber-900">
               2. Giá bán, Danh mục &amp; Quản lý Tồn kho
             </h2>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-green-300 bg-green-50 px-3.5 py-1 text-xs font-bold text-green-900 hover:bg-green-100">
+              <input type="checkbox" name="is_published" value="1" defaultChecked={p ? !!p.is_published : true} className="accent-brand" />
+              <span>🌐 Công khai (bỏ chọn = ẩn khỏi website)</span>
+            </label>
             <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-3.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-100">
               <input type="checkbox" name="featured" value="1" defaultChecked={!!p?.featured} className="accent-brand" />
               <span>⭐ Sản phẩm nổi bật (ưu tiên đầu danh mục)</span>

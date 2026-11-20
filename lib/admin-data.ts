@@ -62,11 +62,11 @@ export async function getNavBadges() {
 // ---- products ----
 export type AdminProductRow = {
   id: number; name: string; slug: string; price: number; sale_price: number | null;
-  stock: number; image: string | null; featured: number;
+  stock: number; image: string | null; featured: number; is_published: number;
   sku: string; brand: string; origin: string; unit: string;
   category_name: string; category_slug: string;
 };
-export async function listProducts(opts: { q?: string; category?: number; stock?: string; page: number }) {
+export async function listProducts(opts: { q?: string; category?: number; stock?: string; status?: string; page: number }) {
   const where: string[] = [];
   const params: (string | number)[] = [];
   if (opts.q) {
@@ -78,14 +78,16 @@ export async function listProducts(opts: { q?: string; category?: number; stock?
   if (opts.stock === "out") where.push("p.stock <= 0");
   else if (opts.stock === "low") where.push("p.stock > 0 AND p.stock <= 5");
   else if (opts.stock === "in") where.push("p.stock > 0");
+  if (opts.status === "hidden") where.push("COALESCE(p.is_published, 1) = 0");
+  else if (opts.status === "published") where.push("COALESCE(p.is_published, 1) = 1");
   const w = where.length ? "WHERE " + where.join(" AND ") : "";
   const [totalRow, rows] = await Promise.all([
     one<{ n: number }>(`SELECT COUNT(*) AS n FROM products p ${w}`, ...params),
     all<AdminProductRow>(
-      `SELECT p.id, p.name, p.slug, p.price, p.sale_price, p.stock, p.image, p.featured,
+      `SELECT p.id, p.name, p.slug, p.price, p.sale_price, p.stock, p.image, p.featured, COALESCE(p.is_published, 1) AS is_published,
               p.sku, p.brand, p.origin, p.unit, c.name AS category_name, c.slug AS category_slug
        FROM products p JOIN product_categories c ON c.id = p.category_id ${w}
-       ORDER BY p.id DESC LIMIT ? OFFSET ?`,
+       ORDER BY p.sku ASC, p.id DESC LIMIT ? OFFSET ?`,
       ...params, PAGE_SIZE, offset(opts.page),
     ),
   ]);

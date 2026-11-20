@@ -4,7 +4,7 @@ import { listProducts } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/auth";
 import { getProductCategories, url } from "@/lib/data";
 import { vnd } from "@/lib/site";
-import { updateProductStockAction } from "../actions";
+import { bulkProductsAction, updateProductStockAction } from "../actions";
 
 export const metadata = { title: "Sản phẩm | Quản trị" };
 
@@ -14,9 +14,10 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
   const q = strParam(sp.q);
   const category = Number(strParam(sp.category)) || 0;
   const stock = strParam(sp.stock);
+  const status = strParam(sp.status);
   const page = pageParam(sp.page);
   const [{ rows, total }, categories] = await Promise.all([
-    listProducts({ q, category, stock, page }),
+    listProducts({ q, category, stock, status, page }),
     getProductCategories(),
   ]);
 
@@ -24,6 +25,7 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
   if (q) currentQuery.set("q", q);
   if (category) currentQuery.set("category", String(category));
   if (stock) currentQuery.set("stock", stock);
+  if (status) currentQuery.set("status", status);
   if (page > 1) currentQuery.set("page", String(page));
   currentQuery.set("saved", "1");
   const returnTo = `/admin/products/?${currentQuery.toString()}`;
@@ -49,14 +51,35 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
           <option value="low">Sắp hết (1 – 5)</option>
           <option value="out">Hết hàng (0)</option>
         </select>
+        <select name="status" defaultValue={status} className={`${ui.input} max-w-xs`}>
+          <option value="">Tất cả trạng thái</option>
+          <option value="published">Đang công khai</option>
+          <option value="hidden">Đang ẩn (nháp)</option>
+        </select>
         <button className={ui.secondary}>Lọc</button>
-        {(q || category || stock) && <Link href="/admin/products/" className={ui.secondary}>Bỏ lọc</Link>}
+        {(q || category || stock || status) && <Link href="/admin/products/" className={ui.secondary}>Bỏ lọc</Link>}
+      </form>
+
+      <form id="bulk" action={bulkProductsAction} className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm">
+        <input type="hidden" name="return_to" value={returnTo} />
+        <span className="font-semibold text-blue-900">Thao tác hàng loạt (tick sản phẩm bên dưới):</span>
+        <select name="category_id" defaultValue="" className={`${ui.input} max-w-xs`}>
+          <option value="">— Giữ nguyên danh mục —</option>
+          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select name="visibility" defaultValue="" className={`${ui.input} max-w-[200px]`}>
+          <option value="">— Giữ nguyên trạng thái —</option>
+          <option value="publish">Công khai</option>
+          <option value="hide">Ẩn (nháp)</option>
+        </select>
+        <button className={ui.primary}>Áp dụng</button>
       </form>
 
       <div className={`${ui.card} overflow-x-auto`}>
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
+              <th className={ui.th}></th>
               <th className={ui.th}>Ảnh</th>
               <th className={ui.th}>Tên</th>
               <th className={ui.th}>Danh mục</th>
@@ -67,7 +90,8 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
           </thead>
           <tbody className="divide-y">
             {rows.map((p) => (
-              <tr key={p.id}>
+              <tr key={p.id} className={p.is_published ? "" : "bg-gray-50"}>
+                <td className={ui.td}><input type="checkbox" form="bulk" name="ids" value={p.id} className="accent-brand" /></td>
                 <td className={ui.td}>
                   {p.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -78,6 +102,7 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
                 </td>
                 <td className={`${ui.td} max-w-md`}>
                   <Link href={`/admin/products/${p.id}/`} className="font-medium hover:text-brand">{p.name}</Link>
+                  {p.is_published ? null : <span className="ml-2 rounded bg-gray-200 px-1.5 py-0.5 text-xs text-gray-700">Đang ẩn</span>}
                   {p.featured ? <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">Nổi bật</span> : null}
                   <div className="mt-0.5 flex flex-wrap gap-2 text-xs text-gray-500">
                     {p.sku && <span className="font-mono text-gray-600">#{p.sku}</span>}
@@ -123,7 +148,7 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-sm text-gray-500">Không có sản phẩm nào.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-sm text-gray-500">Không có sản phẩm nào.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -131,7 +156,7 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
         basePath="/admin/products/"
         page={page}
         total={total}
-        params={{ q, category: category ? String(category) : undefined, stock: stock || undefined }}
+        params={{ q, category: category ? String(category) : undefined, stock: stock || undefined, status: status || undefined }}
       />
     </div>
   );

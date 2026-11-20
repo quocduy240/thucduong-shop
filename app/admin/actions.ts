@@ -98,6 +98,7 @@ export async function saveProductAction(formData: FormData) {
   }
 
   const featured = str(formData, "featured") === "1" ? 1 : 0;
+  const isPublished = str(formData, "is_published") === "1" ? 1 : 0;
   const sku = str(formData, "sku");
   const brand = str(formData, "brand");
   const origin = str(formData, "origin");
@@ -127,16 +128,16 @@ export async function saveProductAction(formData: FormData) {
     await ensureSeoColumns();
     if (id) {
       await run(
-        `UPDATE products SET name=?, slug=?, category_id=?, price=?, sale_price=?, stock=?, summary=?, description=?, image=?, featured=?,
+        `UPDATE products SET name=?, slug=?, category_id=?, price=?, sale_price=?, stock=?, summary=?, description=?, image=?, featured=?, is_published=?,
          sku=?, brand=?, origin=?, unit=?, gallery=?, video_url=?, seo_title=?, seo_description=?, seo_keywords=? WHERE id=?`,
-        name, slug, categoryId, price, salePrice, stock, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured,
+        name, slug, categoryId, price, salePrice, stock, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured, isPublished,
         sku, brand, origin, unit, gallery, videoUrl, seoTitle, seoDescription, seoKeywords, id,
       );
     } else {
       await run(
-        `INSERT INTO products (name, slug, category_id, price, sale_price, stock, summary, description, image, featured, sku, brand, origin, unit, gallery, video_url, seo_title, seo_description, seo_keywords)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        name, slug, categoryId, price, salePrice, stock, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured,
+        `INSERT INTO products (name, slug, category_id, price, sale_price, stock, summary, description, image, featured, is_published, sku, brand, origin, unit, gallery, video_url, seo_title, seo_description, seo_keywords)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        name, slug, categoryId, price, salePrice, stock, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured, isPublished,
         sku, brand, origin, unit, gallery, videoUrl, seoTitle, seoDescription, seoKeywords,
       );
     }
@@ -156,6 +157,27 @@ export async function updateProductStockAction(formData: FormData) {
   refresh();
   const returnTo = str(formData, "return_to");
   redirect(returnTo && returnTo.startsWith("/admin/products") ? returnTo : "/admin/products/?saved=1");
+}
+
+/** Bulk: move to category and/or publish/hide the selected products. */
+export async function bulkProductsAction(formData: FormData) {
+  await requireAdmin();
+  const ids = formData.getAll("ids").map((v) => Number(v)).filter((n) => Number.isInteger(n) && n > 0);
+  const returnTo = str(formData, "return_to");
+  const dest = returnTo.startsWith("/admin/products") ? returnTo : "/admin/products/";
+  if (!ids.length) back("/admin/products/", "Chưa chọn sản phẩm nào.");
+  const marks = ids.map(() => "?").join(",");
+  const categoryId = num(formData, "category_id");
+  if (categoryId) {
+    if (!(await one("SELECT 1 AS x FROM product_categories WHERE id = ?", categoryId))) back("/admin/products/", "Danh mục không hợp lệ.");
+    await run(`UPDATE products SET category_id = ? WHERE id IN (${marks})`, categoryId, ...ids);
+  }
+  const visibility = str(formData, "visibility");
+  if (visibility === "publish" || visibility === "hide") {
+    await run(`UPDATE products SET is_published = ? WHERE id IN (${marks})`, visibility === "publish" ? 1 : 0, ...ids);
+  }
+  refresh();
+  redirect(dest.includes("?") ? dest + "&saved=1" : dest + "?saved=1");
 }
 
 export async function deleteProductAction(formData: FormData) {
