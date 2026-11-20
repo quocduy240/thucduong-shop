@@ -39,12 +39,14 @@ export async function resolveGeminiApiKey(overrideKey?: string): Promise<string>
 }
 
 /**
- * Calls Gemini text generation with automatic model fallback (`gemini-3.8-flash` -> `gemini-flash-latest` -> `gemini-2.5-flash`).
+ * Calls Gemini text generation with automatic model fallback (`gemini-2.5-flash` -> `gemini-flash-latest`)
+ * and timeout protection.
  */
 export async function callGeminiGenerateContent(
   apiKey: string,
   body: Record<string, unknown>,
-  models = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-2.5-flash"],
+  models = ["gemini-2.5-flash", "gemini-flash-latest"],
+  timeoutMs = 25000,
 ): Promise<Response> {
   let lastRes: Response | null = null;
   for (const model of models) {
@@ -54,6 +56,7 @@ export async function callGeminiGenerateContent(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        signal: timeoutMs > 0 ? AbortSignal.timeout(timeoutMs) : undefined,
       },
     );
     if (res.ok) return res;

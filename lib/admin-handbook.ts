@@ -391,8 +391,8 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
         badge: "Mới",
         items: [
           {
-            heading: "Bật/Tắt đa vị trí (Menu, Trang chủ, Footer, Tạm ẩn) & Sắp xếp ↑/↓",
-            body: "Sắp xếp thứ tự bằng nút ↑/↓, tự động tạo slug tiếng Việt, chọn nơi hiển thị (Menu Sản phẩm, Trang chủ, Footer) hoặc Tạm ẩn danh mục rồi bấm '💾 Lưu tất cả thay đổi' một lần.",
+            heading: "Bật/Tắt đa vị trí (Hiện Danh Mục SP, Hiện trong menu, Hiện Footer, Tạm ẩn) & Sắp xếp ↑/↓",
+            body: "Sắp xếp thứ tự bằng nút ↑/↓, tự động tạo slug tiếng Việt, chọn nơi hiển thị (Hiện Danh Mục SP, Hiện trong menu, Hiện Footer) hoặc Tạm ẩn danh mục rồi bấm '💾 Lưu tất cả thay đổi' một lần.",
           },
           {
             heading: "Xem nhanh & Chuyển SP/Bài viết hàng loạt + SEO Danh mục",
@@ -589,6 +589,29 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
           {
             heading: "Chuyển đổi qua lại: Chế độ Quản trị ↔ Xem như User thường",
             body: "Trên thanh công cụ Quản trị trên cùng của Frontend, bấm nút '👁️ Đang bật nút Sửa · Chuyển sang Xem như User' để ẩn toàn bộ nút sửa và kiểm tra giao diện y hệt khách hàng; bấm pill 'Bật lại Quản trị' ở góc dưới trái để khôi phục bất kỳ lúc nào.",
+          },
+        ],
+      },
+      {
+        id: "rbac-cache-loyalty-sync",
+        title: "3. Phân quyền chặt cấp hành động (RBAC), Đồng bộ điểm thưởng & Cache",
+        badge: "Mới",
+        items: [
+          {
+            heading: "Bảo vệ Server Actions theo nhóm quyền (RBAC)",
+            body: "Mọi thao tác nhạy cảm (xoá sản phẩm/bài viết, cập nhật đơn hàng, cài đặt SMTP/API Key, tạo/xoá tài khoản quản trị) đều được kiểm tra quyền trực tiếp ở tầng máy chủ theo vai trò (Super Admin / Admin / Editor / Sales) và tự chặn xoá tài khoản Super Admin cuối cùng.",
+          },
+          {
+            heading: "Sổ cái điểm thưởng hợp nhất (Single Source of Truth)",
+            body: "Điểm tích luỹ của thành viên chỉ được cộng chính thức khi đơn hàng chuyển sang 'Hoàn thành (done)' và đồng bộ 2 chiều giữa bảng members, member_profiles và sổ giao dịch point_transactions — kể cả khi Admin điều chỉnh thủ công tại /admin/members/.",
+          },
+          {
+            heading: "Tự động làm mới Cache trang chủ & danh mục",
+            body: "Cài đặt cửa hàng, danh mục, video và tài liệu được bộ nhớ đệm theo Tag để tải nhanh trên Edge; mỗi khi bạn lưu thay đổi trong Admin, hệ thống tự động xoá Cache liên quan ngay lập tức.",
+          },
+          {
+            heading: "Bảo mật tải ảnh (Magic-Byte + R2/Image Resizing) & Backup D1 tự động",
+            body: "Mọi ảnh/tài liệu tải lên đều được kiểm tra chữ ký file thật (chống giả mạo định dạng), làm sạch mã độc SVG, tự động ưu tiên lưu Cloudflare R2 khi đã gắn bucket MEDIA_BUCKET và tối ưu ảnh WebP/AVIF qua Cloudflare Image Resizing. Cơ sở dữ liệu D1 được sao lưu tự động mỗi ngày lúc 03:00 sáng (VN) qua GitHub Actions và kiểm tra toàn vẹn bảng dữ liệu trước khi nén lưu 30 ngày.",
           },
         ],
       },

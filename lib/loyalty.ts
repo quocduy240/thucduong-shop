@@ -1,6 +1,7 @@
 import "server-only";
 import crypto from "node:crypto";
 import { all, batch, one, run } from "./db";
+import { logInfo } from "./logger";
 
 export type LoyaltyTier = "bronze" | "silver" | "gold" | "diamond";
 export type PointSource =
@@ -193,33 +194,33 @@ export async function awardPoints(params: {
     if (dup) return { awarded: false, reason: "duplicate" };
   }
 
-  const nextBalance = Math.max(0, profile.current_points + amount);
-  const nextLifetime = amount > 0 ? profile.lifetime_points + amount : profile.lifetime_points;
-  const nextTier = computeTier(nextLifetime);
-
+  const lifetimeDelta = amount > 0 ? amount : 0;
   try {
     await batch([
       {
+        sql: `UPDATE member_profiles
+              SET current_points = MAX(0, current_points + ?),
+                  lifetime_points = lifetime_points + ?,
+                  last_active_at = datetime('now'),
+                  updated_at = datetime('now')
+              WHERE id = ? AND status = 'active'`,
+        params: [amount, lifetimeDelta, profile.id],
+      },
+      {
         sql: `INSERT INTO point_transactions
               (member_id, source, change_amount, balance_after, reference_type, reference_id, metadata, description, expires_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              VALUES (?, ?, ?, (SELECT current_points FROM member_profiles WHERE id = ?), ?, ?, ?, ?, ?)`,
         params: [
           profile.id,
           params.source,
           amount,
-          nextBalance,
+          profile.id,
           refType,
           refId,
           JSON.stringify(params.metadata ?? {}),
           params.description,
           params.expiresAt ?? null,
         ],
-      },
-      {
-        sql: `UPDATE member_profiles
-              SET current_points = ?, lifetime_points = ?, tier = ?, last_active_at = datetime('now'), updated_at = datetime('now')
-              WHERE id = ?`,
-        params: [nextBalance, nextLifetime, nextTier, profile.id],
       },
     ]);
   } catch (err) {
@@ -230,8 +231,89 @@ export async function awardPoints(params: {
     throw err;
   }
 
+  const updated = await one<{ current_points: number; lifetime_points: number; tier: LoyaltyTier }>(
+    "SELECT current_points, lifetime_points, tier FROM member_profiles WHERE id = ?",
+    profile.id,
+  );
+  const nextBalance = updated?.current_points ?? Math.max(0, profile.current_points + amount);
+  const nextTier = computeTier(updated?.lifetime_points ?? profile.lifetime_points + lifetimeDelta);
+  if (updated && updated.tier !== nextTier) {
+    await run("UPDATE member_profiles SET tier = ?, updated_at = datetime('now') WHERE id = ?", nextTier, profile.id);
+  }
+
   await syncLegacyMember(profile.id);
+  logInfo("loyalty.points_awarded", {
+    memberId: profile.id,
+    source: params.source,
+    amount,
+    balanceAfter: nextBalance,
+    tier: nextTier,
+    referenceType: refType || undefined,
+    referenceId: refId ?? undefined,
+  });
   return { awarded: true, balanceAfter: nextBalance };
+}
+
+/**
+ * Synchronize manual admin adjustments from `/admin/members/` directly into the unified
+ * `member_profiles` + `point_transactions` ledger so both tables never diverge.
+ */
+export async function syncAdminMemberAdjustment(params: {
+  userId: number;
+  points: number;
+  tier: LoyaltyTier;
+  adminEmail?: string;
+}) {
+  const member = await one<{ id: number; name: string; email: string; phone: string }>(
+    "SELECT id, name, email, phone FROM members WHERE id = ?",
+    params.userId,
+  );
+  if (!member) return;
+
+  const profile = await resolveOnLoginOrRegister({
+    userId: member.id,
+    phone: member.phone,
+    email: member.email,
+    fullName: member.name,
+  });
+
+  const targetPoints = Math.max(0, Math.floor(params.points));
+  const delta = targetPoints - profile.current_points;
+  const nextLifetime = Math.max(profile.lifetime_points, targetPoints);
+
+  await batch([
+    {
+      sql: `UPDATE member_profiles
+            SET current_points = ?, lifetime_points = ?, tier = ?, updated_at = datetime('now')
+            WHERE id = ?`,
+      params: [targetPoints, nextLifetime, params.tier, profile.id],
+    },
+    ...(delta !== 0
+      ? [
+          {
+            sql: `INSERT INTO point_transactions
+                  (member_id, source, change_amount, balance_after, reference_type, reference_id, metadata, description)
+                  VALUES (?, 'admin_adjust', ?, ?, 'admin', NULL, ?, ?)`,
+            params: [
+              profile.id,
+              delta,
+              targetPoints,
+              JSON.stringify({ adminEmail: params.adminEmail ?? "" }),
+              `Quản trị viên điều chỉnh điểm (${profile.current_points} → ${targetPoints})`,
+            ],
+          },
+        ]
+      : []),
+  ]);
+
+  await syncLegacyMember(profile.id);
+  logInfo("loyalty.admin_adjusted", {
+    memberId: profile.id,
+    userId: params.userId,
+    delta,
+    targetPoints,
+    tier: params.tier,
+  });
 }
 
 /**

@@ -1,5 +1,6 @@
 import { currentAdmin } from "@/lib/auth";
 import { all, one, run } from "@/lib/db";
+import { callGeminiGenerateContent, resolveGeminiApiKey } from "@/lib/gemini-key";
 import { slugify } from "@/lib/uploads";
 
 export type MindmapBranch = {
@@ -176,14 +177,12 @@ export async function POST(req: Request) {
     blockContentHtml?: string;
   };
 
-  if (body.geminiApiKey?.trim()) {
-    await run("INSERT OR REPLACE INTO settings (key, value) VALUES ('gemini_api_key', ?)", body.geminiApiKey.trim());
+  let savedKey = "";
+  try {
+    savedKey = await resolveGeminiApiKey(body.geminiApiKey);
+  } catch (err) {
+    return Response.json({ error: (err as Error).message }, { status: 400 });
   }
-  const savedKey =
-    body.geminiApiKey?.trim() ||
-    (await one<{ value: string }>("SELECT value FROM settings WHERE key = 'gemini_api_key'"))?.value ||
-    process.env.GEMINI_API_KEY ||
-    "";
 
   // STEP 1: Deep Research for a topic using Gemini AI (with built-in expert fallback)
   if (body.action === "deep_research") {
@@ -212,17 +211,14 @@ Yêu cầu cấu trúc báo cáo bằng định dạng Markdown:
   6. Lối sống, vận động & Chăm sóc Thân - Tâm - Trí
 - Trong mỗi mục dùng các gạch đầu dòng (-) trình bày súc tích, giàu thông tin định lượng và dễ hiểu.`;
 
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(savedKey)}`,
+        const geminiRes = await callGeminiGenerateContent(
+          savedKey,
           {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { temperature: 0.65 },
-            }),
-            signal: AbortSignal.timeout(22000),
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.65 },
           },
+          undefined,
+          22000,
         );
         if (geminiRes.ok) {
           const gJson = await geminiRes.json();
@@ -285,17 +281,14 @@ Hãy trả về JSON thuần túy (không bọc markdown) theo đúng cấu trú
 }
 (Tạo từ 4 đến 6 nhánh chính, mỗi nhánh từ 3 đến 4 ý chính để bao quát hết nội dung báo cáo).`;
 
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(savedKey)}`,
+        const geminiRes = await callGeminiGenerateContent(
+          savedKey,
           {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { responseMimeType: "application/json", temperature: 0.4 },
-            }),
-            signal: AbortSignal.timeout(20000),
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json", temperature: 0.4 },
           },
+          undefined,
+          20000,
         );
         if (geminiRes.ok) {
           const gJson = await geminiRes.json();

@@ -52,6 +52,7 @@ export async function startMemberSession(memberId: number) {
   (await cookies()).set(MEMBER_COOKIE, token, {
     path: "/",
     httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     maxAge: SESSION_SECONDS,
   });

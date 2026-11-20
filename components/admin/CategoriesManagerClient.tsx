@@ -282,7 +282,7 @@ export default function CategoriesManagerClient({
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-gray-500">
-              Dùng nút <strong>↑ / ↓</strong> để đổi thứ tự hiển thị ngoài website, bật/tắt vị trí hiển thị (Menu, Trang chủ, Footer), bấm vào số <strong>SP</strong> để xem &amp; chuyển nhanh sản phẩm.
+              Dùng nút <strong>↑ / ↓</strong> để đổi thứ tự hiển thị ngoài website, bật/tắt vị trí hiển thị (Danh Mục SP, Trong menu, Footer), bấm vào số <strong>SP</strong> để xem &amp; chuyển nhanh sản phẩm.
             </p>
             <button
               type="button"
@@ -385,7 +385,7 @@ export default function CategoriesManagerClient({
                         }
                         className="h-3.5 w-3.5 accent-brand"
                       />
-                      <span>Hiện Menu</span>
+                      <span>Hiện Danh Mục SP</span>
                     </label>
                     <label className="flex cursor-pointer items-center gap-1.5 font-semibold text-gray-700">
                       <input
@@ -396,7 +396,7 @@ export default function CategoriesManagerClient({
                         }
                         className="h-3.5 w-3.5 accent-brand"
                       />
-                      <span>Hiện Trang chủ</span>
+                      <span>Hiện trong menu</span>
                     </label>
                     <label className="flex cursor-pointer items-center gap-1.5 font-semibold text-gray-700">
                       <input
@@ -584,11 +584,11 @@ export default function CategoriesManagerClient({
               />
               <label className="flex cursor-pointer items-center gap-1 font-semibold text-gray-700">
                 <input type="checkbox" name="show_in_menu" value="1" defaultChecked className="h-3.5 w-3.5 accent-brand" />
-                <span>Menu</span>
+                <span>Hiện Danh Mục SP</span>
               </label>
               <label className="flex cursor-pointer items-center gap-1 font-semibold text-gray-700">
                 <input type="checkbox" name="show_in_home" value="1" defaultChecked className="h-3.5 w-3.5 accent-brand" />
-                <span>Trang chủ</span>
+                <span>Hiện trong menu</span>
               </label>
               <label className="flex cursor-pointer items-center gap-1 font-semibold text-gray-700">
                 <input type="checkbox" name="show_in_footer" value="1" defaultChecked className="h-3.5 w-3.5 accent-brand" />

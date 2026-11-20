@@ -1,8 +1,9 @@
 import crypto from "node:crypto";
-import * as cheerio from "cheerio";
 import { loadAiMotifs } from "@/lib/ai-motifs";
 import { currentAdmin } from "@/lib/auth";
 import { all, one, run } from "@/lib/db";
+import { callGeminiGenerateContent, resolveGeminiApiKey } from "@/lib/gemini-key";
+import { extractWebArticleFromHtml, extractYoutubeCaptionChunks } from "@/lib/html-extract";
 import { vnd } from "@/lib/site";
 import { saveGeneratedMedia, slugify } from "@/lib/uploads";
 
@@ -127,21 +128,7 @@ async function scrapeYoutubeVideo(url: string, videoId: string): Promise<Scraped
         const capRes = await fetch(capUrl, { signal: AbortSignal.timeout(6000) });
         if (capRes.ok) {
           const capXml = await capRes.text();
-          const $cap = cheerio.load(capXml, { xmlMode: true });
-          const transcriptChunks: string[] = [];
-          let buffer = "";
-          $cap("text").each((_, el) => {
-            const t = $cap(el).text().replace(/\s+/g, " ").trim();
-            if (t) {
-              buffer += (buffer ? " " : "") + t;
-              if (buffer.length >= 220) {
-                transcriptChunks.push(buffer);
-                buffer = "";
-              }
-            }
-          });
-          if (buffer.length >= 40) transcriptChunks.push(buffer);
-          for (const chunk of transcriptChunks.slice(0, 18)) {
+          for (const chunk of extractYoutubeCaptionChunks(capXml, 18)) {
             paragraphs.push(chunk);
           }
         }
@@ -278,61 +265,16 @@ async function scrapeWebArticle(url: string): Promise<ScrapedArticle> {
   });
   if (!res.ok) throw new Error(`Không thể truy cập đường dẫn (HTTP ${res.status}).`);
   const html = await res.text();
-  const $ = cheerio.load(html);
-
-  $("script, style, noscript, nav, footer, header, iframe, form, aside").remove();
-
-  const rawTitle =
-    $("h1.post-detail-title").first().text().trim() ||
-    $("h1").first().text().trim() ||
-    $('meta[property="og:title"]').attr("content")?.trim() ||
-    $("title").first().text().trim() ||
-    "Bài viết Thực dưỡng & Sức khỏe";
-
-  const description =
-    $('meta[property="og:description"]').attr("content")?.trim() ||
-    $('meta[name="description"]').attr("content")?.trim() ||
-    "";
-
-  const root =
-    $("article.article-detail .decription, article, .post-content, .entry-content, .article-content, main").first();
-  const scope = root.length ? root : $("body");
-
-  const headings: string[] = [];
-  scope.find("h2, h3").each((_, el) => {
-    const t = $(el).text().replace(/\s+/g, " ").trim();
-    if (t.length >= 6 && t.length <= 160 && !headings.includes(t)) headings.push(t);
-  });
-
-  const paragraphs: string[] = [];
-  scope.find("p, li").each((_, el) => {
-    const t = $(el).text().replace(/\s+/g, " ").trim();
-    if (t.length >= 45 && !paragraphs.includes(t)) paragraphs.push(t);
-  });
-
-  const images: string[] = [];
-  const ogImg = $('meta[property="og:image"]').attr("content")?.trim();
-  if (ogImg && /^https?:\/\//i.test(ogImg)) images.push(ogImg);
-  scope.find("img").each((_, el) => {
-    const src = $(el).attr("data-isrc") || $(el).attr("data-src") || $(el).attr("src") || "";
-    try {
-      const abs = new URL(src, url).toString();
-      if (/^https?:\/\//i.test(abs) && !abs.includes("logo") && !abs.includes("icon") && !images.includes(abs)) {
-        images.push(abs);
-      }
-    } catch {
-      /* ignore invalid URL */
-    }
-  });
+  const extracted = extractWebArticleFromHtml(html, url);
 
   return {
     sourceType: "web",
     sourceUrl: url,
-    rawTitle,
-    description,
-    headings: headings.slice(0, 10),
-    paragraphs: paragraphs.slice(0, 35),
-    images: images.slice(0, 6),
+    rawTitle: extracted.rawTitle,
+    description: extracted.description,
+    headings: extracted.headings,
+    paragraphs: extracted.paragraphs,
+    images: extracted.images,
   };
 }
 
@@ -454,14 +396,12 @@ export async function POST(req: Request) {
   }
 
   // Save Gemini API key if provided
-  if (body.geminiApiKey?.trim()) {
-    await run("INSERT OR REPLACE INTO settings (key, value) VALUES ('gemini_api_key', ?)", body.geminiApiKey.trim());
+  let savedKey = "";
+  try {
+    savedKey = await resolveGeminiApiKey(body.geminiApiKey);
+  } catch (err) {
+    return Response.json({ error: (err as Error).message }, { status: 400 });
   }
-  const savedKey =
-    body.geminiApiKey?.trim() ||
-    (await one<{ value: string }>("SELECT value FROM settings WHERE key = 'gemini_api_key'"))?.value ||
-    process.env.GEMINI_API_KEY ||
-    "";
 
   const motifs = await loadAiMotifs();
   const motif = motifs.find((m) => m.id === body.motif) ?? motifs[0];
@@ -595,17 +535,14 @@ Hãy trả về kết quả dưới dạng JSON thuần túy (không bọc markd
 }
 (Tạo từ 4 đến 5 sections).`;
 
-      const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(savedKey)}`,
+      const geminiRes = await callGeminiGenerateContent(
+        savedKey,
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json", temperature: 0.7 },
-          }),
-          signal: AbortSignal.timeout(22000),
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json", temperature: 0.7 },
         },
+        undefined,
+        22000,
       );
       if (geminiRes.ok) {
         const gJson = await geminiRes.json();

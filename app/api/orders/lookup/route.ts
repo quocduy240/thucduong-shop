@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { all, one } from "@/lib/db";
 import { normalizePhone } from "@/lib/loyalty";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
+  const rl = checkRateLimit(getClientIp(req), {
+    namespace: "orders-lookup",
+    limit: 15,
+    windowMs: 5 * 60_000,
+  });
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterSec);
+
   const b = await req.json().catch(() => ({}));
   const code = String(b.code ?? "").trim().toUpperCase();
   const phone = normalizePhone(String(b.phone ?? ""));

@@ -1,6 +1,19 @@
 import { generateQuickConsultReport } from "@/lib/quick-consult";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
+  const rl = checkRateLimit(getClientIp(req), {
+    namespace: "quick-consult",
+    limit: 6,
+    windowMs: 5 * 60_000,
+  });
+  if (!rl.allowed) {
+    return rateLimitResponse(
+      rl.retryAfterSec,
+      `Hệ thống tư vấn AI đang nhận nhiều yêu cầu từ thiết bị của bạn. Vui lòng thử lại sau ${rl.retryAfterSec} giây.`,
+    );
+  }
+
   try {
     const body = (await req.json()) as {
       customerName?: string;
@@ -17,10 +30,19 @@ export async function POST(req: Request) {
       customNote?: string;
     };
 
-    const needs = Array.isArray(body.needs) ? body.needs.map(String) : [];
-    const conditions = Array.isArray(body.conditions) ? body.conditions.map(String) : [];
-    const habits = Array.isArray(body.habits) ? body.habits.map(String) : [];
-    const customNote = String(body.customNote ?? "").trim();
+    const needs = Array.isArray(body.needs) ? body.needs.slice(0, 20).map((x) => String(x).slice(0, 100)) : [];
+    const conditions = Array.isArray(body.conditions)
+      ? body.conditions.slice(0, 20).map((x) => String(x).slice(0, 100))
+      : [];
+    const habits = Array.isArray(body.habits) ? body.habits.slice(0, 20).map((x) => String(x).slice(0, 100)) : [];
+    const customNote = String(body.customNote ?? "").trim().slice(0, 1500);
+    const rawDiet = body.dietRecall ?? {};
+    const dietRecall = {
+      breakfast: String(rawDiet.breakfast ?? "").trim().slice(0, 300),
+      lunch: String(rawDiet.lunch ?? "").trim().slice(0, 300),
+      dinner: String(rawDiet.dinner ?? "").trim().slice(0, 300),
+      snacks: String(rawDiet.snacks ?? "").trim().slice(0, 300),
+    };
 
     if (needs.length === 0 && conditions.length === 0 && habits.length === 0 && !customNote) {
       return Response.json(
@@ -30,17 +52,17 @@ export async function POST(req: Request) {
     }
 
     const result = await generateQuickConsultReport({
-      customerName: String(body.customerName ?? "").trim(),
-      phone: String(body.phone ?? "").trim(),
-      ageSex: String(body.ageSex ?? "").trim(),
-      audience: String(body.audience ?? "truong_thanh").trim(),
+      customerName: String(body.customerName ?? "").trim().slice(0, 100),
+      phone: String(body.phone ?? "").trim().slice(0, 25),
+      ageSex: String(body.ageSex ?? "").trim().slice(0, 50),
+      audience: String(body.audience ?? "truong_thanh").trim().slice(0, 50),
       heightCm: Number(body.heightCm ?? 0) || 0,
       weightKg: Number(body.weightKg ?? 0) || 0,
-      dietRecall: body.dietRecall ?? {},
+      dietRecall,
       needs,
       conditions,
       habits,
-      motifId: String(body.motifId ?? ""),
+      motifId: String(body.motifId ?? "").slice(0, 60),
       customNote,
     });
 

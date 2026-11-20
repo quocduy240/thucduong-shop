@@ -10,6 +10,7 @@ import {
   wrapBlockCard,
   type BlockPosition,
 } from "@/lib/blocks";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import { deleteBlockAction, toggleBlockAction } from "../actions";
 
 export const metadata = { title: "Các Block thường dùng | Quản trị" };
@@ -145,7 +146,7 @@ export default async function BlocksAdminPage({
                   👁️ Xem trước giao diện hiển thị của Block này (bao gồm cả Block con lồng bên trong)
                 </summary>
                 <div className="mt-3 rounded-xl border border-dashed border-gray-300 bg-gray-50/60 p-4">
-                  <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+                  <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(previewHtml) }} />
                 </div>
               </details>
             </div>

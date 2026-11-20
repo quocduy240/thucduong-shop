@@ -1,7 +1,7 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { listPostCategoriesWithCount, listProductCategoriesWithCount } from "@/lib/admin-data";
 import { currentAdmin } from "@/lib/auth";
+import { CACHE_TAGS, invalidateStorefront } from "@/lib/cache-tags";
 import { all, one, run } from "@/lib/db";
 import { canAccessAdminPath } from "@/lib/rbac";
 
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
           id,
         );
       }
-      revalidatePath("/", "layout");
+      invalidateStorefront(CACHE_TAGS.categories, CACHE_TAGS.products);
       const productCats = await listProductCategoriesWithCount();
       return NextResponse.json({ ok: true, productCats });
     }
@@ -129,7 +129,7 @@ export async function POST(req: Request) {
       for (const pid of productIds) {
         await run("UPDATE products SET category_id = ? WHERE id = ?", targetId, pid);
       }
-      revalidatePath("/", "layout");
+      invalidateStorefront(CACHE_TAGS.categories, CACHE_TAGS.products);
       const productCats = await listProductCategoriesWithCount();
       return NextResponse.json({ ok: true, moved: productIds.length, productCats });
     }
@@ -148,7 +148,7 @@ export async function POST(req: Request) {
       for (const pid of postIds) {
         await run("UPDATE posts SET category_id = ? WHERE id = ?", targetId, pid);
       }
-      revalidatePath("/", "layout");
+      invalidateStorefront(CACHE_TAGS.categories, CACHE_TAGS.posts);
       const postCats = await listPostCategoriesWithCount();
       return NextResponse.json({ ok: true, moved: postIds.length, postCats });
     }

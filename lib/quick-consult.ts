@@ -1,6 +1,7 @@
 import "server-only";
 import crypto from "node:crypto";
 import { all, one, run } from "./db";
+import { callGeminiGenerateContent } from "./gemini-key";
 import type { DisclaimerPosition, DisclaimerStyleId } from "./medical-disclaimer";
 import { escapeHtml, guardUserPromptInput, sanitizeAiHtml } from "./security";
 import {
@@ -610,16 +611,14 @@ Yêu cầu đầu ra:
 - Giọng văn ấm áp, chuẩn mực y khoa, độ dài khoảng 550–750 từ.`;
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+    const res = await callGeminiGenerateContent(
+      apiKey,
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.45 },
-        }),
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.45 },
       },
+      undefined,
+      25000,
     );
     if (!res.ok) return null;
     const data = (await res.json()) as {
@@ -880,16 +879,14 @@ Yêu cầu đầu ra:
 - Kết thúc bằng 1 đoạn lưu ý an toàn y khoa (không thay thế chẩn đoán bác sĩ điều trị).`;
 
     try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+      const res = await callGeminiGenerateContent(
+        apiKey,
         {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.35 },
-          }),
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.35 },
         },
+        undefined,
+        25000,
       );
       if (res.ok) {
         const data = (await res.json()) as {

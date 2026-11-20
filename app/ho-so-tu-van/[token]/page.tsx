@@ -3,6 +3,7 @@ import MedicalDisclaimerBlock from "@/components/MedicalDisclaimerBlock";
 import PrintPdfButton from "@/components/PrintPdfButton";
 import { computeBmi, getExpertProfileConfig, getQuickConsultByToken, type ExpertProfileConfig } from "@/lib/quick-consult";
 import { resolveDisclaimerContent } from "@/lib/medical-disclaimer";
+import { sanitizeHtml } from "@/lib/sanitize-html";
 import { getSite } from "@/lib/settings";
 
 export const metadata = {
@@ -139,7 +140,7 @@ export default async function PatientConsultReportPage({
           {/* Report Body */}
           <div
             className="prose-content max-w-none text-sm leading-relaxed md:text-base"
-            dangerouslySetInnerHTML={{ __html: reportHtml }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(reportHtml) }}
           />
 
           {(disclaimer.position === "bottom" || disclaimer.position === "both") && (

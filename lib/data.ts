@@ -1,5 +1,7 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { cache } from "react";
+import { CACHE_TAGS } from "./cache-tags";
 import { all, one, run } from "./db";
 
 export type ProductCategory = {
@@ -82,33 +84,46 @@ export async function ensureProductCategoryMenuColumn() {
   return;
 }
 
+const cachedProductCategories = unstable_cache(
+  async () =>
+    all<ProductCategory>(
+      "SELECT id, slug, name, COALESCE(show_in_menu,1) AS show_in_menu, COALESCE(show_in_home,1) AS show_in_home, COALESCE(show_in_footer,1) AS show_in_footer, COALESCE(is_active,1) AS is_active, COALESCE(seo_title,'') AS seo_title, COALESCE(description,'') AS description FROM product_categories WHERE COALESCE(is_active, 1) = 1 ORDER BY sort, id",
+    ),
+  ["storefront-product-categories"],
+  { revalidate: 60, tags: [CACHE_TAGS.categories] },
+);
+
 // ---- Products ----
 export const getProductCategories = cache(async () => {
   await ensureProductCategoryMenuColumn();
-  return all<ProductCategory>(
-    "SELECT id, slug, name, COALESCE(show_in_menu,1) AS show_in_menu, COALESCE(show_in_home,1) AS show_in_home, COALESCE(show_in_footer,1) AS show_in_footer, COALESCE(is_active,1) AS is_active, COALESCE(seo_title,'') AS seo_title, COALESCE(description,'') AS description FROM product_categories WHERE COALESCE(is_active, 1) = 1 ORDER BY sort, id",
-  );
+  try {
+    return await cachedProductCategories();
+  } catch {
+    return all<ProductCategory>(
+      "SELECT id, slug, name, COALESCE(show_in_menu,1) AS show_in_menu, COALESCE(show_in_home,1) AS show_in_home, COALESCE(show_in_footer,1) AS show_in_footer, COALESCE(is_active,1) AS is_active, COALESCE(seo_title,'') AS seo_title, COALESCE(description,'') AS description FROM product_categories WHERE COALESCE(is_active, 1) = 1 ORDER BY sort, id",
+    );
+  }
 });
 
 export const getMenuProductCategories = cache(async () => {
-  await ensureProductCategoryMenuColumn();
-  return all<ProductCategory>(
-    "SELECT id, slug, name FROM product_categories WHERE COALESCE(is_active, 1) = 1 AND COALESCE(show_in_menu, 1) = 1 ORDER BY sort, id",
-  );
+  const cats = await getProductCategories();
+  return cats
+    .filter((c) => (c.show_in_menu ?? 1) === 1)
+    .map(({ id, slug, name }) => ({ id, slug, name }));
 });
 
 export const getHomeProductCategories = cache(async () => {
-  await ensureProductCategoryMenuColumn();
-  return all<ProductCategory>(
-    "SELECT id, slug, name FROM product_categories WHERE COALESCE(is_active, 1) = 1 AND COALESCE(show_in_home, 1) = 1 ORDER BY sort, id",
-  );
+  const cats = await getProductCategories();
+  return cats
+    .filter((c) => (c.show_in_home ?? 1) === 1)
+    .map(({ id, slug, name }) => ({ id, slug, name }));
 });
 
 export const getFooterProductCategories = cache(async () => {
-  await ensureProductCategoryMenuColumn();
-  return all<ProductCategory>(
-    "SELECT id, slug, name FROM product_categories WHERE COALESCE(is_active, 1) = 1 AND COALESCE(show_in_footer, 1) = 1 ORDER BY sort, id",
-  );
+  const cats = await getProductCategories();
+  return cats
+    .filter((c) => (c.show_in_footer ?? 1) === 1)
+    .map(({ id, slug, name }) => ({ id, slug, name }));
 });
 
 export const getProductCategory = cache(async (slug: string) => {
@@ -273,16 +288,39 @@ export async function getProductFilterFacets(categoryId?: number) {
   return { brands, origins };
 }
 
+const cachedPostSections = unstable_cache(
+  async () => all<PostSection>("SELECT slug, name FROM post_sections ORDER BY sort"),
+  ["storefront-post-sections"],
+  { revalidate: 120, tags: [CACHE_TAGS.posts, CACHE_TAGS.categories] },
+);
+
+const cachedAllPostCategories = unstable_cache(
+  async () => all<PostCategory>("SELECT id, slug, name, section_slug FROM post_categories ORDER BY id"),
+  ["storefront-post-categories"],
+  { revalidate: 120, tags: [CACHE_TAGS.posts, CACHE_TAGS.categories] },
+);
+
 // ---- Posts ----
-export const getPostSections = cache(() => all<PostSection>("SELECT slug, name FROM post_sections ORDER BY sort"));
-export const getPostSection = cache((slug: string) =>
-  one<PostSection>("SELECT slug, name FROM post_sections WHERE slug = ?", slug),
-);
-export const getPostCategories = cache((section?: string) =>
-  section
-    ? all<PostCategory>("SELECT id, slug, name, section_slug FROM post_categories WHERE section_slug = ? ORDER BY id", section)
-    : all<PostCategory>("SELECT id, slug, name, section_slug FROM post_categories ORDER BY id"),
-);
+export const getPostSections = cache(async () => {
+  try {
+    return await cachedPostSections();
+  } catch {
+    return all<PostSection>("SELECT slug, name FROM post_sections ORDER BY sort");
+  }
+});
+export const getPostSection = cache(async (slug: string) => {
+  const sections = await getPostSections();
+  return sections.find((s) => s.slug === slug);
+});
+export const getPostCategories = cache(async (section?: string) => {
+  let cats: PostCategory[];
+  try {
+    cats = await cachedAllPostCategories();
+  } catch {
+    cats = await all<PostCategory>("SELECT id, slug, name, section_slug FROM post_categories ORDER BY id");
+  }
+  return section ? cats.filter((c) => c.section_slug === section) : cats;
+});
 export const getPostCategory = cache((section: string, slug: string) =>
   one<PostCategory>(
     "SELECT id, slug, name, section_slug FROM post_categories WHERE section_slug = ? AND slug = ?",
@@ -354,13 +392,23 @@ export function getCrossSellProducts(excludeIds: number[] = [], limit = 4): Prom
   );
 }
 
+const cachedPagesByGroup = unstable_cache(
+  async (grp: string) => all<Page>("SELECT grp, slug, title, content FROM pages WHERE grp = ? ORDER BY rowid", grp),
+  ["storefront-pages-group"],
+  { revalidate: 120, tags: [CACHE_TAGS.pages] },
+);
+
 // ---- Static pages ----
 export const getPage = cache((grp: string, slug: string) =>
   one<Page>("SELECT grp, slug, title, content FROM pages WHERE grp = ? AND slug = ?", grp, slug),
 );
-export const getPages = cache((grp: string) =>
-  all<Page>("SELECT grp, slug, title, content FROM pages WHERE grp = ? ORDER BY rowid", grp),
-);
+export const getPages = cache(async (grp: string) => {
+  try {
+    return await cachedPagesByGroup(grp);
+  } catch {
+    return all<Page>("SELECT grp, slug, title, content FROM pages WHERE grp = ? ORDER BY rowid", grp);
+  }
+});
 
 // ---- Search ----
 export async function search(q: string, limit = 8) {
@@ -406,13 +454,39 @@ export type VideoItem = {
   created_at: string;
 };
 
-export const getVideos = () =>
-  all<VideoItem>("SELECT id, youtube_url, video_id, title, topic, description, sort, created_at FROM videos ORDER BY sort ASC, id DESC");
+const cachedVideos = unstable_cache(
+  async () =>
+    all<VideoItem>("SELECT id, youtube_url, video_id, title, topic, description, sort, created_at FROM videos ORDER BY sort ASC, id DESC"),
+  ["storefront-videos"],
+  { revalidate: 120, tags: [CACHE_TAGS.videos] },
+);
 
-export const getVideoTopics = () =>
-  all<{ topic: string; count: number }>(
-    "SELECT topic, COUNT(*) AS count FROM videos WHERE topic <> '' GROUP BY topic ORDER BY MIN(sort) ASC, topic ASC",
-  );
+const cachedVideoTopics = unstable_cache(
+  async () =>
+    all<{ topic: string; count: number }>(
+      "SELECT topic, COUNT(*) AS count FROM videos WHERE topic <> '' GROUP BY topic ORDER BY MIN(sort) ASC, topic ASC",
+    ),
+  ["storefront-video-topics"],
+  { revalidate: 120, tags: [CACHE_TAGS.videos] },
+);
+
+export const getVideos = cache(async () => {
+  try {
+    return await cachedVideos();
+  } catch {
+    return all<VideoItem>("SELECT id, youtube_url, video_id, title, topic, description, sort, created_at FROM videos ORDER BY sort ASC, id DESC");
+  }
+});
+
+export const getVideoTopics = cache(async () => {
+  try {
+    return await cachedVideoTopics();
+  } catch {
+    return all<{ topic: string; count: number }>(
+      "SELECT topic, COUNT(*) AS count FROM videos WHERE topic <> '' GROUP BY topic ORDER BY MIN(sort) ASC, topic ASC",
+    );
+  }
+});
 
 // ---- Document & Book Library (Tài liệu Thực dưỡng) ----
 export type DocumentItem = {
@@ -452,14 +526,32 @@ const DOC_COLS = `d.id, d.slug, d.title, d.folder_path, d.doc_type, d.access_mod
   d.cover, d.author, d.pages, d.file_size, d.summary, d.highlights, d.review_html, d.task_prompt,
   d.downloads, d.sort, d.created_at`;
 
-export const getDocuments = () =>
-  all<DocumentItem>(
-    `SELECT ${DOC_COLS}
-     FROM documents d
-     LEFT JOIN products p ON p.id = d.bundle_product_id
-     LEFT JOIN product_categories pc ON pc.id = p.category_id
-     ORDER BY d.sort ASC, d.id DESC`,
-  );
+const cachedDocuments = unstable_cache(
+  async () =>
+    all<DocumentItem>(
+      `SELECT ${DOC_COLS}
+       FROM documents d
+       LEFT JOIN products p ON p.id = d.bundle_product_id
+       LEFT JOIN product_categories pc ON pc.id = p.category_id
+       ORDER BY d.sort ASC, d.id DESC`,
+    ),
+  ["storefront-documents"],
+  { revalidate: 120, tags: [CACHE_TAGS.documents] },
+);
+
+export const getDocuments = cache(async () => {
+  try {
+    return await cachedDocuments();
+  } catch {
+    return all<DocumentItem>(
+      `SELECT ${DOC_COLS}
+       FROM documents d
+       LEFT JOIN products p ON p.id = d.bundle_product_id
+       LEFT JOIN product_categories pc ON pc.id = p.category_id
+       ORDER BY d.sort ASC, d.id DESC`,
+    );
+  }
+});
 
 export const getDocumentById = (id: number) =>
   one<DocumentItem>(

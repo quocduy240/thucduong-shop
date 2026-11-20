@@ -1,5 +1,7 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { cache } from "react";
+import { CACHE_TAGS, invalidateStorefront } from "./cache-tags";
 import { all, run } from "./db";
 import { site as defaults } from "./site";
 
@@ -29,9 +31,19 @@ export const widgetDefaults = {
 export type WidgetSettings = typeof widgetDefaults;
 export const WIDGET_KEYS = Object.keys(widgetDefaults) as (keyof WidgetSettings)[];
 
-/** Request-scoped cache: load all settings rows once per request. */
+const cachedSettingsRows = unstable_cache(
+  async () => all<{ key: string; value: string }>("SELECT key, value FROM settings"),
+  ["storefront-settings-rows"],
+  { revalidate: 60, tags: [CACHE_TAGS.site] },
+);
+
+/** Request-scoped + KV/Edge tagged cache: load all settings rows efficiently. */
 const loadSettingsRows = cache(async () => {
-  return all<{ key: string; value: string }>("SELECT key, value FROM settings");
+  try {
+    return await cachedSettingsRows();
+  } catch {
+    return all<{ key: string; value: string }>("SELECT key, value FROM settings");
+  }
 });
 
 /** Brand settings: defaults from lib/site.ts overridden by rows in the `settings` table (edited in /admin/settings/). */
@@ -55,6 +67,7 @@ export async function saveSite(values: Partial<SiteSettings>) {
       );
     }
   }
+  invalidateStorefront(CACHE_TAGS.site);
 }
 
 export const getMailSettings = cache(async (): Promise<MailSettings> => {
@@ -78,6 +91,7 @@ export async function saveMailSettings(values: Partial<MailSettings>) {
       );
     }
   }
+  invalidateStorefront(CACHE_TAGS.site);
 }
 
 export const getWidgetSettings = cache(async (): Promise<WidgetSettings> => {
@@ -100,4 +114,5 @@ export async function saveWidgetSettings(values: Partial<WidgetSettings>) {
       );
     }
   }
+  invalidateStorefront(CACHE_TAGS.site);
 }

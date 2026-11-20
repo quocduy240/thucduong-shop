@@ -104,3 +104,38 @@ export function canAccessAdminPath(role: AdminRole, rawPathname: string): boolea
   }
   return false;
 }
+
+export type AdminActionDomain =
+  | "system_settings"
+  | "admin_accounts"
+  | "orders_ops"
+  | "inventory_finance"
+  | "members_manage"
+  | "coupons_manage"
+  | "flash_sale"
+  | "consultations"
+  | "catalog_write"
+  | "catalog_delete"
+  | "content_write"
+  | "content_delete"
+  | "comments_moderate";
+
+export const ADMIN_ACTION_ROLES: Record<AdminActionDomain, AdminRole[]> = {
+  system_settings: ["super_admin"],
+  admin_accounts: ["super_admin"],
+  orders_ops: ["super_admin", "admin", "sales"],
+  inventory_finance: ["super_admin", "admin", "sales"],
+  members_manage: ["super_admin", "admin", "sales"],
+  coupons_manage: ["super_admin", "admin"],
+  flash_sale: ["super_admin", "admin", "sales"],
+  consultations: ["super_admin", "admin", "sales"],
+  catalog_write: ["super_admin", "admin", "editor", "sales"],
+  catalog_delete: ["super_admin", "admin"],
+  content_write: ["super_admin", "admin", "editor"],
+  content_delete: ["super_admin", "admin"],
+  comments_moderate: ["super_admin", "admin", "editor", "sales"],
+};
+
+export function canPerformAdminAction(role: AdminRole, domain: AdminActionDomain): boolean {
+  return ADMIN_ACTION_ROLES[domain].includes(role);
+}

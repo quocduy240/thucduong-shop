@@ -1,28 +1,41 @@
 import Link from "next/link";
 import { url, type Post, type Product } from "@/lib/data";
 import type { FrontendEditResource } from "@/lib/frontend-edit";
+import { buildImageSrcSet, optimizeImageUrl } from "@/lib/image-url";
 import { vnd } from "@/lib/site";
 import FrontendEditButton from "./FrontendEditButton";
 import QuickAddButton from "./QuickAddButton";
 
 const palette = ["#e8f5e9", "#fff3e0", "#e3f2fd", "#fce4ec", "#f3e5f5", "#e0f7fa"];
 
-/** Placeholder image - swap for <Image> once you have real product photos. */
+/** Product/content square thumbnail with optional Cloudflare R2 + Image Resizing. */
 export function Thumb({
   label,
   seed,
   image,
   className = "",
+  width = 480,
 }: {
   label: string;
   seed: number;
   image?: string | null;
   className?: string;
+  width?: number;
 }) {
   if (image) {
+    const src = optimizeImageUrl(image, { width, quality: 82, fit: "cover" });
+    const srcSet = buildImageSrcSet(image, [240, 480, 720], { quality: 82, fit: "cover" });
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={image} alt={label} loading="lazy" decoding="async" className={`aspect-square w-full object-cover ${className}`} />
+      <img
+        src={src}
+        srcSet={srcSet}
+        sizes={srcSet ? "(max-width: 768px) 50vw, 25vw" : undefined}
+        alt={label}
+        loading="lazy"
+        decoding="async"
+        className={`aspect-square w-full object-cover ${className}`}
+      />
     );
   }
   return (
@@ -137,7 +150,9 @@ export function PostCard({ p }: { p: Post }) {
         {p.cover ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={p.cover}
+            src={optimizeImageUrl(p.cover, { width: 320, quality: 80, fit: "cover" })}
+            srcSet={buildImageSrcSet(p.cover, [200, 320, 480], { quality: 80, fit: "cover" })}
+            sizes="(max-width: 640px) 96px, 112px"
             alt={p.title}
             loading="lazy"
             decoding="async"

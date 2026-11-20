@@ -75,7 +75,7 @@ export async function ensureQrTable() {
   const existing = await one<{ n: number }>("SELECT COUNT(*) AS n FROM qr_codes");
   if ((existing?.n ?? 0) === 0) {
     await run(
-      `INSERT INTO qr_codes (slug, name, target_url, caption, fg_color, bg_color, style_variant, positions, active, sort)
+      `INSERT OR IGNORE INTO qr_codes (slug, name, target_url, caption, fg_color, bg_color, style_variant, positions, active, sort)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 1)`,
       "tu-van-zalo",
       "QR Tư vấn Thực Dưỡng 1:1 qua Zalo",
@@ -87,7 +87,7 @@ export async function ensureQrTable() {
       "video_library,product_sidebar",
     );
     await run(
-      `INSERT INTO qr_codes (slug, name, target_url, caption, fg_color, bg_color, style_variant, positions, active, sort)
+      `INSERT OR IGNORE INTO qr_codes (slug, name, target_url, caption, fg_color, bg_color, style_variant, positions, active, sort)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 2)`,
       "tai-lieu-mien-phi",
       "QR Tải Tài liệu & Sách Thực Dưỡng Miễn Phí",

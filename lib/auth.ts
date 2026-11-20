@@ -110,6 +110,7 @@ export async function startSession(adminId: number) {
   (await cookies()).set(ADMIN_COOKIE, token, {
     path: "/",
     httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     maxAge: SESSION_SECONDS,
   });

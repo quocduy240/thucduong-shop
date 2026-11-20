@@ -8,6 +8,7 @@ import {
 } from "@/lib/member-auth";
 import { resolveOnLoginOrRegister } from "@/lib/loyalty";
 import { attachReferralByCode, awardSignupBonus } from "@/lib/loyalty-events";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 export async function GET() {
   const [member, coupons] = await Promise.all([currentMember(), getActiveCoupons()]);
@@ -21,6 +22,15 @@ export async function POST(req: Request) {
   if (action === "logout") {
     await endMemberSession();
     return Response.json({ ok: true });
+  }
+
+  if (action === "register" || action === "login") {
+    const rl = checkRateLimit(getClientIp(req), {
+      namespace: `member-auth:${action}`,
+      limit: 12,
+      windowMs: 5 * 60_000,
+    });
+    if (!rl.allowed) return rateLimitResponse(rl.retryAfterSec);
   }
 
   if (action === "register") {
