@@ -10,6 +10,7 @@ import ProductSourceNoteBanner from "@/components/admin/ProductSourceNoteBanner"
 import SeoPanel from "@/components/admin/SeoPanel";
 import { getAdminProductExtra, listProductMovements } from "@/lib/admin-data";
 import { getProductById, getProductCategories, url } from "@/lib/data";
+import { listSuppliers } from "@/lib/retail-ops";
 import { getSeoFields } from "@/lib/seo";
 import { vnd } from "@/lib/site";
 import { adjustProductInventoryAction, deleteProductAction, saveProductAction } from "../../actions";
@@ -37,16 +38,18 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
   const id = rawId === "new" ? 0 : Number(rawId);
   if (rawId !== "new" && !Number.isInteger(id)) notFound();
 
-  const [p, categories, extra, movements, seo] = await Promise.all([
+  const [p, categories, extra, movements, seo, suppliers] = await Promise.all([
     id ? getProductById(id) : Promise.resolve(undefined),
     getProductCategories(),
     id ? getAdminProductExtra(id) : Promise.resolve(undefined),
     id ? listProductMovements(id, 50) : Promise.resolve([]),
     id ? getSeoFields("products", id) : Promise.resolve({ seo_title: "", seo_description: "", seo_keywords: "" }),
+    listSuppliers().catch(() => []),
   ]);
   if (id && !p) notFound();
 
   const costPrice = extra?.cost_price ?? 0;
+  const contactOnly = Boolean(p?.contact_only || extra?.contact_only);
   const effPrice = p ? (p.sale_price ?? p.price) : 0;
   const profit = effPrice > 0 && costPrice > 0 ? effPrice - costPrice : null;
   const marginPct = profit !== null && effPrice > 0 ? Math.round((profit / effPrice) * 100) : null;
@@ -88,6 +91,11 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
                 {Boolean(p.featured) && (
                   <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
                     ⭐ Nổi bật
+                  </span>
+                )}
+                {contactOnly && (
+                  <span className="rounded-full bg-purple-100 border border-purple-200 px-2.5 py-0.5 text-[11px] font-bold text-purple-800">
+                    📞 Web hiển thị: Liên hệ (Giữ giá Backend)
                   </span>
                 )}
               </>
@@ -207,6 +215,13 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
                     <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-3.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-100">
                       <input type="checkbox" name="featured" value="1" defaultChecked={!!p?.featured} className="accent-brand" />
                       <span>⭐ Nổi bật</span>
+                    </label>
+                    <label
+                      title="Khi bật: ngoài trang khách hiển thị 'Liên hệ', không cho bấm thêm giỏ hàng, nhưng trong Admin & POS vẫn giữ nguyên Giá bán và Giá vốn"
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-purple-300 bg-purple-50 px-3.5 py-1 text-xs font-bold text-purple-900 hover:bg-purple-100"
+                    >
+                      <input type="checkbox" name="contact_only" value="1" defaultChecked={contactOnly} className="accent-purple-700" />
+                      <span>📞 Hiện &quot;Liên hệ&quot; ngoài Web (Giữ giá Backend/POS)</span>
                     </label>
                   </div>
                 </div>
@@ -347,8 +362,21 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
                     <input name="location" defaultValue={extra?.location ?? ""} placeholder="VD: Kệ A2, Kho lạnh..." className={input} />
                   </div>
                   <div className="sm:col-span-2 lg:col-span-4">
-                    <label className={label}>🚚 Nhà cung cấp mặc định</label>
-                    <input name="supplier" defaultValue={extra?.supplier ?? ""} placeholder="VD: AMAZON-VIETXPRESS, Tâm Minh Foods, C'Lavie..." className={input} />
+                    <label className={label}>🚚 Nhà cung cấp mặc định (chọn hoặc gõ mới — quản lý tại Kho &amp; Sổ quỹ → Nhà cung cấp)</label>
+                    <input
+                      name="supplier"
+                      list="supplier-suggestions"
+                      defaultValue={extra?.supplier ?? ""}
+                      placeholder="VD: AMAZON-VIETXPRESS, Tâm Minh Foods, C'Lavie..."
+                      className={input}
+                    />
+                    <datalist id="supplier-suggestions">
+                      {suppliers.map((s) => (
+                        <option key={s.id} value={s.name}>
+                          {s.code} {s.phone ? `(${s.phone})` : ""}
+                        </option>
+                      ))}
+                    </datalist>
                   </div>
                 </div>
               </section>

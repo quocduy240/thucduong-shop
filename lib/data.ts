@@ -56,12 +56,23 @@ export type Post = {
 };
 export type Page = { grp: string; slug: string; title: string; content: string };
 
-const PRODUCT_CARD_COLS = `p.id, p.slug, p.name, p.price, p.sale_price, p.stock, p.summary, '' AS description, p.featured, p.image,
+const PRODUCT_CARD_COLS = `p.id, p.slug, p.name,
+  CASE WHEN COALESCE(p.contact_only, 0) = 1 THEN 0 ELSE p.price END AS price,
+  CASE WHEN COALESCE(p.contact_only, 0) = 1 THEN NULL ELSE p.sale_price END AS sale_price,
+  p.stock, p.summary, '' AS description, p.featured, p.image,
   p.sku, p.brand, p.origin, p.unit, '' AS gallery, '' AS video_url,
   COALESCE((SELECT ROUND(AVG(rating), 1) FROM comments WHERE product_id = p.id), 0) AS rating_avg,
   (SELECT COUNT(*) FROM comments WHERE product_id = p.id) AS rating_count,
   p.category_id, c.slug AS category_slug, c.name AS category_name`;
-const PRODUCT_DETAIL_COLS = `p.id, p.slug, p.name, p.price, p.sale_price, p.stock, p.summary, p.description, p.featured, p.image,
+const PRODUCT_DETAIL_COLS = `p.id, p.slug, p.name,
+  CASE WHEN COALESCE(p.contact_only, 0) = 1 THEN 0 ELSE p.price END AS price,
+  CASE WHEN COALESCE(p.contact_only, 0) = 1 THEN NULL ELSE p.sale_price END AS sale_price,
+  p.stock, p.summary, p.description, p.featured, p.image,
+  p.sku, p.brand, p.origin, p.unit, p.gallery, p.video_url,
+  COALESCE((SELECT ROUND(AVG(rating), 1) FROM comments WHERE product_id = p.id), 0) AS rating_avg,
+  (SELECT COUNT(*) FROM comments WHERE product_id = p.id) AS rating_count,
+  p.category_id, c.slug AS category_slug, c.name AS category_name`;
+const PRODUCT_ADMIN_DETAIL_COLS = `p.id, p.slug, p.name, p.price, p.sale_price, p.stock, p.summary, p.description, p.featured, p.image,
   p.sku, p.brand, p.origin, p.unit, p.gallery, p.video_url,
   COALESCE((SELECT ROUND(AVG(rating), 1) FROM comments WHERE product_id = p.id), 0) AS rating_avg,
   (SELECT COUNT(*) FROM comments WHERE product_id = p.id) AS rating_count,
@@ -438,8 +449,8 @@ export async function search(q: string, limit = 8) {
 
 // ---- Admin lookups (by id) ----
 export const getProductById = (id: number) =>
-  one<Product & { featured: number; is_published: number }>(
-    `SELECT ${PRODUCT_DETAIL_COLS}, p.featured, COALESCE(p.is_published, 1) AS is_published FROM products p JOIN product_categories c ON c.id = p.category_id WHERE p.id = ?`,
+  one<Product & { featured: number; is_published: number; contact_only: number }>(
+    `SELECT ${PRODUCT_ADMIN_DETAIL_COLS}, p.featured, COALESCE(p.is_published, 1) AS is_published, COALESCE(p.contact_only, 0) AS contact_only FROM products p JOIN product_categories c ON c.id = p.category_id WHERE p.id = ?`,
     id,
   );
 export const getPostById = (id: number) =>

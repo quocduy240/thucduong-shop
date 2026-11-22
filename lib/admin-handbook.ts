@@ -45,11 +45,16 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
     topics: [
       {
         id: "orders-flow",
-        title: "1. Quy trình xử lý trạng thái đơn & Tự động trừ/hoàn kho",
+        title: "1. Quy trình xử lý trạng thái đơn, In hóa đơn KiotViet & Trả hàng hoàn kho",
+        badge: "Mới",
         items: [
           {
-            heading: "5 trạng thái đơn hàng",
-            body: "Mới (new) → Đã xác nhận (confirmed) → Đang giao (shipping) → Hoàn thành (done) hoặc Đã huỷ (cancelled). Khi khách đặt đơn hệ thống tự trừ tồn kho; khi chuyển sang 'cancelled' sẽ tự hoàn lại tồn kho.",
+            heading: "6 trạng thái đơn hàng & Nút '↩️ Khách trả hàng / Hoàn kho'",
+            body: "Mới (new) → Đã xác nhận (confirmed) → Đang giao (shipping) → Hoàn thành (done), Đã trả hàng / Hoàn kho (returned) hoặc Đã huỷ (cancelled). Trong chi tiết đơn (/admin/orders/[id]/), bấm '↩️ Xác nhận Trả hàng & Hoàn kho' để tự động cộng hoàn tồn kho vào Thẻ kho (mã TH-...) và tuỳ chọn lập Phiếu Chi hoàn tiền từ 1 trong 3 Quỹ.",
+          },
+          {
+            heading: "In Hóa đơn Bán hàng chuẩn KiotViet (#/Invoices)",
+            body: "Trong chi tiết đơn hàng (/admin/orders/[id]/), bấm nút '🖨 In phiếu / In đơn' để in hóa đơn chuẩn KiotViet gồm thông tin Cửa hàng Thực Dưỡng Phúc Thọ, Mã HĐ, Mã KiotViet, Đối tác giao hàng, bảng hàng hóa (STT, Mã SP, Tên hàng, ĐVT, SL, Đơn giá, Thành tiền), tiền thu hộ COD và khung chữ ký Người mua / Người lập phiếu.",
           },
           {
             heading: "Tự động cộng điểm & đồng bộ CRM khi 'Hoàn thành'",
@@ -63,24 +68,28 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
       },
       {
         id: "orders-pos-inventory-kiotviet",
-        title: "2. Bán hàng POS, Kho & Thẻ kho, Vận đơn COD & Kết nối KiotViet",
+        title: "2. Bán hàng POS, Sổ quỹ 3 Quỹ, Nhà cung cấp/ĐVVC & Báo cáo cuối ngày",
         badge: "Mới",
         items: [
           {
             heading: "Bán hàng nhanh tại quầy / Telesale (/admin/pos/)",
-            body: "Chọn nhanh sản phẩm theo tên hoặc mã SKU, điều chỉnh số lượng, nhập giảm giá, thông tin khách hàng và tạo đơn ngay — hệ thống tự động trừ kho, ghi Thẻ kho và ghi Phiếu Thu vào Sổ quỹ.",
+            body: "Chọn nhanh sản phẩm theo tên hoặc mã SKU, chọn phương thức thanh toán (Tiền mặt, Chuyển khoản NH, Theo KiotViet hoặc COD) — hệ thống tự động trừ kho, ghi Thẻ kho và ghi Phiếu Thu vào đúng Quỹ tương ứng.",
           },
           {
-            heading: "Quản lý Kho hàng, Giá vốn, Thẻ kho & Sổ quỹ (/admin/inventory/)",
-            body: "Theo dõi giá trị tồn kho, sản phẩm sắp hết (1–5), lập Phiếu Nhập hàng NCC (cập nhật giá vốn + cộng kho + ghi Phiếu Chi), Kiểm kho thực tế và quản lý Sổ quỹ Thu – Chi.",
+            heading: "Sổ quỹ Thu – Chi 3 loại quỹ: Tiền mặt · Chuyển khoản NH · Theo KiotViet (/admin/inventory/?tab=cashbook)",
+            body: "Quản lý tách biệt và đối soát tồn quỹ của 3 quỹ: Quỹ Tiền mặt, Quỹ Chuyển khoản Ngân hàng và Quỹ Theo KiotViet. Bấm vào từng thẻ quỹ để lọc riêng giao dịch của quỹ đó.",
+          },
+          {
+            heading: "Danh mục Nhà cung cấp & Đối tác giao hàng (/admin/inventory/?tab=partners)",
+            body: "Quản lý danh sách Nhà cung cấp (mã NCC, SĐT, địa chỉ, số sản phẩm đang cung cấp) và Đối tác giao hàng (#/PartnerDelivery: GHN, GHTK, Viettel Post, J&T, Ahamove, Giao nội bộ kèm phí ship mặc định và số đơn vận chuyển).",
+          },
+          {
+            heading: "Báo cáo cuối ngày chuẩn KiotViet (/admin/inventory/?tab=eod)",
+            body: "Chốt ca và xem báo cáo tổng hợp theo từng ngày: Doanh thu thực bán, Tổng giá vốn hàng bán (COGS), Lợi nhuận gộp & Tỷ suất lãi gộp (%), Bảng đối soát Thu – Chi của 3 Quỹ, Top sản phẩm xuất bán trong ngày kèm nút In báo cáo.",
           },
           {
             heading: "Nhập & Đồng bộ Sản phẩm từ Excel KiotViet (/admin/kiotviet/)",
             body: "Tải trực tiếp file .xlsx hoặc .csv xuất từ KiotViet để xem trước (Preview) và đồng bộ hàng loạt vào website. Hệ thống tự tách bỏ dòng Dịch vụ, lưu mã KiotViet vào cả sku và kv_code để đồng bộ 2 chiều, tự tạo danh mục mới theo Nhóm hàng KiotViet, chuẩn hoá ĐVT và ghi đè giá bán, giá vốn, tồn kho (tồn âm tự đưa về 0).",
-          },
-          {
-            heading: "Vận đơn COD & Đẩy đơn sang KiotViet (/admin/orders/[id]/ & /admin/kiotviet/)",
-            body: "Cập nhật ĐVVC (GHN, GHTK, Viettel Post...), Mã vận đơn, Phí ship và tiền thu hộ COD ngay trong chi tiết đơn. Cấu hình ClientId/Secret/Retailer tại /admin/kiotviet/ để đẩy đơn sang KiotViet 1 chạm và nhận Webhook đồng bộ tồn kho theo SKU.",
           },
         ],
       },
@@ -118,8 +127,8 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
             body: "Ngay trong trang sửa Sản phẩm và Bài viết có hộp '🔍 Tối ưu SEO Google': xem trước kết quả hiển thị trên Google, bấm '⚡ Tự điền SEO gợi ý' để tự lấy tiêu đề/mô tả chuẩn độ dài (60 / 155 ký tự), nhập từ khoá chính và theo dõi 5 tiêu chí chấm điểm SEO. Hệ thống tự xuất Meta Tags, Canonical URL và Schema.org JSON-LD (Product/Article) ra trang ngoài.",
           },
           {
-            heading: "Giá bán, Giá khuyến mãi & Tồn kho",
-            body: "Nhập giá gốc và giá khuyến mãi (phải nhỏ hơn giá gốc). Nếu đặt Giá = 0, nút mua sẽ tự chuyển thành 'Liên hệ'. Đặt Tồn kho = 0 sẽ hiển thị hết hàng.",
+            heading: "Giá bán, Giá vốn & Tùy chọn '📞 Hiện Liên hệ ngoài Web (Giữ giá Backend)' (Mới)",
+            body: "Nhập giá vốn, giá bán gốc và giá khuyến mãi. Khi bật ô '📞 Hiện Liên hệ ngoài Web (Giữ giá Backend/POS)' ở Bước 1 (hoặc thao tác hàng loạt ở danh sách SP), ngoài trang khách sẽ hiển thị 'Liên hệ' (ẩn nút mua trực tiếp), trong khi Admin, POS và Báo cáo lợi nhuận vẫn giữ nguyên Giá bán và Giá vốn thật của sản phẩm.",
           },
           {
             heading: "Nhúng Block & Video YouTube vào mô tả",

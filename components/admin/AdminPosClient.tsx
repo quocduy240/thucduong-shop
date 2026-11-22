@@ -170,7 +170,8 @@ export default function AdminPosClient({ products }: { products: PosProduct[] })
           />
           <select name="payment" className="rounded-xl border px-3 py-2 text-xs outline-none focus:border-brand">
             <option value="cash">💵 Tiền mặt (Hoàn thành ngay)</option>
-            <option value="bank">🏦 Chuyển khoản (Hoàn thành ngay)</option>
+            <option value="bank">🏦 Chuyển khoản NH (Hoàn thành ngay)</option>
+            <option value="kiotviet">🔗 Theo KiotViet (Hoàn thành ngay)</option>
             <option value="cod">🚚 Giao hàng thu hộ (COD)</option>
           </select>
           <input

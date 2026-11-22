@@ -5,7 +5,10 @@ import { one } from "@/lib/db";
 export async function POST(req: Request, ctx: RouteContext<"/api/v2/add-to-cart/[id]">) {
   const id = Number((await ctx.params).id);
   const prod = Number.isInteger(id)
-    ? await one<{ stock: number; price: number }>("SELECT stock, price FROM products WHERE id = ? AND COALESCE(is_published, 1) = 1", id)
+    ? await one<{ stock: number; price: number }>(
+        "SELECT stock, CASE WHEN COALESCE(contact_only, 0) = 1 THEN 0 ELSE price END AS price FROM products WHERE id = ? AND COALESCE(is_published, 1) = 1",
+        id,
+      )
     : undefined;
   if (!prod) {
     return Response.json({ error: "Sản phẩm không tồn tại" }, { status: 404 });

@@ -43,6 +43,7 @@ export async function saveProductAction(formData: FormData) {
 
   const featured = str(formData, "featured") === "1" ? 1 : 0;
   const isPublished = str(formData, "is_published") === "1" ? 1 : 0;
+  const contactOnly = str(formData, "contact_only") === "1" ? 1 : 0;
   const sku = str(formData, "sku");
   const kvCode = str(formData, "kv_code");
   const barcode = str(formData, "barcode");
@@ -77,11 +78,11 @@ export async function saveProductAction(formData: FormData) {
       const prev = await one<{ stock: number }>("SELECT stock FROM products WHERE id = ?", id);
       await run(
         `UPDATE products SET name=?, slug=?, category_id=?, price=?, cost_price=?, sale_price=?, stock=?, min_stock=?, max_stock=?,
-         weight_grams=?, summary=?, description=?, image=?, featured=?, is_published=?,
+         weight_grams=?, summary=?, description=?, image=?, featured=?, is_published=?, contact_only=?,
          sku=?, kv_code=?, barcode=?, brand=?, origin=?, unit=?, location=?, supplier=?,
          gallery=?, video_url=?, seo_title=?, seo_description=?, seo_keywords=? WHERE id=?`,
         name, slug, categoryId, price, costPrice, salePrice, stock, minStock, maxStock,
-        weightGrams, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured, isPublished,
+        weightGrams, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured, isPublished, contactOnly,
         sku, kvCode, barcode, brand, origin, unit, location, supplier,
         gallery, videoUrl, seoTitle, seoDescription, seoKeywords, id,
       );
@@ -94,9 +95,9 @@ export async function saveProductAction(formData: FormData) {
       }
     } else {
       const ins = await run(
-        `INSERT INTO products (name, slug, category_id, price, cost_price, sale_price, stock, min_stock, max_stock, weight_grams, summary, description, image, featured, is_published, sku, kv_code, barcode, brand, origin, unit, location, supplier, gallery, video_url, seo_title, seo_description, seo_keywords)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        name, slug, categoryId, price, costPrice, salePrice, stock, minStock, maxStock, weightGrams, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured, isPublished,
+        `INSERT INTO products (name, slug, category_id, price, cost_price, sale_price, stock, min_stock, max_stock, weight_grams, summary, description, image, featured, is_published, contact_only, sku, kv_code, barcode, brand, origin, unit, location, supplier, gallery, video_url, seo_title, seo_description, seo_keywords)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        name, slug, categoryId, price, costPrice, salePrice, stock, minStock, maxStock, weightGrams, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured, isPublished, contactOnly,
         sku, kvCode, barcode, brand, origin, unit, location, supplier, gallery, videoUrl, seoTitle, seoDescription, seoKeywords,
       );
       if (stock > 0 && ins.lastInsertRowid) {
@@ -192,6 +193,11 @@ export async function bulkProductsAction(formData: FormData) {
   const visibility = str(formData, "visibility");
   if (visibility === "publish" || visibility === "hide") {
     await run(`UPDATE products SET is_published = ? WHERE id IN (${marks})`, visibility === "publish" ? 1 : 0, ...ids);
+  }
+  const priceDisplay = str(formData, "price_display");
+  if (priceDisplay === "contact_only" || priceDisplay === "show_price") {
+    await ensureRetailOpsSchema();
+    await run(`UPDATE products SET contact_only = ? WHERE id IN (${marks})`, priceDisplay === "contact_only" ? 1 : 0, ...ids);
   }
   refresh();
   redirect(dest.includes("?") ? dest + "&saved=1" : dest + "?saved=1");

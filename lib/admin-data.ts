@@ -7,6 +7,7 @@ export const ORDER_STATUS = {
   confirmed: "Đã xác nhận",
   shipping: "Đang giao",
   done: "Hoàn thành",
+  returned: "Đã trả hàng / Hoàn kho",
   cancelled: "Đã huỷ",
 } as const;
 export type OrderStatus = keyof typeof ORDER_STATUS;
@@ -62,7 +63,7 @@ export async function getNavBadges() {
 // ---- products ----
 export type AdminProductRow = {
   id: number; name: string; slug: string; price: number; sale_price: number | null;
-  cost_price: number; stock: number; min_stock: number; image: string | null; featured: number; is_published: number;
+  cost_price: number; contact_only: number; stock: number; min_stock: number; image: string | null; featured: number; is_published: number;
   sku: string; kv_code: string; barcode: string; brand: string; origin: string; unit: string;
   weight_grams: number; location: string; supplier: string; customer_reserved: number;
   category_name: string; category_slug: string;
@@ -82,11 +83,13 @@ export async function listProducts(opts: { q?: string; category?: number; stock?
   else if (opts.stock === "in") where.push("p.stock > 0");
   if (opts.status === "hidden") where.push("COALESCE(p.is_published, 1) = 0");
   else if (opts.status === "published") where.push("COALESCE(p.is_published, 1) = 1");
+  else if (opts.status === "contact_only") where.push("COALESCE(p.contact_only, 0) = 1");
   const w = where.length ? "WHERE " + where.join(" AND ") : "";
   const [totalRow, rows] = await Promise.all([
     one<{ n: number }>(`SELECT COUNT(*) AS n FROM products p ${w}`, ...params),
     all<AdminProductRow>(
       `SELECT p.id, p.name, p.slug, p.price, p.sale_price, COALESCE(p.cost_price, 0) AS cost_price,
+              COALESCE(p.contact_only, 0) AS contact_only,
               p.stock, COALESCE(p.min_stock, 0) AS min_stock, p.image, p.featured, COALESCE(p.is_published, 1) AS is_published,
               p.sku, COALESCE(p.kv_code, '') AS kv_code, COALESCE(p.barcode, '') AS barcode,
               p.brand, p.origin, p.unit, COALESCE(p.weight_grams, 0) AS weight_grams,
@@ -103,6 +106,7 @@ export async function listProducts(opts: { q?: string; category?: number; stock?
 
 export type AdminProductExtra = {
   cost_price: number;
+  contact_only: number;
   kv_code: string;
   barcode: string;
   min_stock: number;
@@ -120,6 +124,7 @@ export async function getAdminProductExtra(id: number): Promise<AdminProductExtr
   const [row, reserved] = await Promise.all([
     one<{
       cost_price: number;
+      contact_only: number;
       kv_code: string;
       barcode: string;
       min_stock: number;
@@ -131,7 +136,8 @@ export async function getAdminProductExtra(id: number): Promise<AdminProductExtr
       source_url: string | null;
       source_note: string | null;
     }>(
-      `SELECT COALESCE(cost_price, 0) AS cost_price, COALESCE(kv_code, '') AS kv_code,
+      `SELECT COALESCE(cost_price, 0) AS cost_price, COALESCE(contact_only, 0) AS contact_only,
+              COALESCE(kv_code, '') AS kv_code,
               COALESCE(barcode, '') AS barcode, COALESCE(min_stock, 0) AS min_stock,
               COALESCE(max_stock, 999999999) AS max_stock, COALESCE(weight_grams, 0) AS weight_grams,
               COALESCE(location, '') AS location, COALESCE(supplier, '') AS supplier,
@@ -303,7 +309,7 @@ export async function listOrders(opts: OrderFilterOptions & { page: number }) {
   const { w, params, orderBy } = buildOrderQueryParts(opts);
   const [aggRow, rows] = await Promise.all([
     one<{ n: number; rev: number }>(
-      `SELECT COUNT(*) AS n, COALESCE(SUM(CASE WHEN status <> 'cancelled' THEN total ELSE 0 END), 0) AS rev FROM orders ${w}`,
+      `SELECT COUNT(*) AS n, COALESCE(SUM(CASE WHEN status NOT IN ('cancelled', 'returned') THEN total ELSE 0 END), 0) AS rev FROM orders ${w}`,
       ...params,
     ),
     all<OrderRow>(
@@ -326,8 +332,12 @@ export async function getOrder(id: number) {
        LEFT JOIN provinces p ON p.code = o.province_code LEFT JOIN wards w ON w.code = o.ward_code WHERE o.id = ?`,
       id,
     ),
-    all<{ product_id: number; name: string; price: number; qty: number }>(
-      "SELECT product_id, name, price, qty FROM order_items WHERE order_id = ?",
+    all<{ product_id: number; name: string; price: number; qty: number; sku: string; unit: string }>(
+      `SELECT oi.product_id, oi.name, oi.price, oi.qty,
+              COALESCE(pr.sku, '') AS sku, COALESCE(pr.unit, '') AS unit
+       FROM order_items oi
+       LEFT JOIN products pr ON pr.id = oi.product_id
+       WHERE oi.order_id = ?`,
       id,
     ),
   ]);

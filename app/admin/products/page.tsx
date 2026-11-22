@@ -56,6 +56,7 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
           <option value="">Tất cả trạng thái</option>
           <option value="published">Đang công khai</option>
           <option value="hidden">Đang ẩn (nháp)</option>
+          <option value="contact_only">📞 Đang bật &quot;Liên hệ&quot; ngoài Web</option>
         </select>
         <button className={ui.secondary}>Lọc</button>
         {(q || category || stock || status) && <Link href="/admin/products/" className={ui.secondary}>Bỏ lọc</Link>}
@@ -68,10 +69,15 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
           <option value="">— Giữ nguyên danh mục —</option>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        <select name="visibility" defaultValue="" className={`${ui.input} max-w-[200px]`}>
-          <option value="">— Giữ nguyên trạng thái —</option>
-          <option value="publish">Công khai</option>
-          <option value="hide">Ẩn (nháp)</option>
+        <select name="visibility" defaultValue="" className={`${ui.input} max-w-[180px]`}>
+          <option value="">— Trạng thái ẩn/hiện —</option>
+          <option value="publish">🌐 Công khai</option>
+          <option value="hide">🙈 Ẩn (nháp)</option>
+        </select>
+        <select name="price_display" defaultValue="" className={`${ui.input} max-w-[220px]`}>
+          <option value="">— Hiển thị giá Web —</option>
+          <option value="contact_only">📞 Hiện &quot;Liên hệ&quot; ngoài Web</option>
+          <option value="show_price">💰 Hiện giá bán ngoài Web</option>
         </select>
         <button className={ui.primary}>Áp dụng</button>
       </form>
@@ -120,9 +126,14 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
                     <>
                       <div className="font-semibold text-gray-900">{vnd(p.sale_price ?? p.price)}</div>
                       {p.sale_price ? <div className="text-xs text-gray-400 line-through">{vnd(p.price)}</div> : null}
+                      {Boolean(p.contact_only) && (
+                        <span className="mt-0.5 inline-block rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold text-purple-800">
+                          📞 Web: Liên hệ
+                        </span>
+                      )}
                     </>
                   ) : (
-                    <span className="text-gray-500">Liên hệ</span>
+                    <span className="text-gray-500">Liên hệ (0đ)</span>
                   )}
                   {p.cost_price > 0 && (
                     <div className="mt-0.5 text-[11px] text-gray-500">

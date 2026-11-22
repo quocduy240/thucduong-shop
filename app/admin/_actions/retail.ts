@@ -2,14 +2,19 @@
 
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
-import { one } from "@/lib/db";
+import { one, run } from "@/lib/db";
 import {
   saveKiotVietConfig,
   syncInventoryFromKiotViet,
   testKiotVietConnection,
 } from "@/lib/kiotviet";
 import { ADMIN_ACTION_ROLES } from "@/lib/rbac";
-import { addCashbookEntry, recordInventoryMovement } from "@/lib/retail-ops";
+import {
+  addCashbookEntry,
+  ensureRetailOpsSchema,
+  recordInventoryMovement,
+  type CashbookPaymentMethod,
+} from "@/lib/retail-ops";
 import { back, num, refresh, str } from "./shared";
 
 export async function importInventoryAction(formData: FormData) {
@@ -17,8 +22,15 @@ export async function importInventoryAction(formData: FormData) {
   const productId = num(formData, "product_id");
   const qty = Math.max(1, num(formData, "qty"));
   const unitCost = Math.max(0, num(formData, "unit_cost"));
-  const note = str(formData, "note");
+  const supplierName = str(formData, "supplier_name");
+  const rawNote = str(formData, "note");
+  const note = [supplierName ? `NCC: ${supplierName}` : "", rawNote].filter(Boolean).join(" · ") || "Nhập hàng từ nhà cung cấp";
   const recordCashOut = str(formData, "record_cash_out") === "1";
+  const rawMethod = str(formData, "payment_method");
+  const paymentMethod: CashbookPaymentMethod =
+    rawMethod === "bank" || rawMethod === "kiotviet" ? rawMethod : "cash";
+  const refCode = str(formData, "ref_code") || `PN-${Date.now().toString().slice(-6)}`;
+
   if (!productId) back("/admin/inventory/?tab=import", "Vui lòng chọn sản phẩm cần nhập.");
   await recordInventoryMovement({
     productId,
@@ -26,16 +38,21 @@ export async function importInventoryAction(formData: FormData) {
     unitCost,
     updateCostPrice: unitCost > 0,
     reason: "import",
-    refCode: `PN-${Date.now().toString().slice(-6)}`,
-    note: note || "Nhập hàng từ nhà cung cấp",
+    refCode,
+    note,
     createdBy: admin.email,
   });
+  if (supplierName) {
+    await run("UPDATE products SET supplier = ? WHERE id = ?", supplierName, productId).catch(() => {});
+  }
   if (recordCashOut && unitCost > 0) {
     await addCashbookEntry({
       entryType: "out",
       category: "Nhập hàng NCC",
       amount: qty * unitCost,
-      note: note || `Nhập ${qty} SP #${productId}`,
+      paymentMethod,
+      refCode,
+      note: `${note} (SL: ${qty} × ${unitCost.toLocaleString("vi-VN")}đ)`,
       createdBy: admin.email,
     });
   }
@@ -70,16 +87,99 @@ export async function addCashbookAction(formData: FormData) {
   const entryType = str(formData, "entry_type") === "out" ? "out" : "in";
   const category = str(formData, "category") || (entryType === "in" ? "Thu bán hàng" : "Chi vận hành");
   const amount = Math.max(1, num(formData, "amount"));
+  const rawMethod = str(formData, "payment_method");
+  const paymentMethod: CashbookPaymentMethod =
+    rawMethod === "bank" || rawMethod === "kiotviet" ? rawMethod : "cash";
+  const refCode = str(formData, "ref_code");
   const note = str(formData, "note");
   await addCashbookEntry({
     entryType,
     category,
     amount,
+    paymentMethod,
+    refCode,
     note,
     createdBy: admin.email,
   });
   refresh();
   redirect("/admin/inventory/?tab=cashbook&saved=1");
+}
+
+export async function saveSupplierAction(formData: FormData) {
+  await requireRole(ADMIN_ACTION_ROLES.inventory_finance);
+  await ensureRetailOpsSchema();
+  const id = num(formData, "id");
+  const name = str(formData, "name");
+  if (!name) back("/admin/inventory/?tab=partners", "Vui lòng nhập tên Nhà cung cấp.");
+  const code = str(formData, "code") || `NCC${Date.now().toString().slice(-4)}`;
+  const phone = str(formData, "phone");
+  const email = str(formData, "email");
+  const address = str(formData, "address");
+  const note = str(formData, "note");
+  const isActive = str(formData, "is_active") === "0" ? 0 : 1;
+
+  if (id > 0) {
+    await run(
+      "UPDATE suppliers SET code=?, name=?, phone=?, email=?, address=?, note=?, is_active=? WHERE id=?",
+      code, name, phone, email, address, note, isActive, id,
+    );
+  } else {
+    await run(
+      "INSERT INTO suppliers (code, name, phone, email, address, note, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      code, name, phone, email, address, note, isActive,
+    );
+  }
+  refresh();
+  redirect("/admin/inventory/?tab=partners&saved=1");
+}
+
+export async function deleteSupplierAction(formData: FormData) {
+  await requireRole(ADMIN_ACTION_ROLES.inventory_finance);
+  await ensureRetailOpsSchema();
+  const id = num(formData, "id");
+  if (id > 0) {
+    await run("DELETE FROM suppliers WHERE id = ?", id);
+  }
+  refresh();
+  redirect("/admin/inventory/?tab=partners&saved=1");
+}
+
+export async function saveDeliveryPartnerAction(formData: FormData) {
+  await requireRole(ADMIN_ACTION_ROLES.inventory_finance);
+  await ensureRetailOpsSchema();
+  const id = num(formData, "id");
+  const name = str(formData, "name");
+  if (!name) back("/admin/inventory/?tab=partners", "Vui lòng nhập tên Đối tác giao hàng.");
+  const code = str(formData, "code") || `DT${Date.now().toString().slice(-4)}`;
+  const phone = str(formData, "phone");
+  const defaultFee = Math.max(0, num(formData, "default_fee"));
+  const note = str(formData, "note");
+  const isActive = str(formData, "is_active") === "0" ? 0 : 1;
+
+  if (id > 0) {
+    await run(
+      "UPDATE delivery_partners SET code=?, name=?, phone=?, default_fee=?, note=?, is_active=? WHERE id=?",
+      code, name, phone, defaultFee, note, isActive, id,
+    );
+  } else {
+    await run(
+      "INSERT INTO delivery_partners (code, name, phone, default_fee, note, is_active) VALUES (?, ?, ?, ?, ?, ?)",
+      code, name, phone, defaultFee, note, isActive,
+    );
+  }
+  refresh();
+  redirect("/admin/inventory/?tab=partners&saved=1");
+}
+
+export async function deleteDeliveryPartnerAction(formData: FormData) {
+  await requireRole(ADMIN_ACTION_ROLES.inventory_finance);
+  await ensureRetailOpsSchema();
+  const id = num(formData, "id");
+  if (id > 0) {
+    await run("DELETE FROM delivery_partners WHERE id = ?", id);
+  }
+  refresh();
+  redirect("/admin/inventory/?tab=partners&saved=1");
 }
 
 export async function saveKiotVietConfigAction(formData: FormData) {

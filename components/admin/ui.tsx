@@ -33,6 +33,7 @@ const COLORS: Record<string, string> = {
   confirmed: "bg-indigo-100 text-indigo-700",
   shipping: "bg-amber-100 text-amber-700",
   done: "bg-green-100 text-green-700",
+  returned: "bg-purple-100 text-purple-800",
   cancelled: "bg-gray-200 text-gray-600",
 };
 export function StatusBadge({ status }: { status: string }) {
