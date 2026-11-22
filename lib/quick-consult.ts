@@ -1,7 +1,7 @@
 import "server-only";
 import crypto from "node:crypto";
 import { all, one, run } from "./db";
-import { callGeminiGenerateContent } from "./gemini-key";
+import { callGeminiGenerateContent, resolveGeminiApiKey } from "./gemini-key";
 import type { DisclaimerPosition, DisclaimerStyleId } from "./medical-disclaimer";
 import { escapeHtml, guardUserPromptInput, sanitizeAiHtml } from "./security";
 import {
@@ -556,8 +556,7 @@ async function callGeminiExpertConsult(
   videos: MatchedVideoCard[],
   documents: MatchedDocumentCard[],
 ): Promise<string | null> {
-  const row = await one<{ value: string }>("SELECT value FROM settings WHERE key = 'gemini_api_key'");
-  const apiKey = row?.value?.trim() || process.env.GEMINI_API_KEY?.trim() || "";
+  const apiKey = await resolveGeminiApiKey();
   if (!apiKey) return null;
 
   const productListText = groups
@@ -836,8 +835,7 @@ export async function runBackendExpertAnalysis(
     customNote: row.custom_note,
   });
 
-  const apiRow = await one<{ value: string }>(`SELECT value FROM settings WHERE key = 'gemini_api_key'`);
-  const apiKey = apiRow?.value?.trim() || process.env.GEMINI_API_KEY?.trim() || "";
+  const apiKey = await resolveGeminiApiKey();
 
   let reportHtml = "";
   if (apiKey) {

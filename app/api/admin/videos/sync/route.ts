@@ -1,4 +1,4 @@
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import {
   approveAllPendingYoutubeVideos,
   approvePendingYoutubeVideo,
@@ -10,7 +10,7 @@ import {
 } from "@/lib/youtube-sync";
 
 export async function GET() {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/videos/");
   if (!admin) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const [config, pending] = await Promise.all([
@@ -21,7 +21,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/videos/");
   if (!admin) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {

@@ -87,7 +87,7 @@ export function FlashSaleShowcase({
       const res = await fetch(`/api/v2/add-to-cart/${productId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity: 1 }),
+        body: JSON.stringify({ qty: 1, quantity: 1 }),
       });
       const data = await res.json();
       if (data.success) {
@@ -151,7 +151,7 @@ export function FlashSaleShowcase({
         </div>
       </div>
 
-      {/* Thanh chọn Khung Giờ Vàng (Time Slots như TienKhang / Shopee Flash Sale) */}
+      {/* Thanh chọn Khung Giờ Vàng (Time Slots như Phúc Thọ / Shopee Flash Sale) */}
       <div className="grid grid-cols-2 md:grid-cols-4 border-b border-red-100 bg-[#fef2f2]">
         {slots.map((slot) => {
           const isSelected = slot.id === currentSlot?.id;
@@ -161,11 +161,10 @@ export function FlashSaleShowcase({
               key={slot.id}
               type="button"
               onClick={() => setSelectedSlotId(slot.id)}
-              className={`relative px-3 py-2.5 text-center transition border-r border-red-100 last:border-r-0 ${
-                isSelected
+              className={`relative px-3 py-2.5 text-center transition border-r border-red-100 last:border-r-0 ${isSelected
                   ? "bg-white text-[#b91c1c] font-bold shadow-inner"
                   : "text-stone-600 hover:bg-white/60"
-              }`}
+                }`}
             >
               {isSelected && (
                 <span className="absolute bottom-0 inset-x-0 h-0.5 bg-[#dc2626]" />
@@ -181,13 +180,12 @@ export function FlashSaleShowcase({
               <div className="text-[11px] mt-0.5 flex items-center justify-center gap-1">
                 <span className="truncate max-w-[120px]">{slot.name}</span>
                 <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-semibold ${
-                    isActive
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-semibold ${isActive
                       ? "bg-red-600 text-white"
                       : slot.status === "upcoming"
                         ? "bg-amber-100 text-amber-800"
                         : "bg-stone-200 text-stone-600"
-                  }`}
+                    }`}
                 >
                   {isActive
                     ? "🔥 Đang diễn ra"

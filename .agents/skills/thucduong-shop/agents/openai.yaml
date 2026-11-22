@@ -1,0 +1,4 @@
+interface:
+  display_name: "ThucDuong Shop"
+  short_description: "Project workflows for admin, retail, AI, and Cloudflare"
+  default_prompt: "Use $thucduong-shop to implement or verify the requested project change."

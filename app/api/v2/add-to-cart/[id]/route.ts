@@ -17,7 +17,9 @@ export async function POST(req: Request, ctx: RouteContext<"/api/v2/add-to-cart/
     return Response.json({ error: "Sản phẩm hiện đang hết hàng." }, { status: 400 });
   }
   const body = await req.json().catch(() => ({}));
-  const reqQty = Math.max(1, Math.floor(Number(body.qty) || 1));
+  // Accept `qty` (canonical), `quantity` (body) or ?quantity= (legacy callers).
+  const rawQty = body.qty ?? body.quantity ?? new URL(req.url).searchParams.get("quantity");
+  const reqQty = Math.min(999, Math.max(1, Math.floor(Number(rawQty) || 1)));
   if (reqQty > prod.stock) {
     return Response.json({ error: `Chỉ còn ${prod.stock} sản phẩm trong kho.` }, { status: 400 });
   }

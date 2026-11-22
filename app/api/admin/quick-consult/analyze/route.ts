@@ -1,4 +1,4 @@
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import {
   runBackendExpertAnalysis,
   saveExpertProfileConfig,
@@ -6,7 +6,7 @@ import {
 } from "@/lib/quick-consult";
 
 export async function POST(req: Request) {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/quick-consult/");
   if (!admin) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
@@ -23,6 +23,9 @@ export async function POST(req: Request) {
         schoolOfThought: body.config.schoolOfThought?.trim() || "Thực dưỡng Quân bình Âm – Dương",
         focusAreas: body.config.focusAreas?.trim() || "",
         customDirective: body.config.customDirective?.trim() || "",
+        disclaimerStyle: body.config.disclaimerStyle,
+        disclaimerPosition: body.config.disclaimerPosition,
+        disclaimerCustomText: body.config.disclaimerCustomText?.trim() || "",
       });
       if (!body.id) {
         return Response.json({ ok: true, savedConfigOnly: true });

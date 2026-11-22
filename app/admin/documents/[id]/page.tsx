@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import RichTextEditor from "@/components/admin/RichTextEditor";
 import { ui } from "@/components/admin/ui";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { getDocumentById, getProducts } from "@/lib/data";
 import { deleteDocumentAction, saveDocumentAction } from "../../actions";
 
@@ -28,7 +28,7 @@ export default async function DocumentEditPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireAdmin();
+  await requireAdminPath("/admin/documents/");
   const { id: rawId } = await params;
   const sp = await searchParams;
   const error = typeof sp.error === "string" ? sp.error : "";

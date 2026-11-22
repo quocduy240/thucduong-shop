@@ -1,6 +1,7 @@
 import "server-only";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { all, one, run } from "./db";
+import { callGeminiGenerateContent, resolveGeminiApiKey } from "./gemini-key";
 
 export type LabJobStatus = "pending" | "processing" | "done" | "error";
 
@@ -107,8 +108,7 @@ export async function deleteLabAnalysis(id: number): Promise<void> {
 }
 
 async function getGeminiApiKey(): Promise<string> {
-  const row = await one<{ value: string }>("SELECT value FROM settings WHERE key = 'gemini_api_key'");
-  return row?.value?.trim() || process.env.GEMINI_API_KEY?.trim() || "";
+  return resolveGeminiApiKey();
 }
 
 function stripMarkdownFences(raw: string): string {
@@ -169,19 +169,17 @@ Trong "analysisHtml", hãy trình bày rõ ràng bằng HTML sạch (h3, table, 
   }
   parts.push({ text: prompt });
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+  const res = await callGeminiGenerateContent(
+    apiKey,
     {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts }],
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: "application/json",
-        },
-      }),
+      contents: [{ role: "user", parts }],
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: "application/json",
+      },
     },
+    ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-flash-latest"],
+    90_000,
   );
 
   if (!res.ok) {
@@ -245,11 +243,14 @@ export async function processNextIdleLabJob(targetJobId?: number): Promise<{
     return { processed: false };
   }
 
-  // Claim job atomically
+  // Claim job exclusively: only pending/error rows, or processing rows stale for > 3 minutes
   const claim = await run(
     `UPDATE lab_analyses
      SET status = 'processing', started_at = datetime('now'), error_message = ''
-     WHERE id = ? AND status IN ('pending', 'error', 'processing')`,
+     WHERE id = ? AND (
+       status IN ('pending', 'error')
+       OR (status = 'processing' AND (started_at IS NULL OR datetime(started_at, '+3 minutes') < datetime('now')))
+     )`,
     job.id,
   );
   if (claim.changes === 0) {

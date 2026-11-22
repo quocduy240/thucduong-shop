@@ -1,9 +1,10 @@
 import crypto from "node:crypto";
 import { loadAiMotifs } from "@/lib/ai-motifs";
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import { all, one, run } from "@/lib/db";
 import { callGeminiGenerateContent, resolveGeminiApiKey } from "@/lib/gemini-key";
 import { extractWebArticleFromHtml, extractYoutubeCaptionChunks } from "@/lib/html-extract";
+import { assertSafePublicHttpUrl } from "@/lib/security";
 import { vnd } from "@/lib/site";
 import { saveGeneratedMedia, slugify } from "@/lib/uploads";
 
@@ -255,6 +256,7 @@ function parseDeepResearchText(rawText: string, sourceUrl = ""): ScrapedArticle 
 
 /** 4. Scrape standard Web Article */
 async function scrapeWebArticle(url: string): Promise<ScrapedArticle> {
+  assertSafePublicHttpUrl(url); // SSRF guard: never fetch loopback / private / metadata hosts
   const res = await fetch(url, {
     headers: {
       "User-Agent":
@@ -369,7 +371,7 @@ async function generateContextualCoverSvg(title: string, subtitle: string): Prom
 }
 
 export async function POST(req: Request) {
-  if (!(await currentAdmin())) {
+  if (!(await currentAdminForPath("/admin/posts/"))) {
     return Response.json({ error: "Chưa đăng nhập quản trị." }, { status: 401 });
   }
 

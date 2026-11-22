@@ -1,16 +1,16 @@
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import { getThemeSettings, saveThemeSettings } from "@/lib/theme-settings";
 import { DEFAULT_THEME_CONFIG, type ThemeSettingsConfig } from "@/lib/themes";
 
 export async function GET() {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/themes/");
   if (!admin) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const config = await getThemeSettings();
   return Response.json({ ok: true, config });
 }
 
 export async function POST(req: Request) {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/themes/");
   if (!admin) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {

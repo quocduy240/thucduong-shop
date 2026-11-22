@@ -1,10 +1,10 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import { buildSitemapEntries, saveSitemapConfig, type SitemapConfig } from "@/lib/sitemaps";
 
 export async function GET() {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/sitemaps/");
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const data = await buildSitemapEntries();
@@ -17,7 +17,7 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/sitemaps/");
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = (await req.json().catch(() => ({}))) as Partial<SitemapConfig>;

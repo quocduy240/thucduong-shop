@@ -191,7 +191,7 @@ export default function ProductDescriptionAiPanel({
                 type="text"
                 value={extraBlockedDomains}
                 onChange={(e) => setExtraBlockedDomains(e.target.value)}
-                placeholder="VD: thucduongthienan.com, tienkhang.com (cách nhau dấu phẩy)"
+                placeholder="VD: thucduongthienan.com, thucduongphuctho.net (cách nhau dấu phẩy)"
                 className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs outline-none focus:border-indigo-500"
               />
             </div>
@@ -269,11 +269,10 @@ export default function ProductDescriptionAiPanel({
 
       {(statusMsg || errMsg) && (
         <div
-          className={`rounded-lg border px-3 py-2 text-xs font-semibold ${
-            errMsg
+          className={`rounded-lg border px-3 py-2 text-xs font-semibold ${errMsg
               ? "border-red-200 bg-red-50 text-red-700"
               : "border-emerald-200 bg-emerald-50 text-emerald-800"
-          }`}
+            }`}
         >
           {errMsg || statusMsg}
         </div>

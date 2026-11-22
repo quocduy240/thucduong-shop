@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import { assertSafePublicHttpUrl } from "@/lib/security";
+import { verifyFileMagicBytes } from "@/lib/media-security";
 import { MAX_IMAGE_BYTES, saveGeneratedMedia, saveImage } from "@/lib/uploads";
 
 const MIME_EXT: Record<string, string> = {
@@ -13,7 +14,7 @@ const MIME_EXT: Record<string, string> = {
 
 // POST /admin/upload — accepts multipart FormData { file } OR JSON { imageUrl } and returns { url }.
 export async function POST(req: Request) {
-  if (!(await currentAdmin())) return Response.json({ error: "Chưa đăng nhập." }, { status: 401 });
+  if (!(await currentAdminForPath("/admin/upload", "/admin/products/"))) return Response.json({ error: "Chưa đăng nhập." }, { status: 401 });
 
   const contentType = req.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {
@@ -36,13 +37,17 @@ export async function POST(req: Request) {
       });
       if (!res.ok) throw new Error(`Không tải được ảnh từ URL (HTTP ${res.status}).`);
       const mime = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
-      const ext = MIME_EXT[mime] || ".jpg";
+      const ext = MIME_EXT[mime];
+      if (!ext) throw new Error("Định dạng ảnh không được hỗ trợ (chỉ JPEG, PNG, WebP, GIF, SVG).");
       const buf = Buffer.from(await res.arrayBuffer());
       if (buf.byteLength === 0 || buf.byteLength > MAX_IMAGE_BYTES) {
-        throw new Error("Dung lượng ảnh không hợp lệ (tối đa 10MB).");
+        throw new Error("Dung lượng ảnh không hợp lệ (tối đa 1.5MB).");
+      }
+      if (!verifyFileMagicBytes(buf, mime)) {
+        throw new Error("Nội dung tệp không khớp định dạng ảnh khai báo.");
       }
       const name = `${Date.now().toString(36)}-${crypto.randomBytes(4).toString("hex")}${ext}`;
-      const savedUrl = await saveGeneratedMedia("posts", name, mime || "image/jpeg", buf);
+      const savedUrl = await saveGeneratedMedia("posts", name, mime, buf);
       return Response.json({ url: savedUrl });
     } catch (e) {
       return Response.json({ error: (e as Error).message }, { status: 400 });

@@ -3,7 +3,7 @@ import ConfirmButton from "@/components/admin/ConfirmButton";
 import YoutubeSyncPanel from "@/components/admin/YoutubeSyncPanel";
 import { Flash, PageHeader, Pagination, pageParam, strParam, ui } from "@/components/admin/ui";
 import { listVideos } from "@/lib/admin-data";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import {
   getYoutubeSyncConfig,
   listPendingYoutubeVideos,
@@ -44,7 +44,7 @@ export default async function VideosAdminPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireAdmin();
+  await requireAdminPath("/admin/videos/");
   const sp = await searchParams;
   const q = strParam(sp.q);
   const topic = strParam(sp.topic);

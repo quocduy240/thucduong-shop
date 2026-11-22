@@ -1,10 +1,10 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { listMembersData } from "@/lib/admin-data";
 
 const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
 export async function GET(req: Request) {
-  await requireAdmin();
+  await requireAdminPath("/admin/members/");
   const type = new URL(req.url).searchParams.get("type") ?? "subscribers";
   const { members, subscribers } = await listMembersData();
 

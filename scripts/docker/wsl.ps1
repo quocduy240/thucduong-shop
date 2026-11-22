@@ -1,0 +1,2 @@
+﻿wsl --status
+wsl --install

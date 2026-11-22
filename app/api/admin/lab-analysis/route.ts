@@ -1,4 +1,4 @@
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import {
   createLabAnalysis,
   deleteLabAnalysis,
@@ -27,14 +27,14 @@ function arrayBufferToBase64(buf: ArrayBuffer): string {
 }
 
 export async function GET() {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/lab-analysis/");
   if (!admin) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const items = await listLabAnalyses(30);
   return Response.json({ ok: true, items });
 }
 
 export async function POST(req: Request) {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/lab-analysis/");
   if (!admin) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
@@ -115,7 +115,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/lab-analysis/");
   if (!admin) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const { searchParams } = new URL(req.url);
   const id = Number(searchParams.get("id") ?? "0");

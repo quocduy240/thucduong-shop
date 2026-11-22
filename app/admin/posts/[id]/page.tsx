@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import ContentEditor from "@/components/admin/ContentEditor";
 import CoverImageStudio from "@/components/admin/CoverImageStudio";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import SeoPanel from "@/components/admin/SeoPanel";
 import { getPostById, getPostCategories, getProducts, url } from "@/lib/data";
@@ -15,7 +15,7 @@ const input = "w-full rounded border px-3 py-2";
 const label = "mb-1 block text-sm font-medium";
 
 export default async function PostEditPage({ params, searchParams }: PageProps<"/admin/posts/[id]">) {
-  await requireAdmin();
+  await requireAdminPath("/admin/posts/");
   const { id: rawId } = await params;
   const sp = await searchParams;
   const error = typeof sp.error === "string" ? sp.error : "";

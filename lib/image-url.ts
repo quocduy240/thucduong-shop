@@ -42,7 +42,8 @@ export function optimizeImageUrl(
   let resolved = raw;
   if (cdnBase && raw.startsWith("/api/media/")) {
     const key = raw.slice("/api/media/".length).replace(/^\/+/, "");
-    resolved = `${cdnBase}/${key}`;
+    // Single-segment keys are AI/importer assets stored in R2 under "media/<slug>".
+    resolved = `${cdnBase}/${key.includes("/") ? key : `media/${key}`}`;
   }
 
   if (!isCfResizingEnabled(opts.cfResizingEnabled)) {

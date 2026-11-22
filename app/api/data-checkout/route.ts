@@ -3,7 +3,7 @@ import { cartLines, readCart, writeCart } from "@/lib/cart";
 import { calculateOrderPricing, generateOrderCode, normalizeIdempotencyKey } from "@/lib/checkout-helpers";
 import { batch, one, run } from "@/lib/db";
 import { logError, logInfo, logWarn } from "@/lib/logger";
-import { resolveGuestProfile, resolveOnLoginOrRegister } from "@/lib/loyalty";
+import { getMemberProfileByUserId, resolveGuestProfile, resolveOnLoginOrRegister } from "@/lib/loyalty";
 import { sendNewOrderEmail } from "@/lib/mail";
 import { currentMember, evaluateCoupon } from "@/lib/member-auth";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
   const pricing = calculateOrderPricing({
     subtotal: total,
     couponDiscount,
-    memberTier: member?.tier,
+    memberTier: member ? ((await getMemberProfileByUserId(member.id))?.tier ?? member.tier) : undefined,
   });
   const code = generateOrderCode();
 

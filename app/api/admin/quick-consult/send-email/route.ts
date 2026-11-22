@@ -1,11 +1,11 @@
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import { sendEmail } from "@/lib/mail";
 import { renderDisclaimerEmailHtml, resolveDisclaimerContent } from "@/lib/medical-disclaimer";
 import { computeBmi, getExpertProfileConfig, getQuickConsultById, type ExpertProfileConfig } from "@/lib/quick-consult";
 import { getSite } from "@/lib/settings";
 
 export async function POST(req: Request) {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/quick-consult/");
   if (!admin) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {

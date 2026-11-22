@@ -1,4 +1,4 @@
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import { processNextIdleLabJob } from "@/lib/lab-analysis";
 import { safeEqualSecret } from "@/lib/security";
 
@@ -8,7 +8,7 @@ async function handleIdleRun(req: Request) {
   const isCronAuthorized = safeEqualSecret(secret, reqSecret);
 
   if (!isCronAuthorized) {
-    const admin = await currentAdmin();
+    const admin = await currentAdminForPath("/admin/lab-analysis/");
     if (!admin) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }

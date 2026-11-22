@@ -23,6 +23,13 @@ test("optimizeImageUrl rewrites /api/media/ to R2 CDN domain and wraps Cloudflar
   });
   assert.equal(cdnOnly, "https://media.thucduongshop.duyvo.win/products/gao-lut.jpg");
 
+  const singleSlugCdn = optimizeImageUrl("/api/media/post-ai-123", {
+    width: 480,
+    cfResizingEnabled: false,
+    cdnBaseUrl: "https://media.thucduongshop.duyvo.win/",
+  });
+  assert.equal(singleSlugCdn, "https://media.thucduongshop.duyvo.win/media/post-ai-123");
+
   const resizedLocal = optimizeImageUrl("/api/media/products/gao-lut.jpg", {
     width: 480,
     quality: 82,

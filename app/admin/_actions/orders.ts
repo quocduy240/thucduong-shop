@@ -234,6 +234,13 @@ export async function createPosOrderAction(formData: FormData) {
     });
   }
 
+  if (status === "done") {
+    // Award loyalty points for real customers only (anonymous walk-in uses the 0000000000 placeholder).
+    if (total > 0 && phone !== "0000000000") {
+      await onOrderStatusChanged(Number(orderId), "new", "done").catch(() => {});
+    }
+  }
+
   if (status === "done" && total > 0) {
     const cbMethod: CashbookPaymentMethod =
       payment === "bank" ? "bank" : payment === "kiotviet" ? "kiotviet" : "cash";

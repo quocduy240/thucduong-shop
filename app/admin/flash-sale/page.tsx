@@ -9,7 +9,7 @@ import {
 } from "@/app/admin/actions";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import { Flash, PageHeader } from "@/components/admin/ui";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { getFlashSaleConfig, getFlashSaleItems, getFlashSaleSlots } from "@/lib/flash-sale";
 import { vnd } from "@/lib/site";
@@ -32,7 +32,7 @@ export default async function AdminFlashSalePage({
 }: {
   searchParams: Promise<{ saved?: string; err?: string; tab?: string; slot?: string }>;
 }) {
-  await requireAdmin();
+  await requireAdminPath("/admin/flash-sale/");
   const sp = await searchParams;
   const activeTab: TabKey =
     sp.tab === "slots" || sp.tab === "config" ? sp.tab : "deals";
@@ -44,8 +44,8 @@ export default async function AdminFlashSalePage({
     getFlashSaleItems(),
     activeTab === "deals"
       ? all<{ id: number; name: string; price: number; sale_price: number | null; stock: number }>(
-          "SELECT id, name, price, sale_price, stock FROM products WHERE price > 0 ORDER BY name ASC",
-        )
+        "SELECT id, name, price, sale_price, stock FROM products WHERE price > 0 ORDER BY name ASC",
+      )
       : Promise.resolve([]),
   ]);
 
@@ -79,9 +79,8 @@ export default async function AdminFlashSalePage({
         <Link
           href={buildHref({ tab: "config" })}
           prefetch={false}
-          className={`rounded-2xl border p-4 transition ${
-            activeTab === "config" ? "border-brand bg-green-50/70 shadow-xs" : "bg-white hover:border-gray-300"
-          }`}
+          className={`rounded-2xl border p-4 transition ${activeTab === "config" ? "border-brand bg-green-50/70 shadow-xs" : "bg-white hover:border-gray-300"
+            }`}
         >
           <div className="text-xs font-bold text-gray-500">Trạng thái chiến dịch</div>
           <div className="mt-1 text-lg font-extrabold">
@@ -99,9 +98,8 @@ export default async function AdminFlashSalePage({
         <Link
           href={buildHref({ tab: "slots" })}
           prefetch={false}
-          className={`rounded-2xl border p-4 transition ${
-            activeTab === "slots" ? "border-brand bg-green-50/70 shadow-xs" : "bg-white hover:border-gray-300"
-          }`}
+          className={`rounded-2xl border p-4 transition ${activeTab === "slots" ? "border-brand bg-green-50/70 shadow-xs" : "bg-white hover:border-gray-300"
+            }`}
         >
           <div className="text-xs font-bold text-gray-500">Khung Giờ Vàng</div>
           <div className="mt-1 text-2xl font-extrabold text-brand">{slots.length} khung</div>
@@ -113,9 +111,8 @@ export default async function AdminFlashSalePage({
         <Link
           href={buildHref({ tab: "deals" })}
           prefetch={false}
-          className={`rounded-2xl border p-4 transition ${
-            activeTab === "deals" ? "border-brand bg-green-50/70 shadow-xs" : "bg-white hover:border-gray-300"
-          }`}
+          className={`rounded-2xl border p-4 transition ${activeTab === "deals" ? "border-brand bg-green-50/70 shadow-xs" : "bg-white hover:border-gray-300"
+            }`}
         >
           <div className="text-xs font-bold text-gray-500">Sản phẩm Săn Sale</div>
           <div className="mt-1 text-2xl font-extrabold text-red-600">{items.length} deal</div>
@@ -139,11 +136,10 @@ export default async function AdminFlashSalePage({
               key={t.key}
               href={buildHref({ tab: t.key })}
               prefetch={false}
-              className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
-                activeTab === t.key
-                  ? "bg-brand text-white shadow-xs"
-                  : "border bg-white text-gray-700 hover:border-brand hover:text-brand"
-              }`}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition ${activeTab === t.key
+                ? "bg-brand text-white shadow-xs"
+                : "border bg-white text-gray-700 hover:border-brand hover:text-brand"
+                }`}
             >
               {t.label}
             </Link>
@@ -248,11 +244,10 @@ export default async function AdminFlashSalePage({
             <Link
               href={buildHref({ tab: "deals" })}
               prefetch={false}
-              className={`rounded-full border px-3 py-1 font-semibold transition ${
-                slotFilter === 0
-                  ? "border-brand bg-green-50 text-brand"
-                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-              }`}
+              className={`rounded-full border px-3 py-1 font-semibold transition ${slotFilter === 0
+                ? "border-brand bg-green-50 text-brand"
+                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                }`}
             >
               Tất cả ({items.length})
             </Link>
@@ -263,11 +258,10 @@ export default async function AdminFlashSalePage({
                   key={s.id}
                   href={buildHref({ tab: "deals", slot: s.id })}
                   prefetch={false}
-                  className={`rounded-full border px-3 py-1 font-semibold transition ${
-                    slotFilter === s.id
-                      ? "border-brand bg-green-50 text-brand"
-                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                  }`}
+                  className={`rounded-full border px-3 py-1 font-semibold transition ${slotFilter === s.id
+                    ? "border-brand bg-green-50 text-brand"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                    }`}
                 >
                   {String(s.start_hour).padStart(2, "0")}h-{String(s.end_hour).padStart(2, "0")}h ({cnt})
                 </Link>
@@ -393,7 +387,7 @@ export default async function AdminFlashSalePage({
               Danh sách Khung Giờ Vàng trong ngày ({slots.length})
             </h2>
             <p className="text-xs text-gray-500">
-              Tham khảo chuẩn Tiến Khang: Khung trưa (11:00 – 14:00) và Khung tối (19:00 – 22:00/24:00), kèm khung sáng và chiều.
+              Tham khảo chuẩn Thực Dưỡng Phúc Thọ: Khung trưa (11:00 – 14:00) và Khung tối (19:00 – 22:00/24:00), kèm khung sáng và chiều.
             </p>
           </div>
 

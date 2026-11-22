@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import ContentEditor from "@/components/admin/ContentEditor";
 import CoverImageStudio from "@/components/admin/CoverImageStudio";
@@ -32,7 +32,7 @@ const REASON_LABELS: Record<string, { text: string; badge: string }> = {
 };
 
 export default async function ProductEditPage({ params, searchParams }: PageProps<"/admin/products/[id]">) {
-  await requireAdmin();
+  await requireAdminPath("/admin/products/");
   const { id: rawId } = await params;
   const sp = await searchParams;
   const error = typeof sp.error === "string" ? sp.error : "";

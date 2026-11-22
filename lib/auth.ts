@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { all, one, run } from "./db";
-import { normalizeRole, type AdminRole } from "./rbac";
+import { canAccessAdminPath, normalizeRole, type AdminRole } from "./rbac";
 
 /** Admin accounts live in D1 (tables admins / admin_sessions). Passwords: scrypt + random salt. */
 export const ADMIN_COOKIE = "admin_session";
@@ -155,6 +155,22 @@ export async function requireAdmin(): Promise<Admin> {
   const a = await currentAdmin();
   if (!a) redirect("/admin/");
   return a;
+}
+
+/** Page guard: signed-in admin whose role may open the given /admin/... path (same rules as the sidebar). */
+export async function requireAdminPath(...paths: string[]): Promise<Admin> {
+  const a = await requireAdmin();
+  if (!paths.some((p) => canAccessAdminPath(a.role, p))) {
+    redirect("/admin/?error=" + encodeURIComponent("Bạn không có quyền truy cập khu vực này."));
+  }
+  return a;
+}
+
+/** API guard: returns the admin only when signed in AND allowed on at least one of the given paths. */
+export async function currentAdminForPath(...paths: string[]): Promise<Admin | undefined> {
+  const a = await currentAdmin();
+  if (!a) return undefined;
+  return paths.some((p) => canAccessAdminPath(a.role, p)) ? a : undefined;
 }
 
 export async function requireRole(allowed: AdminRole[]): Promise<Admin> {

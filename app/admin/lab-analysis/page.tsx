@@ -1,11 +1,11 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { listLabAnalyses } from "@/lib/lab-analysis";
 import LabAnalysisStudio from "@/components/admin/LabAnalysisStudio";
 
 export const metadata = { title: "Phân tích Xét nghiệm AI | Quản trị" };
 
 export default async function AdminLabAnalysisPage() {
-  await requireAdmin();
+  await requireAdminPath("/admin/lab-analysis/");
   const items = await listLabAnalyses(30);
 
   return (

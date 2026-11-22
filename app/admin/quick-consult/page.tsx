@@ -1,11 +1,11 @@
 import AdminQuickConsultClient from "@/components/admin/AdminQuickConsultClient";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { getExpertProfileConfig, listQuickConsultations } from "@/lib/quick-consult";
 
 export const metadata = { title: "Hồ sơ Tư vấn nhanh AI | Quản trị" };
 
 export default async function AdminQuickConsultPage() {
-  await requireAdmin();
+  await requireAdminPath("/admin/quick-consult/");
   const [rows, cfg] = await Promise.all([
     listQuickConsultations(50),
     getExpertProfileConfig(),

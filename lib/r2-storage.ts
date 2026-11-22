@@ -11,7 +11,22 @@ interface R2PutOptions {
 
 interface R2BucketLike {
   put(key: string, value: ArrayBuffer | Uint8Array | string, options?: R2PutOptions): Promise<unknown>;
+  get?(key: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer>; httpMetadata?: { contentType?: string } } | null>;
   delete?(key: string): Promise<void>;
+}
+
+/** Read a structured upload back from R2 (used by /api/media/[...path] when R2 is bound without a CDN URL). */
+export async function getMediaObject(
+  mediaPath: string,
+): Promise<{ bytes: Uint8Array; contentType: string } | null> {
+  const bucket = await resolveR2Bucket();
+  if (!bucket?.get) return null;
+  const obj = await bucket.get(mediaPath.replace(/^\/+/, ""));
+  if (!obj) return null;
+  return {
+    bytes: new Uint8Array(await obj.arrayBuffer()),
+    contentType: obj.httpMetadata?.contentType || "application/octet-stream",
+  };
 }
 
 const IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
