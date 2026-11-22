@@ -56,11 +56,17 @@ export type Post = {
 };
 export type Page = { grp: string; slug: string; title: string; content: string };
 
-const PRODUCT_COLS = `p.id, p.slug, p.name, p.price, p.sale_price, p.stock, p.summary, p.description, p.featured, p.image,
+const PRODUCT_CARD_COLS = `p.id, p.slug, p.name, p.price, p.sale_price, p.stock, p.summary, '' AS description, p.featured, p.image,
+  p.sku, p.brand, p.origin, p.unit, '' AS gallery, '' AS video_url,
+  COALESCE((SELECT ROUND(AVG(rating), 1) FROM comments WHERE product_id = p.id), 0) AS rating_avg,
+  (SELECT COUNT(*) FROM comments WHERE product_id = p.id) AS rating_count,
+  p.category_id, c.slug AS category_slug, c.name AS category_name`;
+const PRODUCT_DETAIL_COLS = `p.id, p.slug, p.name, p.price, p.sale_price, p.stock, p.summary, p.description, p.featured, p.image,
   p.sku, p.brand, p.origin, p.unit, p.gallery, p.video_url,
   COALESCE((SELECT ROUND(AVG(rating), 1) FROM comments WHERE product_id = p.id), 0) AS rating_avg,
   (SELECT COUNT(*) FROM comments WHERE product_id = p.id) AS rating_count,
   p.category_id, c.slug AS category_slug, c.name AS category_name`;
+const PRODUCT_COLS = PRODUCT_CARD_COLS;
 const POST_COLS = `po.id, po.slug, po.title, po.excerpt, po.content, po.created_at, po.cover,
   po.related_product_ids, po.combo_title,
   pc.slug AS category_slug, pc.name AS category_name, pc.section_slug`;
@@ -180,7 +186,7 @@ export const getHomeCategoryProducts = cache(async (limitPerCategory = 4): Promi
 
 export const getProduct = cache((categorySlug: string, slug: string) =>
   one<Product>(
-    `SELECT ${PRODUCT_COLS} FROM products p JOIN product_categories c ON c.id = p.category_id
+    `SELECT ${PRODUCT_DETAIL_COLS} FROM products p JOIN product_categories c ON c.id = p.category_id
      WHERE c.slug = ? AND p.slug = ? AND ${PUB}`,
     categorySlug,
     slug,
@@ -433,7 +439,7 @@ export async function search(q: string, limit = 8) {
 // ---- Admin lookups (by id) ----
 export const getProductById = (id: number) =>
   one<Product & { featured: number; is_published: number }>(
-    `SELECT ${PRODUCT_COLS}, p.featured, COALESCE(p.is_published, 1) AS is_published FROM products p JOIN product_categories c ON c.id = p.category_id WHERE p.id = ?`,
+    `SELECT ${PRODUCT_DETAIL_COLS}, p.featured, COALESCE(p.is_published, 1) AS is_published FROM products p JOIN product_categories c ON c.id = p.category_id WHERE p.id = ?`,
     id,
   );
 export const getPostById = (id: number) =>

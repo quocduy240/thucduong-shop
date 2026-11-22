@@ -40,7 +40,7 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
       </PageHeader>
       <Flash saved={sp.saved} error={sp.error} />
       <form className="mb-4 flex flex-wrap gap-2">
-        <input name="q" defaultValue={q} placeholder="Tìm theo tên, mã SP, thương hiệu..." className={`${ui.input} max-w-xs`} />
+        <input name="q" defaultValue={q} placeholder="Tìm tên, mã SP, mã vạch, thương hiệu, vị trí..." className={`${ui.input} max-w-xs`} />
         <select name="category" defaultValue={category || ""} className={`${ui.input} max-w-xs`}>
           <option value="">Tất cả danh mục</option>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -49,6 +49,7 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
           <option value="">Tất cả tồn kho</option>
           <option value="in">Còn hàng (&gt; 0)</option>
           <option value="low">Sắp hết (1 – 5)</option>
+          <option value="below_min">Dưới định mức tồn</option>
           <option value="out">Hết hàng (0)</option>
         </select>
         <select name="status" defaultValue={status} className={`${ui.input} max-w-xs`}>
@@ -83,8 +84,8 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
               <th className={ui.th}>Ảnh</th>
               <th className={ui.th}>Tên</th>
               <th className={ui.th}>Danh mục</th>
-              <th className={ui.th}>Giá</th>
-              <th className={ui.th}>Tồn kho</th>
+              <th className={ui.th}>Giá bán / Vốn</th>
+              <th className={ui.th}>Tồn kho / KH đặt</th>
               <th className={ui.th}></th>
             </tr>
           </thead>
@@ -106,8 +107,10 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
                   {p.featured ? <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">Nổi bật</span> : null}
                   <div className="mt-0.5 flex flex-wrap gap-2 text-xs text-gray-500">
                     {p.sku && <span className="font-mono text-gray-600">#{p.sku}</span>}
+                    {p.barcode && <span className="font-mono text-[11px] text-indigo-600">📊 {p.barcode}</span>}
                     {p.brand && <span>· {p.brand}</span>}
                     {p.unit && <span>· {p.unit}</span>}
+                    {p.location && <span className="text-emerald-700">· 📍 {p.location}</span>}
                     {p.origin && <span>({p.origin})</span>}
                   </div>
                 </td>
@@ -115,11 +118,21 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
                 <td className={ui.td}>
                   {p.price ? (
                     <>
-                      {vnd(p.sale_price ?? p.price)}
+                      <div className="font-semibold text-gray-900">{vnd(p.sale_price ?? p.price)}</div>
                       {p.sale_price ? <div className="text-xs text-gray-400 line-through">{vnd(p.price)}</div> : null}
                     </>
                   ) : (
                     <span className="text-gray-500">Liên hệ</span>
+                  )}
+                  {p.cost_price > 0 && (
+                    <div className="mt-0.5 text-[11px] text-gray-500">
+                      Vốn: {vnd(p.cost_price)}
+                      {p.price > 0 && (
+                        <span className="ml-1 font-semibold text-emerald-700">
+                          ({Math.round((((p.sale_price ?? p.price) - p.cost_price) / (p.sale_price ?? p.price)) * 100)}%)
+                        </span>
+                      )}
+                    </div>
                   )}
                 </td>
                 <td className={ui.td}>
@@ -132,7 +145,7 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
                       min={0}
                       defaultValue={p.stock}
                       className={`w-20 rounded border px-2 py-1 text-center text-sm ${
-                        p.stock <= 0
+                        p.stock <= 0 || (p.min_stock > 0 && p.stock <= p.min_stock)
                           ? "border-red-300 bg-red-50 font-semibold text-red-700"
                           : p.stock <= 5
                             ? "border-amber-300 bg-amber-50 font-medium text-amber-800"
@@ -141,6 +154,12 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
                     />
                     <button className="rounded border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">Lưu</button>
                   </form>
+                  {(p.customer_reserved > 0 || p.min_stock > 0) && (
+                    <div className="mt-1 flex flex-wrap gap-1.5 text-[11px]">
+                      {p.customer_reserved > 0 && <span className="text-amber-700 font-semibold">KH đặt: {p.customer_reserved}</span>}
+                      {p.min_stock > 0 && <span className="text-gray-500">Min: {p.min_stock}</span>}
+                    </div>
+                  )}
                 </td>
                 <td className={`${ui.td} whitespace-nowrap text-right`}>
                   <Link href={url.product(p)} target="_blank" className="mr-3 text-gray-500 hover:underline">Xem</Link>

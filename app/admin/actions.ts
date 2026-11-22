@@ -13,6 +13,7 @@ export {
 } from "./_actions/auth";
 
 export {
+  adjustProductInventoryAction,
   bulkProductsAction,
   deleteProductAction,
   deleteProductCategoryAction,

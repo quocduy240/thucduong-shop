@@ -62,21 +62,23 @@ export async function getNavBadges() {
 // ---- products ----
 export type AdminProductRow = {
   id: number; name: string; slug: string; price: number; sale_price: number | null;
-  stock: number; image: string | null; featured: number; is_published: number;
-  sku: string; brand: string; origin: string; unit: string;
+  cost_price: number; stock: number; min_stock: number; image: string | null; featured: number; is_published: number;
+  sku: string; kv_code: string; barcode: string; brand: string; origin: string; unit: string;
+  weight_grams: number; location: string; supplier: string; customer_reserved: number;
   category_name: string; category_slug: string;
 };
 export async function listProducts(opts: { q?: string; category?: number; stock?: string; status?: string; page: number }) {
   const where: string[] = [];
   const params: (string | number)[] = [];
   if (opts.q) {
-    where.push("(p.name LIKE ? OR p.sku LIKE ? OR p.brand LIKE ?)");
+    where.push("(p.name LIKE ? OR p.sku LIKE ? OR COALESCE(p.kv_code,'') LIKE ? OR COALESCE(p.barcode,'') LIKE ? OR p.brand LIKE ? OR COALESCE(p.location,'') LIKE ?)");
     const l = like(opts.q);
-    params.push(l, l, l);
+    params.push(l, l, l, l, l, l);
   }
   if (opts.category) (where.push("p.category_id = ?"), params.push(opts.category));
   if (opts.stock === "out") where.push("p.stock <= 0");
   else if (opts.stock === "low") where.push("p.stock > 0 AND p.stock <= 5");
+  else if (opts.stock === "below_min") where.push("p.stock <= COALESCE(p.min_stock, 0)");
   else if (opts.stock === "in") where.push("p.stock > 0");
   if (opts.status === "hidden") where.push("COALESCE(p.is_published, 1) = 0");
   else if (opts.status === "published") where.push("COALESCE(p.is_published, 1) = 1");
@@ -84,14 +86,89 @@ export async function listProducts(opts: { q?: string; category?: number; stock?
   const [totalRow, rows] = await Promise.all([
     one<{ n: number }>(`SELECT COUNT(*) AS n FROM products p ${w}`, ...params),
     all<AdminProductRow>(
-      `SELECT p.id, p.name, p.slug, p.price, p.sale_price, p.stock, p.image, p.featured, COALESCE(p.is_published, 1) AS is_published,
-              p.sku, p.brand, p.origin, p.unit, c.name AS category_name, c.slug AS category_slug
+      `SELECT p.id, p.name, p.slug, p.price, p.sale_price, COALESCE(p.cost_price, 0) AS cost_price,
+              p.stock, COALESCE(p.min_stock, 0) AS min_stock, p.image, p.featured, COALESCE(p.is_published, 1) AS is_published,
+              p.sku, COALESCE(p.kv_code, '') AS kv_code, COALESCE(p.barcode, '') AS barcode,
+              p.brand, p.origin, p.unit, COALESCE(p.weight_grams, 0) AS weight_grams,
+              COALESCE(p.location, '') AS location, COALESCE(p.supplier, '') AS supplier,
+              COALESCE((SELECT SUM(oi.qty) FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE oi.product_id = p.id AND o.status IN ('new','confirmed','shipping')), 0) AS customer_reserved,
+              c.name AS category_name, c.slug AS category_slug
        FROM products p JOIN product_categories c ON c.id = p.category_id ${w}
        ORDER BY p.sku ASC, p.id DESC LIMIT ? OFFSET ?`,
       ...params, PAGE_SIZE, offset(opts.page),
     ),
   ]);
   return { rows, total: totalRow?.n ?? 0 };
+}
+
+export type AdminProductExtra = {
+  cost_price: number;
+  kv_code: string;
+  barcode: string;
+  min_stock: number;
+  max_stock: number;
+  weight_grams: number;
+  location: string;
+  supplier: string;
+  kv_updated_at: string;
+  source_url: string | null;
+  source_note: string | null;
+  customer_reserved: number;
+};
+
+export async function getAdminProductExtra(id: number): Promise<AdminProductExtra | undefined> {
+  const [row, reserved] = await Promise.all([
+    one<{
+      cost_price: number;
+      kv_code: string;
+      barcode: string;
+      min_stock: number;
+      max_stock: number;
+      weight_grams: number;
+      location: string;
+      supplier: string;
+      kv_updated_at: string;
+      source_url: string | null;
+      source_note: string | null;
+    }>(
+      `SELECT COALESCE(cost_price, 0) AS cost_price, COALESCE(kv_code, '') AS kv_code,
+              COALESCE(barcode, '') AS barcode, COALESCE(min_stock, 0) AS min_stock,
+              COALESCE(max_stock, 999999999) AS max_stock, COALESCE(weight_grams, 0) AS weight_grams,
+              COALESCE(location, '') AS location, COALESCE(supplier, '') AS supplier,
+              COALESCE(kv_updated_at, '') AS kv_updated_at, source_url, source_note
+       FROM products WHERE id = ?`,
+      id,
+    ),
+    one<{ qty: number }>(
+      `SELECT COALESCE(SUM(oi.qty), 0) AS qty
+       FROM order_items oi JOIN orders o ON o.id = oi.order_id
+       WHERE oi.product_id = ? AND o.status IN ('new', 'confirmed', 'shipping')`,
+      id,
+    ),
+  ]);
+  if (!row) return undefined;
+  return { ...row, customer_reserved: reserved?.qty ?? 0 };
+}
+
+export type ProductMovementRow = {
+  id: number;
+  change_qty: number;
+  stock_after: number;
+  unit_cost: number;
+  reason: string;
+  ref_code: string;
+  note: string;
+  created_by: string;
+  created_at: string;
+};
+
+export async function listProductMovements(productId: number, limit = 50): Promise<ProductMovementRow[]> {
+  return all<ProductMovementRow>(
+    `SELECT id, change_qty, stock_after, unit_cost, reason, ref_code, note, created_by, created_at
+     FROM inventory_movements WHERE product_id = ? ORDER BY id DESC LIMIT ?`,
+    productId,
+    limit,
+  ).catch(() => []);
 }
 
 // ---- posts ----

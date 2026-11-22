@@ -1,3 +1,4 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { cartLines, readCart, writeCart } from "@/lib/cart";
 import { calculateOrderPricing, generateOrderCode, normalizeIdempotencyKey } from "@/lib/checkout-helpers";
 import { batch, one, run } from "@/lib/db";
@@ -226,8 +227,20 @@ export async function POST(req: Request) {
     })),
   }).catch(() => undefined);
 
-  // Keep email dispatch alive on Cloudflare Workers without blocking response beyond a short budget
-  await Promise.race([emailPromise, new Promise((resolve) => setTimeout(resolve, 1500))]);
+  // Dispatch order email asynchronously via Cloudflare Workers waitUntil when available
+  let scheduledInBg = false;
+  try {
+    const cfCtx = await getCloudflareContext({ async: true });
+    if (typeof cfCtx?.ctx?.waitUntil === "function") {
+      cfCtx.ctx.waitUntil(emailPromise);
+      scheduledInBg = true;
+    }
+  } catch {
+    /* non-Workers runtime fallback */
+  }
+  if (!scheduledInBg) {
+    await Promise.race([emailPromise, new Promise((resolve) => setTimeout(resolve, 1500))]);
+  }
 
   return Response.json({ success: true, code, redirect: `/checkout/thankyou?code=${code}` });
 }

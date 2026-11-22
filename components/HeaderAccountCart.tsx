@@ -8,20 +8,29 @@ type SessionSummary = { cartCount: number; memberName: string | null };
 
 let inflight: Promise<SessionSummary> | null = null;
 let lastFetchAt = 0;
+let cachedSummary: SessionSummary | null = null;
+const SESSION_CACHE_TTL_MS = 45_000;
 
 export function fetchSessionSummary(force = false): Promise<SessionSummary> {
   const now = Date.now();
+  if (!force && cachedSummary && now - lastFetchAt < SESSION_CACHE_TTL_MS) {
+    return Promise.resolve(cachedSummary);
+  }
   if (inflight && (!force || now - lastFetchAt < 400)) return inflight;
   lastFetchAt = now;
   inflight = fetch("/api/v2/session-summary", { credentials: "same-origin" })
     .then((r) => (r.ok ? (r.json() as Promise<SessionSummary>) : { cartCount: 0, memberName: null }))
-    .catch(() => ({ cartCount: 0, memberName: null }));
+    .then((data) => {
+      cachedSummary = data;
+      return data;
+    })
+    .catch(() => cachedSummary ?? { cartCount: 0, memberName: null });
   return inflight;
 }
 
 export function useSessionSummary() {
   const pathname = usePathname();
-  const [summary, setSummary] = useState<SessionSummary>({ cartCount: 0, memberName: null });
+  const [summary, setSummary] = useState<SessionSummary>(() => cachedSummary ?? { cartCount: 0, memberName: null });
 
   useEffect(() => {
     let active = true;
@@ -30,7 +39,7 @@ export function useSessionSummary() {
         if (active) setSummary(data);
       });
     };
-    load(true);
+    load(false);
 
     const onRefresh = () => load(true);
     window.addEventListener("td:cart-updated", onRefresh);

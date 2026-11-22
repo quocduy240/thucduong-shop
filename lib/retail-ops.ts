@@ -8,8 +8,21 @@ export async function ensureRetailOpsSchema(): Promise<void> {
     retailOpsPromise = (async () => {
       const prodCols = await all<{ name: string }>("PRAGMA table_info(products)");
       const prodSet = new Set(prodCols.map((c) => c.name));
-      if (!prodSet.has("cost_price")) {
-        await run("ALTER TABLE products ADD COLUMN cost_price INTEGER NOT NULL DEFAULT 0");
+      const prodAdditions: [string, string][] = [
+        ["cost_price", "INTEGER NOT NULL DEFAULT 0"],
+        ["kv_code", "TEXT NOT NULL DEFAULT ''"],
+        ["barcode", "TEXT NOT NULL DEFAULT ''"],
+        ["min_stock", "INTEGER NOT NULL DEFAULT 0"],
+        ["max_stock", "INTEGER NOT NULL DEFAULT 999999999"],
+        ["weight_grams", "INTEGER NOT NULL DEFAULT 0"],
+        ["location", "TEXT NOT NULL DEFAULT ''"],
+        ["supplier", "TEXT NOT NULL DEFAULT ''"],
+        ["kv_updated_at", "TEXT NOT NULL DEFAULT ''"],
+      ];
+      for (const [col, def] of prodAdditions) {
+        if (!prodSet.has(col)) {
+          await run(`ALTER TABLE products ADD COLUMN ${col} ${def}`);
+        }
       }
 
       const ordCols = await all<{ name: string }>("PRAGMA table_info(orders)");

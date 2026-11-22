@@ -5,12 +5,13 @@ import { requireRole } from "@/lib/auth";
 import { batch, one, run } from "@/lib/db";
 import { logWarn } from "@/lib/logger";
 import { ADMIN_ACTION_ROLES } from "@/lib/rbac";
+import { ensureRetailOpsSchema, recordInventoryMovement } from "@/lib/retail-ops";
 import { ensureSeoColumns } from "@/lib/seo";
 import { saveImage, slugify } from "@/lib/uploads";
 import { back, num, refresh, str, uploaded } from "./shared";
 
 export async function saveProductAction(formData: FormData) {
-  await requireRole(ADMIN_ACTION_ROLES.catalog_write);
+  const admin = await requireRole(ADMIN_ACTION_ROLES.catalog_write);
   const id = num(formData, "id");
   const here = `/admin/products/${id || "new"}/`;
   const name = str(formData, "name");
@@ -19,9 +20,13 @@ export async function saveProductAction(formData: FormData) {
   if (!slug) back(here, "Đường dẫn (slug) không hợp lệ.");
   const price = num(formData, "price");
   if (price < 0) back(here, "Giá không hợp lệ.");
+  const costPrice = Math.max(0, num(formData, "cost_price"));
   const salePrice = str(formData, "sale_price") ? num(formData, "sale_price") : null;
   if (salePrice !== null && (salePrice <= 0 || salePrice >= price)) back(here, "Giá khuyến mãi phải nhỏ hơn giá gốc.");
   const stock = str(formData, "stock") !== "" ? Math.max(0, num(formData, "stock")) : 100;
+  const minStock = Math.max(0, num(formData, "min_stock"));
+  const maxStock = str(formData, "max_stock") !== "" ? Math.max(0, num(formData, "max_stock")) : 999999999;
+  const weightGrams = Math.max(0, num(formData, "weight_grams"));
   const categoryId = num(formData, "category_id");
   if (!(await one("SELECT 1 AS x FROM product_categories WHERE id = ?", categoryId))) back(here, "Chọn danh mục.");
 
@@ -39,9 +44,13 @@ export async function saveProductAction(formData: FormData) {
   const featured = str(formData, "featured") === "1" ? 1 : 0;
   const isPublished = str(formData, "is_published") === "1" ? 1 : 0;
   const sku = str(formData, "sku");
+  const kvCode = str(formData, "kv_code");
+  const barcode = str(formData, "barcode");
   const brand = str(formData, "brand");
   const origin = str(formData, "origin");
   const unit = str(formData, "unit");
+  const location = str(formData, "location");
+  const supplier = str(formData, "supplier");
   const videoUrl = str(formData, "video_url");
   const seoTitle = str(formData, "seo_title");
   const seoDescription = str(formData, "seo_description");
@@ -63,21 +72,40 @@ export async function saveProductAction(formData: FormData) {
   const gallery = galleryList.join("\n");
 
   try {
-    await ensureSeoColumns();
+    await Promise.all([ensureSeoColumns(), ensureRetailOpsSchema()]);
     if (id) {
+      const prev = await one<{ stock: number }>("SELECT stock FROM products WHERE id = ?", id);
       await run(
-        `UPDATE products SET name=?, slug=?, category_id=?, price=?, sale_price=?, stock=?, summary=?, description=?, image=?, featured=?, is_published=?,
-         sku=?, brand=?, origin=?, unit=?, gallery=?, video_url=?, seo_title=?, seo_description=?, seo_keywords=? WHERE id=?`,
-        name, slug, categoryId, price, salePrice, stock, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured, isPublished,
-        sku, brand, origin, unit, gallery, videoUrl, seoTitle, seoDescription, seoKeywords, id,
+        `UPDATE products SET name=?, slug=?, category_id=?, price=?, cost_price=?, sale_price=?, stock=?, min_stock=?, max_stock=?,
+         weight_grams=?, summary=?, description=?, image=?, featured=?, is_published=?,
+         sku=?, kv_code=?, barcode=?, brand=?, origin=?, unit=?, location=?, supplier=?,
+         gallery=?, video_url=?, seo_title=?, seo_description=?, seo_keywords=? WHERE id=?`,
+        name, slug, categoryId, price, costPrice, salePrice, stock, minStock, maxStock,
+        weightGrams, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured, isPublished,
+        sku, kvCode, barcode, brand, origin, unit, location, supplier,
+        gallery, videoUrl, seoTitle, seoDescription, seoKeywords, id,
       );
+      if (prev && prev.stock !== stock) {
+        await run(
+          `INSERT INTO inventory_movements (product_id, change_qty, stock_after, unit_cost, reason, ref_code, note, created_by)
+           VALUES (?, ?, ?, ?, 'stocktake', ?, ?, ?)`,
+          id, stock - prev.stock, stock, costPrice, sku || kvCode, "Cập nhật từ chi tiết sản phẩm", admin.email,
+        );
+      }
     } else {
-      await run(
-        `INSERT INTO products (name, slug, category_id, price, sale_price, stock, summary, description, image, featured, is_published, sku, brand, origin, unit, gallery, video_url, seo_title, seo_description, seo_keywords)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        name, slug, categoryId, price, salePrice, stock, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured, isPublished,
-        sku, brand, origin, unit, gallery, videoUrl, seoTitle, seoDescription, seoKeywords,
+      const ins = await run(
+        `INSERT INTO products (name, slug, category_id, price, cost_price, sale_price, stock, min_stock, max_stock, weight_grams, summary, description, image, featured, is_published, sku, kv_code, barcode, brand, origin, unit, location, supplier, gallery, video_url, seo_title, seo_description, seo_keywords)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        name, slug, categoryId, price, costPrice, salePrice, stock, minStock, maxStock, weightGrams, str(formData, "summary"), String(formData.get("description") ?? ""), image, featured, isPublished,
+        sku, kvCode, barcode, brand, origin, unit, location, supplier, gallery, videoUrl, seoTitle, seoDescription, seoKeywords,
       );
+      if (stock > 0 && ins.lastInsertRowid) {
+        await run(
+          `INSERT INTO inventory_movements (product_id, change_qty, stock_after, unit_cost, reason, ref_code, note, created_by)
+           VALUES (?, ?, ?, ?, 'import', ?, ?, ?)`,
+          ins.lastInsertRowid, stock, stock, costPrice, sku || kvCode, "Khởi tạo tồn kho ban đầu", admin.email,
+        );
+      }
     }
   } catch (e) {
     if (String(e).includes("UNIQUE")) back(here, "Đường dẫn (slug) đã được dùng cho sản phẩm khác.");
@@ -88,13 +116,64 @@ export async function saveProductAction(formData: FormData) {
 }
 
 export async function updateProductStockAction(formData: FormData) {
-  await requireRole(ADMIN_ACTION_ROLES.inventory_finance);
+  const admin = await requireRole(ADMIN_ACTION_ROLES.inventory_finance);
+  await ensureRetailOpsSchema();
   const id = num(formData, "id");
   const stock = Math.max(0, num(formData, "stock"));
-  await run("UPDATE products SET stock = ? WHERE id = ?", stock, id);
+  const cur = await one<{ stock: number; cost_price: number; sku: string }>(
+    "SELECT stock, COALESCE(cost_price, 0) AS cost_price, COALESCE(sku, '') AS sku FROM products WHERE id = ?",
+    id,
+  );
+  if (cur) {
+    const diff = stock - cur.stock;
+    if (diff !== 0) {
+      await recordInventoryMovement({
+        productId: id,
+        changeQty: diff,
+        unitCost: cur.cost_price,
+        reason: "stocktake",
+        refCode: cur.sku,
+        note: "Cập nhật nhanh từ danh sách sản phẩm",
+        createdBy: admin.email,
+      });
+    }
+  }
   refresh();
   const returnTo = str(formData, "return_to");
   redirect(returnTo && returnTo.startsWith("/admin/products") ? returnTo : "/admin/products/?saved=1");
+}
+
+export async function adjustProductInventoryAction(formData: FormData) {
+  const admin = await requireRole(ADMIN_ACTION_ROLES.inventory_finance);
+  const id = num(formData, "id");
+  const here = `/admin/products/${id}/`;
+  const mode = str(formData, "mode") === "import" ? "import" : "stocktake";
+  const qty = num(formData, "qty");
+  const unitCost = Math.max(0, num(formData, "unit_cost"));
+  const updateCost = str(formData, "update_cost") === "1";
+  const refCode = str(formData, "ref_code");
+  const note = str(formData, "note");
+
+  const cur = await one<{ stock: number }>("SELECT stock FROM products WHERE id = ?", id);
+  if (!cur) back("/admin/products/", "Không tìm thấy sản phẩm.");
+
+  const changeQty = mode === "import" ? qty : Math.max(0, qty) - cur!.stock;
+  if (changeQty === 0 && !updateCost) {
+    back(here, "Số lượng không thay đổi.");
+  }
+
+  await recordInventoryMovement({
+    productId: id,
+    changeQty,
+    unitCost: unitCost > 0 ? unitCost : undefined,
+    updateCostPrice: updateCost && unitCost >= 0,
+    reason: mode,
+    refCode: refCode || (mode === "import" ? `PN-${id}` : `KK-${id}`),
+    note: note || (mode === "import" ? "Nhập hàng từ chi tiết sản phẩm" : "Kiểm kho cân bằng tồn"),
+    createdBy: admin.email,
+  });
+  refresh();
+  redirect(`${here}?saved=1`);
 }
 
 /** Bulk: move to category and/or publish/hide the selected products. */

@@ -94,9 +94,13 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
     topics: [
       {
         id: "products-crud",
-        title: "1. Đăng & Cập nhật Sản phẩm chuẩn SEO (Quy trình 3 bước)",
+        title: "1. Quản lý Sản phẩm 5 Tab chuẩn KiotViet & SEO",
         badge: "Mới",
         items: [
+          {
+            heading: "Giao diện 5 Tab chuẩn KiotViet & Tự động ghi Thẻ kho (Mới)",
+            body: "Trang chi tiết sản phẩm gồm 5 Tab: Bước 1 (Thông tin, Giá bán, Giá vốn, Lãi gộp %, Định mức tồn, Mã vạch, Vị trí, Nhà cung cấp), Bước 2 (Hình ảnh & Video), Bước 3 (Mô tả & AI), Bước 4 (Thẻ kho — xem lịch sử xuất/nhập/kiểm kho và tạo phiếu Nhập/Kiểm kho nhanh), Bước 5 (Tồn kho khả dụng, KH đang đặt, Đồng bộ KiotViet & SEO Google). Mọi thao tác đổi tồn kho ở danh sách, chi tiết hoặc Import Excel KiotViet đều tự động ghi nhận vào Thẻ kho.",
+          },
           {
             heading: "Ẩn/Công khai sản phẩm & thao tác hàng loạt (Mới)",
             body: "Mỗi sản phẩm có ô '🌐 Công khai' ở Bước 2: bỏ chọn thì sản phẩm bị ẩn hoàn toàn khỏi website (trang chủ, danh mục, tìm kiếm, sitemap, giỏ hàng; mở link trực tiếp báo 404) nhưng vẫn thấy trong Admin với nhãn 'Đang ẩn'. Ở danh sách Sản phẩm, tick nhiều sản phẩm rồi dùng thanh 'Thao tác hàng loạt' để chuyển danh mục và/hoặc Công khai/Ẩn cùng lúc. Danh mục 'Chưa Phân Loại' (mã CPL-xxx) chứa các sản phẩm chờ kiểm duyệt.",

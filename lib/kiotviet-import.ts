@@ -7,6 +7,7 @@ import type {
   KiotVietPreviewItem,
   KiotVietPreviewResult,
 } from "./kiotviet-import-types";
+import { ensureRetailOpsSchema } from "./retail-ops";
 import { slugify } from "./uploads";
 
 export type {
@@ -27,9 +28,12 @@ export type KiotVietRawRow = {
   giaBan: number;
   giaVon: number;
   tonKhoRaw: number;
+  tonNhoNhat: number;
+  tonLonNhat: number;
   donViTinh: string;
   hinhAnh: string[];
   trongLuong: number;
+  viTri: string;
   dangKinhDoanh: boolean;
   moTa: string;
   mauGhiChu: string;
@@ -389,9 +393,12 @@ export function parseKiotVietSpreadsheet(buffer: Uint8Array, filename: string): 
   const idxGiaBan = col(["Giá bán"]);
   const idxGiaVon = col(["Giá vốn"]);
   const idxTon = col(["Tồn kho"]);
+  const idxMin = col(["Tồn nhỏ nhất"]);
+  const idxMax = col(["Tồn lớn nhất"]);
   const idxDvt = col(["ĐVT"]);
   const idxImg = col(["Hình ảnh (url1,url2...)", "Hình ảnh"]);
   const idxWeight = col(["Trọng lượng"]);
+  const idxLoc = col(["Vị trí"]);
   const idxActive = col(["Đang kinh doanh"]);
   const idxDesc = col(["Mô tả"]);
   const idxNote = col(["Mẫu ghi chú"]);
@@ -429,9 +436,12 @@ export function parseKiotVietSpreadsheet(buffer: Uint8Array, filename: string): 
       giaBan: Math.max(0, Math.round(numVal(idxGiaBan))),
       giaVon: Math.max(0, Math.round(numVal(idxGiaVon))),
       tonKhoRaw: numVal(idxTon),
+      tonNhoNhat: Math.max(0, Math.round(numVal(idxMin))),
+      tonLonNhat: idxMax >= 0 && get(idxMax) !== "" ? Math.max(0, Math.round(numVal(idxMax))) : 999999999,
       donViTinh: get(idxDvt),
       hinhAnh: rawImgs,
       trongLuong: Math.max(0, Math.round(numVal(idxWeight))),
+      viTri: get(idxLoc),
       dangKinhDoanh: get(idxActive) !== "0",
       moTa: get(idxDesc),
       mauGhiChu: get(idxNote),
@@ -441,19 +451,17 @@ export function parseKiotVietSpreadsheet(buffer: Uint8Array, filename: string): 
 }
 
 export async function ensureKiotVietProductColumn() {
-  const cols = await all<{ name: string }>("PRAGMA table_info(products)");
-  if (!cols.some((c) => c.name === "kv_code")) {
-    await run("ALTER TABLE products ADD COLUMN kv_code TEXT NOT NULL DEFAULT ''");
-  }
+  await ensureRetailOpsSchema();
   await run("CREATE INDEX IF NOT EXISTS idx_products_kv_code ON products(kv_code)");
+  await run("CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode)");
 }
 
 async function loadExistingMaps() {
   await ensureKiotVietProductColumn();
   const [cats, prods] = await Promise.all([
     all<{ id: number; slug: string; name: string }>("SELECT id, slug, name FROM product_categories"),
-    all<{ id: number; slug: string; name: string; sku: string; kv_code: string; description: string; image: string | null }>(
-      "SELECT id, slug, name, sku, COALESCE(kv_code, '') AS kv_code, description, image FROM products",
+    all<{ id: number; slug: string; name: string; sku: string; kv_code: string; stock: number; description: string; image: string | null }>(
+      "SELECT id, slug, name, sku, COALESCE(kv_code, '') AS kv_code, stock, description, image FROM products",
     ),
   ]);
   const catBySlug = new Map(cats.map((c) => [c.slug, c]));
@@ -665,7 +673,10 @@ export async function applyKiotVietImport(
       if (opts.overwritePriceStock) {
         stmts.push({
           sql: `UPDATE products
-                SET kv_code = ?, sku = ?, category_id = ?, price = ?, cost_price = ?, stock = ?,
+                SET kv_code = ?, sku = ?, barcode = CASE WHEN ? <> '' THEN ? ELSE COALESCE(barcode, '') END,
+                    category_id = ?, price = ?, cost_price = ?, stock = ?,
+                    min_stock = ?, max_stock = ?, weight_grams = CASE WHEN ? > 0 THEN ? ELSE COALESCE(weight_grams, 0) END,
+                    location = CASE WHEN ? <> '' THEN ? ELSE COALESCE(location, '') END,
                     brand = CASE WHEN ? <> '' THEN ? ELSE brand END,
                     origin = CASE WHEN ? <> '' THEN ? ELSE origin END,
                     unit = CASE WHEN ? <> '' THEN ? ELSE unit END,
@@ -673,15 +684,23 @@ export async function applyKiotVietImport(
                     gallery = CASE WHEN COALESCE(gallery, '') = '' THEN ? ELSE gallery END,
                     summary = CASE WHEN COALESCE(summary, '') = '' THEN ? ELSE summary END,
                     description = CASE WHEN COALESCE(description, '') = '' THEN ? ELSE description END,
-                    is_published = ?
+                    is_published = ?, kv_updated_at = datetime('now')
                 WHERE id = ?`,
           params: [
             r.maHang,
             r.maHang,
+            r.maVach,
+            r.maVach,
             cat.id,
             r.giaBan,
             r.giaVon,
             stock,
+            r.tonNhoNhat,
+            r.tonLonNhat,
+            r.trongLuong,
+            r.trongLuong,
+            r.viTri,
+            r.viTri,
             brand,
             brand,
             origin,
@@ -696,9 +715,16 @@ export async function applyKiotVietImport(
             matched.id,
           ],
         });
+        if (stock !== matched.stock) {
+          stmts.push({
+            sql: `INSERT INTO inventory_movements (product_id, change_qty, stock_after, unit_cost, reason, ref_code, note, created_by)
+                  VALUES (?, ?, ?, ?, 'kiotviet_sync', ?, 'Đồng bộ tồn kho từ Excel KiotViet', 'kiotviet-excel')`,
+            params: [matched.id, stock - matched.stock, stock, r.giaVon, r.maHang],
+          });
+        }
       } else {
         stmts.push({
-          sql: `UPDATE products SET kv_code = ?, sku = ?, category_id = ?, is_published = ? WHERE id = ?`,
+          sql: `UPDATE products SET kv_code = ?, sku = ?, category_id = ?, is_published = ?, kv_updated_at = datetime('now') WHERE id = ?`,
           params: [r.maHang, r.maHang, cat.id, pub, matched.id],
         });
       }
@@ -719,9 +745,10 @@ export async function applyKiotVietImport(
 
       stmts.push({
         sql: `INSERT INTO products
-              (slug, category_id, name, price, cost_price, stock, sku, kv_code, brand, origin, unit,
-               image, gallery, summary, description, is_published, source_note)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              (slug, category_id, name, price, cost_price, stock, min_stock, max_stock, weight_grams,
+               sku, kv_code, barcode, location, brand, origin, unit,
+               image, gallery, summary, description, is_published, kv_updated_at, source_note)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)`,
         params: [
           slug,
           cat.id,
@@ -729,8 +756,13 @@ export async function applyKiotVietImport(
           r.giaBan,
           r.giaVon,
           stock,
+          r.tonNhoNhat,
+          r.tonLonNhat,
+          r.trongLuong,
           r.maHang,
           r.maHang,
+          r.maVach,
+          r.viTri,
           brand,
           origin,
           unit,

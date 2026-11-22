@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   checkPassword,
@@ -18,13 +19,28 @@ import {
 } from "@/lib/auth";
 import { one } from "@/lib/db";
 import { logInfo, logWarn } from "@/lib/logger";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { ADMIN_ACTION_ROLES } from "@/lib/rbac";
 import { back, num, str } from "./shared";
 
 export async function loginAction(formData: FormData) {
+  const hdrs = await headers();
+  const ip = hdrs.get("cf-connecting-ip")?.trim() || hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   const identifier = str(formData, "identifier") || str(formData, "email");
+  const rl = checkRateLimit(`${ip}:${identifier.toLowerCase()}`, {
+    namespace: "admin-login",
+    limit: 8,
+    windowMs: 5 * 60_000,
+  });
+  if (!rl.allowed) {
+    logWarn("admin.login_rate_limited", { ip, identifier });
+    back("/admin/", `Thử đăng nhập quá nhiều lần. Vui lòng đợi ${rl.retryAfterSec} giây.`);
+  }
   const id = await verifyLogin(identifier, str(formData, "password"));
-  if (!id) back("/admin/", "Sai email/số điện thoại hoặc mật khẩu.");
+  if (!id) {
+    logWarn("admin.login_failed", { ip, identifier });
+    back("/admin/", "Sai email/số điện thoại hoặc mật khẩu.");
+  }
   await startSession(id!);
   redirect("/admin/");
 }

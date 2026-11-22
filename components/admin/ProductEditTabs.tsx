@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ReactNode, useState } from "react";
 
-type TabKey = "basic" | "media" | "content";
+type TabKey = "basic" | "media" | "content" | "stockcard" | "inventory";
 
 export default function ProductEditTabs({
   isNew,
@@ -12,6 +12,8 @@ export default function ProductEditTabs({
   basicTab,
   mediaTab,
   contentTab,
+  stockCardTab,
+  inventoryTab,
 }: {
   isNew: boolean;
   productUrl?: string;
@@ -24,6 +26,8 @@ export default function ProductEditTabs({
   basicTab: ReactNode;
   mediaTab: ReactNode;
   contentTab: ReactNode;
+  stockCardTab: ReactNode;
+  inventoryTab: ReactNode;
 }) {
   const [tab, setTab] = useState<TabKey>("basic");
 
@@ -48,6 +52,20 @@ export default function ProductEditTabs({
       label: "Mô tả chi tiết & AI",
       hint: "Soạn thảo sạch & viết lại bằng AI",
       done: checks.hasDescription,
+    },
+    {
+      key: "stockcard",
+      step: "Bước 4",
+      label: "Thẻ kho",
+      hint: "Lịch sử nhập / xuất / kiểm kho",
+      done: !isNew,
+    },
+    {
+      key: "inventory",
+      step: "Bước 5",
+      label: "Tồn kho & Đồng bộ",
+      hint: "Tồn, KH đặt, định mức, KiotViet",
+      done: !isNew,
     },
   ];
 
@@ -106,11 +124,11 @@ export default function ProductEditTabs({
             </button>
           </div>
           <span className="text-[11px] text-gray-400">
-            Chuyển tab tự do — bấm Lưu ở dưới sẽ lưu cả 3 bước
+            Chuyển tab tự do — bấm Lưu ở dưới sẽ lưu thông tin sản phẩm
           </span>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {tabs.map((item) => {
             const active = tab === item.key;
             return (
@@ -147,10 +165,12 @@ export default function ProductEditTabs({
         </div>
       </div>
 
-      {/* Keep all 3 panels mounted via CSS hidden so one form submission saves everything */}
+      {/* Keep all panels mounted via CSS hidden so one form submission saves everything */}
       <div className={tab === "basic" ? "space-y-5" : "hidden"}>{basicTab}</div>
       <div className={tab === "media" ? "space-y-5" : "hidden"}>{mediaTab}</div>
       <div className={tab === "content" ? "space-y-5" : "hidden"}>{contentTab}</div>
+      <div className={tab === "stockcard" ? "space-y-5" : "hidden"}>{stockCardTab}</div>
+      <div className={tab === "inventory" ? "space-y-5" : "hidden"}>{inventoryTab}</div>
 
       {/* Sticky Action Bar */}
       <div className="sticky bottom-3 z-20 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white/95 px-5 py-3 shadow-lg backdrop-blur">

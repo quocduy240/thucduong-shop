@@ -11,7 +11,13 @@ const SESSION_SECONDS = 60 * 60 * 24 * 7;
 
 export type Admin = { id: number; email: string; phone: string; name: string; role: AdminRole };
 
-const hash = (password: string, salt: string) => crypto.scryptSync(password, salt, 64).toString("hex");
+const hashAsync = (password: string, salt: string): Promise<string> =>
+  new Promise((resolve, reject) => {
+    crypto.scrypt(password, salt, 64, (err, derivedKey) => {
+      if (err) reject(err);
+      else resolve(derivedKey.toString("hex"));
+    });
+  });
 
 export function normalizeAdminPhone(raw: string): string {
   const cleaned = raw.trim().replace(/[\s.\-()]/g, "");
@@ -57,6 +63,7 @@ export async function createAdmin(
   await ensureAdminSchema();
   const salt = crypto.randomBytes(16).toString("hex");
   const normalizedPhone = normalizeAdminPhone(phone);
+  const passwordHash = await hashAsync(password, salt);
   const r = await run(
     "INSERT INTO admins (email, phone, name, role, salt, password_hash) VALUES (?, ?, ?, ?, ?, ?)",
     email.trim().toLowerCase(),
@@ -64,7 +71,7 @@ export async function createAdmin(
     name.trim(),
     role,
     salt,
-    hash(password, salt),
+    passwordHash,
   );
   return Number(r.lastInsertRowid);
 }
@@ -96,7 +103,7 @@ export async function verifyLogin(identifier: string, password: string): Promise
     }
   }
   if (!a) return undefined;
-  const given = Buffer.from(hash(password, a.salt), "hex");
+  const given = Buffer.from(await hashAsync(password, a.salt), "hex");
   const stored = Buffer.from(a.password_hash, "hex");
   return given.length === stored.length && crypto.timingSafeEqual(given, stored) ? a.id : undefined;
 }
@@ -167,7 +174,8 @@ export async function checkPassword(adminId: number, password: string): Promise<
 /** Set a new password and sign out every other session of that admin. */
 export async function setPassword(adminId: number, password: string, keepToken?: string) {
   const salt = crypto.randomBytes(16).toString("hex");
-  await run("UPDATE admins SET salt = ?, password_hash = ? WHERE id = ?", salt, hash(password, salt), adminId);
+  const passwordHash = await hashAsync(password, salt);
+  await run("UPDATE admins SET salt = ?, password_hash = ? WHERE id = ?", salt, passwordHash, adminId);
   await run("DELETE FROM admin_sessions WHERE admin_id = ? AND token <> ?", adminId, keepToken ?? "");
 }
 
