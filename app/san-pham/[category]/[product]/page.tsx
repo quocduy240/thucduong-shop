@@ -100,7 +100,11 @@ export default async function ProductPage({ params }: PageProps<"/san-pham/[cate
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
+      <script
+        type="application/ld+json"
+        // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd).replace(/</g, "\\u003c") }}
+      />
       <Breadcrumb
         items={[
           { label: "Sản phẩm", href: "/san-pham/" },

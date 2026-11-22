@@ -48,7 +48,11 @@ export default async function PostPage({ params }: PageProps<"/[section]/[slug]/
   };
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
+      <script
+        type="application/ld+json"
+        // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd).replace(/</g, "\\u003c") }}
+      />
       <PostDetail post={r.post} section={r.section} />
       <ArticleReadTracker postId={r.post.id} postTitle={r.post.title} />
     </>

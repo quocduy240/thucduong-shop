@@ -18,10 +18,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node.js 24
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "24"
           cache: "npm"
@@ -33,8 +33,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "::error::Thiếu CLOUDFLARE_API_TOKEN hoặc CLOUDFLARE_ACCOUNT_ID trong GitHub Secrets."
-            exit 1
+            echo "ℹ️ Bỏ qua bước export D1 trên GitHub Actions vì chưa cấu hình CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID trong GitHub Secrets."
+            echo "has_backup=0" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           mkdir -p backups
           STAMP=$(date -u +"%Y%m%d-%H%M%S")
@@ -45,12 +46,14 @@ jobs:
           gzip -9 -k "$RAW_FILE"
           sha256sum "$GZ_FILE" > "${GZ_FILE}.sha256"
           rm -f "$RAW_FILE"
+          echo "has_backup=1" >> "$GITHUB_OUTPUT"
           echo "gz_file=$GZ_FILE" >> "$GITHUB_OUTPUT"
           echo "sha_file=${GZ_FILE}.sha256" >> "$GITHUB_OUTPUT"
           echo "stamp=$STAMP" >> "$GITHUB_OUTPUT"
 
       - name: Upload compressed backup to GitHub Artifacts (30 days)
-        uses: actions/upload-artifact@v4
+        if: ${{ steps.export.outputs.has_backup == '1' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: thucduong-d1-backup-${{ steps.export.outputs.stamp }}
           path: |
@@ -60,7 +63,7 @@ jobs:
           if-no-files-found: error
 
       - name: Optional — Mirror backup to Cloudflare R2 bucket
-        if: ${{ vars.R2_BACKUP_BUCKET != '' }}
+        if: ${{ steps.export.outputs.has_backup == '1' && vars.R2_BACKUP_BUCKET != '' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -75,8 +78,6 @@ jobs:
         if: success()
         run: |
           {
-            echo "### Sao lưu Cloudflare D1 tự động thành công"
-            echo "- **Thời điểm (UTC):** \`${{ steps.export.outputs.stamp }}\`"
-            echo "- **File nén:** \`$(basename "${{ steps.export.outputs.gz_file }}")\`"
-            echo "- **Lưu trữ GitHub Artifacts:** 30 ngày"
+            echo "### Sao lưu Cloudflare D1 tự động"
+            echo "- **Trạng thái:** \`${{ steps.export.outputs.has_backup == '1' && 'Đã xuất và lưu trữ 30 ngày' || 'Chờ cấu hình CLOUDFLARE_API_TOKEN trong GitHub Secrets' }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
