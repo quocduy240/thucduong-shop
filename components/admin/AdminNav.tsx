@@ -20,9 +20,9 @@ const GROUPS: NavGroup[] = [
     icon: "🛍️",
     items: [
       { href: "/admin/pos/", label: "Bán hàng (POS)", icon: "🛒" },
-      { href: "/admin/orders/", label: "Đơn hàng & Vận đơn", icon: "🧾" },
-      { href: "/admin/inventory/", label: "Kho & Sổ quỹ", icon: "📦" },
-      { href: "/admin/products/", label: "Sản phẩm", icon: "🛍️" },
+      { href: "/admin/orders/", label: "Đơn hàng & Hóa đơn A5", icon: "🧾" },
+      { href: "/admin/products/", label: "Hàng hóa & Bảng giá", icon: "📦" },
+      { href: "/admin/inventory/", label: "Kho, Sổ quỹ & Báo cáo", icon: "📒" },
       { href: "/admin/kiotviet/", label: "Kết nối KiotViet", icon: "🔗" },
     ],
   },

@@ -9,12 +9,14 @@ import { ADMIN_ACTION_ROLES } from "@/lib/rbac";
 import {
   getSite,
   MAIL_KEYS,
+  saveInvoicePrintConfig,
   saveMailSettings,
   saveSite,
   saveWidgetSettings,
   SETTING_KEYS,
   WIDGET_KEYS,
 } from "@/lib/settings";
+import type { InvoiceFontSize, InvoicePaperSize } from "@/lib/invoice-print";
 import { back, num, refresh, str } from "./shared";
 
 export async function saveSettingsAction(formData: FormData) {
@@ -106,4 +108,55 @@ export async function saveGeminiKeyAction(formData: FormData) {
   await run("INSERT OR REPLACE INTO settings (key, value) VALUES ('gemini_api_key', ?)", key);
   refresh();
   redirect("/admin/settings/?saved=1");
+}
+
+export async function saveInvoicePrintConfigAction(formData: FormData) {
+  await requireRole(ADMIN_ACTION_ROLES.orders_ops);
+  const rawPaper = str(formData, "paperSize");
+  const paperSize: InvoicePaperSize =
+    rawPaper === "A5_landscape" || rawPaper === "A4" || rawPaper === "K80" ? rawPaper : "A5_portrait";
+  const rawFont = str(formData, "fontSize");
+  const fontSize: InvoiceFontSize = rawFont === "sm" || rawFont === "lg" ? rawFont : "md";
+
+  const bool = (k: string) => str(formData, k) === "1";
+
+  await saveInvoicePrintConfig({
+    paperSize,
+    fontSize,
+    showLogo: bool("showLogo"),
+    showShopInfo: bool("showShopInfo"),
+    showWebQr: bool("showWebQr"),
+    shopHeaderTitle: str(formData, "shopHeaderTitle") || "CỬA HÀNG PHÚC THỌ",
+    shopHeaderHotline: str(formData, "shopHeaderHotline") || "0858.816.070 - 0767.518.592",
+    shopHeaderAddress: str(formData, "shopHeaderAddress"),
+    invoiceTitle: str(formData, "invoiceTitle") || "HÓA ĐƠN BÁN HÀNG",
+    showInvoiceBarcode: bool("showInvoiceBarcode"),
+    showCashierAndChannel: bool("showCashierAndChannel"),
+    showCustomerBlock: bool("showCustomerBlock"),
+    showShippingBlock: bool("showShippingBlock"),
+    showColStt: bool("showColStt"),
+    showColSku: bool("showColSku"),
+    showColUnit: bool("showColUnit"),
+    showColDiscount: bool("showColDiscount"),
+    showTotalQty: bool("showTotalQty"),
+    showAmountInWords: bool("showAmountInWords"),
+    showVietQr: bool("showVietQr"),
+    bankBin: str(formData, "bankBin") || "970418",
+    bankName: str(formData, "bankName") || "BIDV",
+    bankAccountNo: str(formData, "bankAccountNo") || "8610312888",
+    bankAccountName: str(formData, "bankAccountName") || "THUC DUONG PHUC THO",
+    showReturnPolicy: bool("showReturnPolicy"),
+    returnPolicyText: str(formData, "returnPolicyText"),
+    showThankYou: bool("showThankYou"),
+    thankYouText: str(formData, "thankYouText"),
+    showSignatures: bool("showSignatures"),
+    showShipperSignature: bool("showShipperSignature"),
+  });
+
+  refresh();
+  const returnTo = str(formData, "return_to");
+  if (returnTo && returnTo.startsWith("/admin/")) {
+    redirect(returnTo.includes("?") ? `${returnTo}&saved=1` : `${returnTo}?saved=1`);
+  }
+  redirect("/admin/orders/?saved=1");
 }

@@ -53,8 +53,8 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
             body: "Mới (new) → Đã xác nhận (confirmed) → Đang giao (shipping) → Hoàn thành (done), Đã trả hàng / Hoàn kho (returned) hoặc Đã huỷ (cancelled). Trong chi tiết đơn (/admin/orders/[id]/), bấm '↩️ Xác nhận Trả hàng & Hoàn kho' để tự động cộng hoàn tồn kho vào Thẻ kho (mã TH-...) và tuỳ chọn lập Phiếu Chi hoàn tiền từ 1 trong 3 Quỹ.",
           },
           {
-            heading: "In Hóa đơn Bán hàng chuẩn KiotViet (#/Invoices)",
-            body: "Trong chi tiết đơn hàng (/admin/orders/[id]/), bấm nút '🖨 In phiếu / In đơn' để in hóa đơn chuẩn KiotViet gồm thông tin Cửa hàng Thực Dưỡng Phúc Thọ, Mã HĐ, Mã KiotViet, Đối tác giao hàng, bảng hàng hóa (STT, Mã SP, Tên hàng, ĐVT, SL, Đơn giá, Thành tiền), tiền thu hộ COD và khung chữ ký Người mua / Người lập phiếu.",
+            heading: "In Hóa đơn Bán hàng chuẩn KiotViet Khổ A5 & Cấu hình 16 Block hiển thị (Mới)",
+            body: "Trong chi tiết đơn hàng (/admin/orders/[id]/), thanh công cụ In Hóa đơn KiotViet cho phép chọn nhanh khổ giấy (A5 Dọc 148×210mm, A5 Ngang 210×148mm, A4, K80), chọn cỡ chữ (11px / 13px chuẩn KiotViet / 15px chữ lớn), bấm '👁️ Xem trước bản in' ngay trên màn hình và bấm '⚙️ Cấu hình Block hiển thị trên trang in' để bật/tắt 16 mục (Logo, Tên shop & Hotline, QR Web, Mã vạch HĐ, Thông tin khách, Vận đơn, các cột STT/Mã hàng/ĐVT/Chiết khấu, dòng đọc số tiền bằng chữ Tiếng Việt, mã VietQR tự điền số tiền, Lưu ý đổi trả 5 ngày chuẩn Phúc Thọ, Lời cảm ơn và Chữ ký) rồi lưu làm mẫu mặc định cho toàn cửa hàng.",
           },
           {
             heading: "Tự động cộng điểm & đồng bộ CRM khi 'Hoàn thành'",
@@ -106,6 +106,10 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
         title: "1. Quản lý Sản phẩm 5 Tab chuẩn KiotViet & SEO",
         badge: "Mới",
         items: [
+          {
+            heading: "Giao diện Danh sách Hàng hóa (#/Products) & Thiết lập Bảng giá (#/PriceBook) chuẩn KiotViet (Mới)",
+            body: "Trang /admin/products/ được thiết kế chuẩn KiotViet gồm: (1) Thanh Menu Hàng hóa chuyển nhanh giữa Danh sách hàng hóa, Thiết lập giá (#/PriceBook), Kiểm kho (#/StockTakes), Nhập hàng & Xuất nội bộ/Xuất hủy; (2) Cột lọc bên trái theo Nhóm hàng, Tồn kho, Trạng thái & Liên kết Web, Nhà cung cấp, Thương hiệu, Vị trí kệ; (3) Dòng Tổng cộng cố định ngay đầu bảng (Tổng mã hàng, Tổng tồn kho, Khách đặt, Giá trị tồn) + nút '☰ Ẩn/Hiện cột (12 cột)'; (4) Bấm vào dòng bất kỳ để xổ khung Chi tiết KiotViet ngay tại chỗ kèm nút '📋 Sao chép (Nhân bản SP)', '✏️ Chỉnh sửa' và '🗑️ Xóa'.",
+          },
           {
             heading: "Giao diện 5 Tab chuẩn KiotViet & Tự động ghi Thẻ kho (Mới)",
             body: "Trang chi tiết sản phẩm gồm 5 Tab: Bước 1 (Thông tin, Giá bán, Giá vốn, Lãi gộp %, Định mức tồn, Mã vạch, Vị trí, Nhà cung cấp), Bước 2 (Hình ảnh & Video), Bước 3 (Mô tả & AI), Bước 4 (Thẻ kho — xem lịch sử xuất/nhập/kiểm kho và tạo phiếu Nhập/Kiểm kho nhanh), Bước 5 (Tồn kho khả dụng, KH đang đặt, Đồng bộ KiotViet & SEO Google). Mọi thao tác đổi tồn kho ở danh sách, chi tiết hoặc Import Excel KiotViet đều tự động ghi nhận vào Thẻ kho.",

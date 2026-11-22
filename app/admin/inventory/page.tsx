@@ -3,6 +3,7 @@ import {
   addCashbookAction,
   deleteDeliveryPartnerAction,
   deleteSupplierAction,
+  exportInventoryIssueAction,
   importInventoryAction,
   saveDeliveryPartnerAction,
   saveSupplierAction,
@@ -34,6 +35,8 @@ const REASON_LABELS: Record<string, { label: string; badge: string }> = {
   stocktake: { label: "Kiểm kho", badge: "bg-blue-100 text-blue-800" },
   sale: { label: "Bán hàng", badge: "bg-amber-100 text-amber-800" },
   cancel: { label: "Trả hàng / Hoàn kho", badge: "bg-purple-100 text-purple-800" },
+  internal_use: { label: "Xuất dùng nội bộ", badge: "bg-cyan-100 text-cyan-800" },
+  damage: { label: "Xuất hủy", badge: "bg-red-100 text-red-800" },
   kiotviet_sync: { label: "Đồng bộ KiotViet", badge: "bg-indigo-100 text-indigo-800" },
 };
 
@@ -334,6 +337,46 @@ export default async function InventoryAdminPage({
                 <span>Tự động ghi Phiếu Chi vào Sổ quỹ đã chọn (Số lượng × Giá vốn)</span>
               </label>
               <button className={ui.primary}>+ Nhập kho ngay</button>
+            </div>
+          </form>
+
+          {/* KiotViet Kho hàng: Xuất dùng nội bộ (#/InternalUse) & Xuất hủy (#/DamageItems) */}
+          <form action={exportInventoryIssueAction} className={`${ui.card} p-5 space-y-3 border-amber-200 bg-amber-50/20`}>
+            <h2 className="text-base font-bold text-amber-900">
+              📤 Tạo Phiếu Xuất Dùng Nội Bộ (#/InternalUse) hoặc Xuất Hủy Hàng Hỏng (#/DamageItems)
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-5">
+              <div className="sm:col-span-2">
+                <label className={ui.label}>Chọn sản phẩm xuất *</label>
+                <select name="product_id" required className={ui.input}>
+                  <option value="">-- Chọn sản phẩm --</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.sku ? `[${p.sku}] ` : ""}{p.name} (Tồn: {p.stock})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={ui.label}>Loại phiếu xuất *</label>
+                <select name="issue_type" defaultValue="internal_use" className={ui.input}>
+                  <option value="internal_use">📤 Xuất dùng nội bộ</option>
+                  <option value="damage">🗑️ Xuất hủy (Hỏng / Hết hạn)</option>
+                </select>
+              </div>
+              <div>
+                <label className={ui.label}>Số lượng xuất *</label>
+                <input name="qty" type="number" min={1} required defaultValue={1} className={ui.input} />
+              </div>
+              <div>
+                <label className={ui.label}>Lý do / Ghi chú</label>
+                <input name="note" placeholder="VD: Pha mời khách / Hết hạn..." className={ui.input} />
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <button className="rounded-lg bg-amber-700 px-4 py-2 text-xs font-bold text-white hover:bg-amber-800 cursor-pointer">
+                − Ghi nhận Xuất kho vào Thẻ kho
+              </button>
             </div>
           </form>
 

@@ -179,7 +179,7 @@ export async function recordInventoryMovement(opts: {
   changeQty: number;
   unitCost?: number;
   updateCostPrice?: boolean;
-  reason: "import" | "stocktake" | "sale" | "cancel" | "kiotviet_sync";
+  reason: "import" | "stocktake" | "sale" | "cancel" | "kiotviet_sync" | "internal_use" | "damage";
   refCode?: string;
   note?: string;
   createdBy?: string;

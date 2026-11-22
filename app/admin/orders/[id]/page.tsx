@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ConfirmButton from "@/components/admin/ConfirmButton";
-import PrintButton from "@/components/admin/PrintButton";
+import KiotVietInvoicePrintStudio from "@/components/admin/KiotVietInvoicePrintStudio";
 import { Flash, PageHeader, StatusBadge, ui } from "@/components/admin/ui";
 import { ORDER_STATUS, getOrder } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/auth";
 import { getOrderShippingInfo, listDeliveryPartners } from "@/lib/retail-ops";
-import { getSite } from "@/lib/settings";
+import { getInvoicePrintConfig, getSite } from "@/lib/settings";
 import { vnd } from "@/lib/site";
 import {
   pushOrderKiotVietAction,
@@ -15,159 +15,67 @@ import {
   updateOrderStatusAction,
 } from "../../actions";
 
-export const metadata = { title: "Chi tiết đơn & In hóa đơn KiotViet | Quản trị" };
+export const metadata = { title: "Chi tiết đơn & In hóa đơn KiotViet A5 | Quản trị" };
 
 export default async function OrderDetail({ params, searchParams }: PageProps<"/admin/orders/[id]">) {
   await requireAdmin();
   const id = Number((await params).id);
   const sp = await searchParams;
-  const [data, ship, partners, site] = await Promise.all([
+  const [data, ship, partners, site, printConfig] = await Promise.all([
     Number.isInteger(id) ? getOrder(id) : Promise.resolve(undefined),
     Number.isInteger(id) ? getOrderShippingInfo(id) : Promise.resolve(undefined),
     listDeliveryPartners().catch(() => []),
     getSite(),
+    getInvoicePrintConfig(),
   ]);
   if (!data) notFound();
   const { order: o, items } = data;
   const fullAddress = [o.address, o.ward_name, o.province_name].filter(Boolean).join(", ");
-  const itemsSubtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
   const totalQty = items.reduce((sum, i) => sum + i.qty, 0);
 
   return (
     <div className="mx-auto max-w-4xl pb-12">
-      {/* =========================================================================
-          PRINT-ONLY KIOTVIET STANDARD INVOICE LAYOUT (#/Invoices)
-         ========================================================================= */}
-      <div className="hidden print:block text-black text-sm leading-relaxed">
-        <div className="flex items-start justify-between border-b-2 border-black pb-3">
-          <div>
-            <div className="text-lg font-extrabold uppercase">{site.name || "CỬA HÀNG THỰC DƯỠNG PHÚC THỌ"}</div>
-            <div className="text-xs">Hotline: {site.hotline} · Website: thucduongshop.duyvo.win</div>
-            {site.address && <div className="text-xs">Địa chỉ: {site.address}</div>}
-          </div>
-          <div className="text-right">
-            <div className="text-xl font-extrabold uppercase">HÓA ĐƠN BÁN HÀNG</div>
-            <div className="font-mono text-xs font-bold">Số HĐ: {o.code}</div>
-            {ship?.kiotviet_code && <div className="font-mono text-xs">Mã KiotViet: {ship.kiotviet_code}</div>}
-            <div className="text-xs">Ngày: {o.created_at}</div>
-          </div>
-        </div>
-
-        <div className="my-3 grid grid-cols-2 gap-4 text-xs">
-          <div className="space-y-0.5">
-            <div><strong>Khách hàng:</strong> {o.name}</div>
-            <div><strong>Điện thoại:</strong> {o.phone}</div>
-            <div><strong>Địa chỉ nhận:</strong> {fullAddress || "Mua trực tiếp tại cửa hàng"}</div>
-            {o.note && <div><strong>Ghi chú khách:</strong> {o.note}</div>}
-          </div>
-          <div className="space-y-0.5 text-right">
-            <div>
-              <strong>Thanh toán:</strong>{" "}
-              {o.payment === "bank"
-                ? "Chuyển khoản NH"
-                : o.payment === "cash"
-                  ? "Tiền mặt tại quầy"
-                  : o.payment === "kiotviet"
-                    ? "Theo KiotViet"
-                    : "Thu hộ khi giao hàng (COD)"}
-            </div>
-            <div><strong>Trạng thái đơn:</strong> {ORDER_STATUS[o.status as keyof typeof ORDER_STATUS] ?? o.status}</div>
-            {ship?.shipping_carrier && <div><strong>Đối tác giao hàng:</strong> {ship.shipping_carrier}</div>}
-            {ship?.tracking_code && <div><strong>Mã vận đơn:</strong> {ship.tracking_code}</div>}
-          </div>
-        </div>
-
-        <table className="w-full border-collapse border border-black text-xs">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-black px-2 py-1.5 text-center w-10">STT</th>
-              <th className="border border-black px-2 py-1.5 text-left w-24">Mã hàng</th>
-              <th className="border border-black px-2 py-1.5 text-left">Tên hàng hóa</th>
-              <th className="border border-black px-2 py-1.5 text-center w-16">ĐVT</th>
-              <th className="border border-black px-2 py-1.5 text-right w-14">SL</th>
-              <th className="border border-black px-2 py-1.5 text-right w-24">Đơn giá</th>
-              <th className="border border-black px-2 py-1.5 text-right w-28">Thành tiền</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((i, idx) => (
-              <tr key={idx}>
-                <td className="border border-black px-2 py-1.5 text-center">{idx + 1}</td>
-                <td className="border border-black px-2 py-1.5 font-mono">{i.sku || `#${i.product_id}`}</td>
-                <td className="border border-black px-2 py-1.5 font-medium">{i.name}</td>
-                <td className="border border-black px-2 py-1.5 text-center">{i.unit || "SP"}</td>
-                <td className="border border-black px-2 py-1.5 text-right font-semibold">{i.qty}</td>
-                <td className="border border-black px-2 py-1.5 text-right">{vnd(i.price)}</td>
-                <td className="border border-black px-2 py-1.5 text-right font-semibold">{vnd(i.price * i.qty)}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={4} className="border border-black px-2 py-1.5 text-right font-bold">
-                Tổng số lượng hàng:
-              </td>
-              <td className="border border-black px-2 py-1.5 text-right font-bold">{totalQty}</td>
-              <td className="border border-black px-2 py-1.5 text-right font-bold">Tổng tiền hàng:</td>
-              <td className="border border-black px-2 py-1.5 text-right font-bold">{vnd(itemsSubtotal)}</td>
-            </tr>
-            {itemsSubtotal !== o.total && (
-              <tr>
-                <td colSpan={6} className="border border-black px-2 py-1.5 text-right">
-                  Chiết khấu / Phí vận chuyển:
-                </td>
-                <td className="border border-black px-2 py-1.5 text-right">
-                  {o.total > itemsSubtotal ? `+${vnd(o.total - itemsSubtotal)}` : `-${vnd(itemsSubtotal - o.total)}`}
-                </td>
-              </tr>
-            )}
-            <tr className="bg-gray-100 text-sm">
-              <td colSpan={6} className="border border-black px-2 py-2 text-right font-extrabold uppercase">
-                Tổng thanh toán:
-              </td>
-              <td className="border border-black px-2 py-2 text-right font-extrabold">{vnd(o.total)}</td>
-            </tr>
-            {(ship?.cod_amount ?? 0) > 0 && (
-              <tr>
-                <td colSpan={6} className="border border-black px-2 py-1.5 text-right font-bold">
-                  Số tiền thu hộ COD:
-                </td>
-                <td className="border border-black px-2 py-1.5 text-right font-bold">{vnd(ship!.cod_amount)}</td>
-              </tr>
-            )}
-          </tfoot>
-        </table>
-
-        <div className="mt-6 grid grid-cols-2 text-center text-xs">
-          <div>
-            <div className="font-bold uppercase">Người mua hàng</div>
-            <div className="text-[11px] italic">(Ký, ghi rõ họ tên)</div>
-            <div className="h-16" />
-            <div className="font-semibold">{o.name}</div>
-          </div>
-          <div>
-            <div className="font-bold uppercase">Người lập phiếu / Giao hàng</div>
-            <div className="text-[11px] italic">(Ký, ghi rõ họ tên)</div>
-            <div className="h-16" />
-            <div className="font-semibold">{site.name || "Thực Dưỡng Phúc Thọ"}</div>
-          </div>
-        </div>
-        <div className="mt-4 border-t pt-2 text-center text-[11px] italic">
-          Cảm ơn Quý khách đã tin dùng sản phẩm Thực Dưỡng Phúc Thọ! Chúc Quý khách và gia đình thân tâm an lạc.
-        </div>
-      </div>
-
-      {/* =========================================================================
-          SCREEN ADMIN VIEW
-         ========================================================================= */}
+      {/* Screen Breadcrumb & Header */}
       <div className="print:hidden">
-        <Link href="/admin/orders/" className="text-sm text-gray-500 hover:underline">← Danh sách đơn hàng</Link>
+        <Link href="/admin/orders/" className="text-sm text-gray-500 hover:underline">
+          ← Danh sách đơn hàng
+        </Link>
         <PageHeader title={`Đơn ${o.code}`}>
           <StatusBadge status={o.status} />
-          <PrintButton className={ui.secondary} />
         </PageHeader>
         <Flash saved={sp.saved} error={sp.error} />
+      </div>
 
+      {/* KiotViet A5 / A4 / K80 Invoice Print Studio (Handles both Print output & Interactive Block Configurator) */}
+      <KiotVietInvoicePrintStudio
+        initialConfig={printConfig}
+        order={{
+          id: o.id,
+          code: o.code,
+          name: o.name,
+          phone: o.phone,
+          email: o.email,
+          fullAddress,
+          note: o.note,
+          payment: o.payment,
+          total: o.total,
+          status: o.status,
+          statusLabel: ORDER_STATUS[o.status as keyof typeof ORDER_STATUS] ?? o.status,
+          created_at: o.created_at,
+          shipping_carrier: ship?.shipping_carrier ?? "",
+          tracking_code: ship?.tracking_code ?? "",
+          shipping_fee: ship?.shipping_fee ?? 0,
+          cod_amount: ship?.cod_amount ?? 0,
+          kiotviet_code: ship?.kiotviet_code ?? "",
+        }}
+        items={items}
+        siteName={site.name}
+        siteHotline={site.hotline}
+        siteAddress={site.address}
+      />
+
+      {/* Screen Order Management Panels */}
+      <div className="print:hidden">
         <div className="grid gap-4 md:grid-cols-2">
           <div className={`${ui.card} p-5`}>
             <h2 className="mb-3 font-semibold">Khách hàng</h2>

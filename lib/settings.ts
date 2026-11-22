@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import { CACHE_TAGS, invalidateStorefront } from "./cache-tags";
 import { all, run } from "./db";
+import { DEFAULT_INVOICE_PRINT_CONFIG, type InvoicePrintConfig } from "./invoice-print";
 import { site as defaults } from "./site";
 
 export type SiteSettings = typeof defaults;
@@ -114,5 +115,30 @@ export async function saveWidgetSettings(values: Partial<WidgetSettings>) {
       );
     }
   }
+  invalidateStorefront(CACHE_TAGS.site);
+}
+
+const INVOICE_PRINT_CONFIG_KEY = "invoice_print_config_json";
+
+export const getInvoicePrintConfig = cache(async (): Promise<InvoicePrintConfig> => {
+  const rows = await loadSettingsRows();
+  const row = rows.find((r) => r.key === INVOICE_PRINT_CONFIG_KEY);
+  if (!row?.value) return { ...DEFAULT_INVOICE_PRINT_CONFIG };
+  try {
+    const parsed = JSON.parse(row.value) as Partial<InvoicePrintConfig>;
+    return { ...DEFAULT_INVOICE_PRINT_CONFIG, ...parsed };
+  } catch {
+    return { ...DEFAULT_INVOICE_PRINT_CONFIG };
+  }
+});
+
+export async function saveInvoicePrintConfig(values: Partial<InvoicePrintConfig>) {
+  const current = await getInvoicePrintConfig();
+  const merged: InvoicePrintConfig = { ...current, ...values };
+  await run(
+    "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    INVOICE_PRINT_CONFIG_KEY,
+    JSON.stringify(merged),
+  );
   invalidateStorefront(CACHE_TAGS.site);
 }

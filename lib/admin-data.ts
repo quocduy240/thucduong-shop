@@ -68,7 +68,16 @@ export type AdminProductRow = {
   weight_grams: number; location: string; supplier: string; customer_reserved: number;
   category_name: string; category_slug: string;
 };
-export async function listProducts(opts: { q?: string; category?: number; stock?: string; status?: string; page: number }) {
+export async function listProducts(opts: {
+  q?: string;
+  category?: number;
+  stock?: string;
+  status?: string;
+  supplier?: string;
+  brand?: string;
+  location?: string;
+  page: number;
+}) {
   const where: string[] = [];
   const params: (string | number)[] = [];
   if (opts.q) {
@@ -84,9 +93,18 @@ export async function listProducts(opts: { q?: string; category?: number; stock?
   if (opts.status === "hidden") where.push("COALESCE(p.is_published, 1) = 0");
   else if (opts.status === "published") where.push("COALESCE(p.is_published, 1) = 1");
   else if (opts.status === "contact_only") where.push("COALESCE(p.contact_only, 0) = 1");
+  if (opts.supplier) (where.push("LOWER(TRIM(COALESCE(p.supplier, ''))) = LOWER(TRIM(?))"), params.push(opts.supplier));
+  if (opts.brand) (where.push("LOWER(TRIM(COALESCE(p.brand, ''))) = LOWER(TRIM(?))"), params.push(opts.brand));
+  if (opts.location) (where.push("LOWER(TRIM(COALESCE(p.location, ''))) = LOWER(TRIM(?))"), params.push(opts.location));
   const w = where.length ? "WHERE " + where.join(" AND ") : "";
-  const [totalRow, rows] = await Promise.all([
-    one<{ n: number }>(`SELECT COUNT(*) AS n FROM products p ${w}`, ...params),
+  const [aggRow, rows, facets] = await Promise.all([
+    one<{ n: number; totalStock: number; totalInventoryValue: number }>(
+      `SELECT COUNT(*) AS n,
+              COALESCE(SUM(p.stock), 0) AS totalStock,
+              COALESCE(SUM(p.stock * CASE WHEN COALESCE(p.cost_price, 0) > 0 THEN p.cost_price ELSE COALESCE(p.sale_price, p.price) END), 0) AS totalInventoryValue
+       FROM products p ${w}`,
+      ...params,
+    ),
     all<AdminProductRow>(
       `SELECT p.id, p.name, p.slug, p.price, p.sale_price, COALESCE(p.cost_price, 0) AS cost_price,
               COALESCE(p.contact_only, 0) AS contact_only,
@@ -100,8 +118,33 @@ export async function listProducts(opts: { q?: string; category?: number; stock?
        ORDER BY p.sku ASC, p.id DESC LIMIT ? OFFSET ?`,
       ...params, PAGE_SIZE, offset(opts.page),
     ),
+    Promise.all([
+      all<{ v: string; n: number }>(
+        "SELECT TRIM(supplier) AS v, COUNT(*) AS n FROM products WHERE TRIM(COALESCE(supplier, '')) <> '' GROUP BY TRIM(supplier) ORDER BY n DESC, v ASC LIMIT 40",
+      ),
+      all<{ v: string; n: number }>(
+        "SELECT TRIM(brand) AS v, COUNT(*) AS n FROM products WHERE TRIM(COALESCE(brand, '')) <> '' GROUP BY TRIM(brand) ORDER BY n DESC, v ASC LIMIT 60",
+      ),
+      all<{ v: string; n: number }>(
+        "SELECT TRIM(location) AS v, COUNT(*) AS n FROM products WHERE TRIM(COALESCE(location, '')) <> '' GROUP BY TRIM(location) ORDER BY n DESC, v ASC LIMIT 40",
+      ),
+    ]),
   ]);
-  return { rows, total: totalRow?.n ?? 0 };
+  const pageReserved = rows.reduce((sum, r) => sum + (r.customer_reserved || 0), 0);
+  return {
+    rows,
+    total: aggRow?.n ?? 0,
+    summary: {
+      totalStock: aggRow?.totalStock ?? 0,
+      totalReserved: pageReserved,
+      totalInventoryValue: aggRow?.totalInventoryValue ?? 0,
+    },
+    facets: {
+      suppliers: facets[0],
+      brands: facets[1],
+      locations: facets[2],
+    },
+  };
 }
 
 export type AdminProductExtra = {

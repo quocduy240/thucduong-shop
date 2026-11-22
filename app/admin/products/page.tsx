@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { Flash, PageHeader, Pagination, pageParam, strParam, ui } from "@/components/admin/ui";
-import { listProducts } from "@/lib/admin-data";
+import KiotVietProductsTable from "@/components/admin/KiotVietProductsTable";
+import { Flash, Pagination, pageParam, strParam, ui } from "@/components/admin/ui";
+import { listProductCategoriesWithCount, listProducts } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/auth";
-import { getProductCategories, url } from "@/lib/data";
-import { vnd } from "@/lib/site";
-import { bulkProductsAction, updateProductStockAction } from "../actions";
+import { bulkProductsAction } from "../actions";
 
-export const metadata = { title: "Sản phẩm | Quản trị" };
+export const metadata = { title: "Hàng hóa & Thiết lập giá (Chuẩn KiotViet) | Quản trị" };
 
 export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/products">) {
   await requireAdmin();
@@ -15,179 +14,332 @@ export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/
   const category = Number(strParam(sp.category)) || 0;
   const stock = strParam(sp.stock);
   const status = strParam(sp.status);
+  const supplier = strParam(sp.supplier);
+  const brand = strParam(sp.brand);
+  const location = strParam(sp.location);
+  const viewMode = strParam(sp.view) === "pricebook" ? "pricebook" : "list";
   const page = pageParam(sp.page);
-  const [{ rows, total }, categories] = await Promise.all([
-    listProducts({ q, category, stock, status, page }),
-    getProductCategories(),
+
+  const [{ rows, total, summary, facets }, categories] = await Promise.all([
+    listProducts({ q, category, stock, status, supplier, brand, location, page }),
+    listProductCategoriesWithCount(),
   ]);
 
-  const currentQuery = new URLSearchParams();
-  if (q) currentQuery.set("q", q);
-  if (category) currentQuery.set("category", String(category));
-  if (stock) currentQuery.set("stock", stock);
-  if (status) currentQuery.set("status", status);
-  if (page > 1) currentQuery.set("page", String(page));
-  currentQuery.set("saved", "1");
-  const returnTo = `/admin/products/?${currentQuery.toString()}`;
+  function buildHref(overrides: Record<string, string | undefined>) {
+    const params = new URLSearchParams();
+    const merged: Record<string, string | undefined> = {
+      q: q || undefined,
+      category: category ? String(category) : undefined,
+      stock: stock || undefined,
+      status: status || undefined,
+      supplier: supplier || undefined,
+      brand: brand || undefined,
+      location: location || undefined,
+      view: viewMode === "pricebook" ? "pricebook" : undefined,
+      ...overrides,
+    };
+    for (const [k, v] of Object.entries(merged)) {
+      if (v) params.set(k, v);
+    }
+    const qs = params.toString();
+    return qs ? `/admin/products/?${qs}` : "/admin/products/";
+  }
+
+  const returnTo = buildHref({ page: page > 1 ? String(page) : undefined, saved: "1" });
+  const hasFilters = Boolean(q || category || stock || status || supplier || brand || location);
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <PageHeader title="Sản phẩm">
-        <Link href="/admin/products/import/" className={ui.secondary}>
-          🌐 Nhập SP từ Link
-        </Link>
-        <Link href="/admin/products/new/" className={ui.primary}>+ Thêm sản phẩm</Link>
-      </PageHeader>
-      <Flash saved={sp.saved} error={sp.error} />
-      <form className="mb-4 flex flex-wrap gap-2">
-        <input name="q" defaultValue={q} placeholder="Tìm tên, mã SP, mã vạch, thương hiệu, vị trí..." className={`${ui.input} max-w-xs`} />
-        <select name="category" defaultValue={category || ""} className={`${ui.input} max-w-xs`}>
-          <option value="">Tất cả danh mục</option>
-          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <select name="stock" defaultValue={stock} className={`${ui.input} max-w-xs`}>
-          <option value="">Tất cả tồn kho</option>
-          <option value="in">Còn hàng (&gt; 0)</option>
-          <option value="low">Sắp hết (1 – 5)</option>
-          <option value="below_min">Dưới định mức tồn</option>
-          <option value="out">Hết hàng (0)</option>
-        </select>
-        <select name="status" defaultValue={status} className={`${ui.input} max-w-xs`}>
-          <option value="">Tất cả trạng thái</option>
-          <option value="published">Đang công khai</option>
-          <option value="hidden">Đang ẩn (nháp)</option>
-          <option value="contact_only">📞 Đang bật &quot;Liên hệ&quot; ngoài Web</option>
-        </select>
-        <button className={ui.secondary}>Lọc</button>
-        {(q || category || stock || status) && <Link href="/admin/products/" className={ui.secondary}>Bỏ lọc</Link>}
-      </form>
+    <div className="mx-auto max-w-7xl pb-12 space-y-4">
+      {/* KiotViet Top Sub-header Bar: Title + Search + Mega-Dropdown Shortcuts + Actions */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-white p-4 shadow-xs">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-xl font-extrabold text-gray-900">
+            {viewMode === "pricebook" ? "💰 Thiết lập giá (#/PriceBook)" : "📦 Danh sách hàng hóa (#/Products)"}
+          </h1>
+          {/* Quick Search Bar right next to title (KiotViet style) */}
+          <form method="get" action="/admin/products/" className="flex items-center gap-1.5">
+            {category ? <input type="hidden" name="category" value={category} /> : null}
+            {stock ? <input type="hidden" name="stock" value={stock} /> : null}
+            {status ? <input type="hidden" name="status" value={status} /> : null}
+            {supplier ? <input type="hidden" name="supplier" value={supplier} /> : null}
+            {brand ? <input type="hidden" name="brand" value={brand} /> : null}
+            {location ? <input type="hidden" name="location" value={location} /> : null}
+            {viewMode === "pricebook" ? <input type="hidden" name="view" value="pricebook" /> : null}
+            <input
+              name="q"
+              defaultValue={q}
+              placeholder="🔍 Theo mã hàng, tên hàng, mã vạch..."
+              className="w-64 rounded-xl border border-gray-300 px-3 py-1.5 text-xs focus:border-brand focus:outline-none"
+            />
+            <button className="rounded-xl bg-brand px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-dark cursor-pointer">
+              Tìm
+            </button>
+            {hasFilters && (
+              <Link
+                href={viewMode === "pricebook" ? "/admin/products/?view=pricebook" : "/admin/products/"}
+                className="rounded-xl border px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
+              >
+                Bỏ lọc
+              </Link>
+            )}
+          </form>
+        </div>
 
-      <form id="bulk" action={bulkProductsAction} className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm">
-        <input type="hidden" name="return_to" value={returnTo} />
-        <span className="font-semibold text-blue-900">Thao tác hàng loạt (tick sản phẩm bên dưới):</span>
-        <select name="category_id" defaultValue="" className={`${ui.input} max-w-xs`}>
-          <option value="">— Giữ nguyên danh mục —</option>
-          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <select name="visibility" defaultValue="" className={`${ui.input} max-w-[180px]`}>
-          <option value="">— Trạng thái ẩn/hiện —</option>
-          <option value="publish">🌐 Công khai</option>
-          <option value="hide">🙈 Ẩn (nháp)</option>
-        </select>
-        <select name="price_display" defaultValue="" className={`${ui.input} max-w-[220px]`}>
-          <option value="">— Hiển thị giá Web —</option>
-          <option value="contact_only">📞 Hiện &quot;Liên hệ&quot; ngoài Web</option>
-          <option value="show_price">💰 Hiện giá bán ngoài Web</option>
-        </select>
-        <button className={ui.primary}>Áp dụng</button>
-      </form>
-
-      <div className={`${ui.card} overflow-x-auto`}>
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className={ui.th}></th>
-              <th className={ui.th}>Ảnh</th>
-              <th className={ui.th}>Tên</th>
-              <th className={ui.th}>Danh mục</th>
-              <th className={ui.th}>Giá bán / Vốn</th>
-              <th className={ui.th}>Tồn kho / KH đặt</th>
-              <th className={ui.th}></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {rows.map((p) => (
-              <tr key={p.id} className={p.is_published ? "" : "bg-gray-50"}>
-                <td className={ui.td}><input type="checkbox" form="bulk" name="ids" value={p.id} className="accent-brand" /></td>
-                <td className={ui.td}>
-                  {p.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.image} alt="" className="h-12 w-12 rounded-lg object-cover" />
-                  ) : (
-                    <span className="grid h-12 w-12 place-items-center rounded-lg bg-gray-100 text-xs text-gray-400">-</span>
-                  )}
-                </td>
-                <td className={`${ui.td} max-w-md`}>
-                  <Link href={`/admin/products/${p.id}/`} className="font-medium hover:text-brand">{p.name}</Link>
-                  {p.is_published ? null : <span className="ml-2 rounded bg-gray-200 px-1.5 py-0.5 text-xs text-gray-700">Đang ẩn</span>}
-                  {p.featured ? <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">Nổi bật</span> : null}
-                  <div className="mt-0.5 flex flex-wrap gap-2 text-xs text-gray-500">
-                    {p.sku && <span className="font-mono text-gray-600">#{p.sku}</span>}
-                    {p.barcode && <span className="font-mono text-[11px] text-indigo-600">📊 {p.barcode}</span>}
-                    {p.brand && <span>· {p.brand}</span>}
-                    {p.unit && <span>· {p.unit}</span>}
-                    {p.location && <span className="text-emerald-700">· 📍 {p.location}</span>}
-                    {p.origin && <span>({p.origin})</span>}
-                  </div>
-                </td>
-                <td className={ui.td}>{p.category_name}</td>
-                <td className={ui.td}>
-                  {p.price ? (
-                    <>
-                      <div className="font-semibold text-gray-900">{vnd(p.sale_price ?? p.price)}</div>
-                      {p.sale_price ? <div className="text-xs text-gray-400 line-through">{vnd(p.price)}</div> : null}
-                      {Boolean(p.contact_only) && (
-                        <span className="mt-0.5 inline-block rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold text-purple-800">
-                          📞 Web: Liên hệ
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="text-gray-500">Liên hệ (0đ)</span>
-                  )}
-                  {p.cost_price > 0 && (
-                    <div className="mt-0.5 text-[11px] text-gray-500">
-                      Vốn: {vnd(p.cost_price)}
-                      {p.price > 0 && (
-                        <span className="ml-1 font-semibold text-emerald-700">
-                          ({Math.round((((p.sale_price ?? p.price) - p.cost_price) / (p.sale_price ?? p.price)) * 100)}%)
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </td>
-                <td className={ui.td}>
-                  <form action={updateProductStockAction} className="flex items-center gap-1.5">
-                    <input type="hidden" name="id" value={p.id} />
-                    <input type="hidden" name="return_to" value={returnTo} />
-                    <input
-                      name="stock"
-                      type="number"
-                      min={0}
-                      defaultValue={p.stock}
-                      className={`w-20 rounded border px-2 py-1 text-center text-sm ${
-                        p.stock <= 0 || (p.min_stock > 0 && p.stock <= p.min_stock)
-                          ? "border-red-300 bg-red-50 font-semibold text-red-700"
-                          : p.stock <= 5
-                            ? "border-amber-300 bg-amber-50 font-medium text-amber-800"
-                            : "border-gray-300"
-                      }`}
-                    />
-                    <button className="rounded border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">Lưu</button>
-                  </form>
-                  {(p.customer_reserved > 0 || p.min_stock > 0) && (
-                    <div className="mt-1 flex flex-wrap gap-1.5 text-[11px]">
-                      {p.customer_reserved > 0 && <span className="text-amber-700 font-semibold">KH đặt: {p.customer_reserved}</span>}
-                      {p.min_stock > 0 && <span className="text-gray-500">Min: {p.min_stock}</span>}
-                    </div>
-                  )}
-                </td>
-                <td className={`${ui.td} whitespace-nowrap text-right`}>
-                  <Link href={url.product(p)} target="_blank" className="mr-3 text-gray-500 hover:underline">Xem</Link>
-                  <Link href={`/admin/products/${p.id}/`} className="text-brand hover:underline">Sửa</Link>
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-sm text-gray-500">Không có sản phẩm nào.</td></tr>}
-          </tbody>
-        </table>
+        {/* Top Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/admin/products/new/" className="rounded-xl bg-brand px-3.5 py-2 text-xs font-extrabold text-white hover:bg-brand-dark">
+            + Tạo mới hàng hóa
+          </Link>
+          <Link href="/admin/kiotviet/" className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
+            📥 Import Excel KiotViet
+          </Link>
+          <Link href="/admin/products/import/" className="rounded-xl border bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+            🌐 Nhập từ Link
+          </Link>
+        </div>
       </div>
-      <Pagination
-        basePath="/admin/products/"
-        page={page}
-        total={total}
-        params={{ q, category: category ? String(category) : undefined, stock: stock || undefined, status: status || undefined }}
-      />
+
+      {/* KiotViet "Hàng hóa" Mega-Menu Navigation Bar (2 groups: Hàng hóa & Kho hàng) */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50/40 px-3.5 py-2 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="font-extrabold uppercase text-brand mr-1">Menu Hàng hóa:</span>
+          <Link
+            href={buildHref({ view: undefined, page: undefined })}
+            className={`rounded-lg px-3 py-1.5 font-bold transition ${
+              viewMode === "list" ? "bg-brand text-white shadow-2xs" : "bg-white text-gray-700 border hover:border-brand"
+            }`}
+          >
+            📦 Danh sách hàng hóa
+          </Link>
+          <Link
+            href={buildHref({ view: "pricebook", page: undefined })}
+            className={`rounded-lg px-3 py-1.5 font-bold transition ${
+              viewMode === "pricebook" ? "bg-amber-600 text-white shadow-2xs" : "bg-white text-gray-700 border hover:border-amber-500"
+            }`}
+          >
+            💰 Thiết lập giá (#/PriceBook)
+          </Link>
+          <span className="mx-1 text-gray-300">|</span>
+          <span className="font-extrabold uppercase text-gray-600 mr-1">Kho hàng:</span>
+          <Link
+            href="/admin/inventory/?tab=stock"
+            className="rounded-lg border bg-white px-2.5 py-1.5 font-semibold text-gray-700 hover:border-brand hover:text-brand"
+          >
+            📋 Kiểm kho (#/StockTakes)
+          </Link>
+          <Link
+            href="/admin/inventory/?tab=import"
+            className="rounded-lg border bg-white px-2.5 py-1.5 font-semibold text-gray-700 hover:border-brand hover:text-brand"
+          >
+            📥 Nhập hàng &amp; Xuất nội bộ / Xuất hủy
+          </Link>
+        </div>
+      </div>
+
+      <Flash saved={sp.saved} error={sp.error} />
+
+      {/* Main KiotViet 2-Column Layout: Left Filter Sidebar (.col-left) + Right Data Table */}
+      <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
+        {/* LEFT SIDEBAR FILTERS (Chuẩn KiotViet .col-left) */}
+        <aside className="space-y-3">
+          {/* Card 1: Nhóm hàng (Tree-view with counts & quick edit link) */}
+          <div className="rounded-2xl border bg-white p-3.5 shadow-2xs">
+            <div className="mb-2 flex items-center justify-between border-b pb-1.5">
+              <span className="text-xs font-extrabold uppercase text-gray-800">Nhóm hàng</span>
+              <Link href="/admin/categories/" className="text-[11px] font-bold text-brand hover:underline">
+                + Tạo / Sửa
+              </Link>
+            </div>
+            <div className="max-h-56 space-y-0.5 overflow-y-auto pr-1 text-xs">
+              <Link
+                href={buildHref({ category: undefined, page: undefined })}
+                className={`flex items-center justify-between rounded-lg px-2 py-1.5 font-semibold ${
+                  !category ? "bg-brand text-white" : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <span>Tất cả nhóm hàng</span>
+              </Link>
+              {categories.map((c) => (
+                <Link
+                  key={c.id}
+                  href={buildHref({ category: String(c.id), page: undefined })}
+                  className={`flex items-center justify-between rounded-lg px-2 py-1.5 ${
+                    category === c.id ? "bg-brand text-white font-bold" : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <span className="truncate">{c.name}</span>
+                  <span className={`ml-1 rounded-full px-1.5 text-[10px] ${category === c.id ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600"}`}>
+                    {c.n}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Card 2: Tồn kho */}
+          <div className="rounded-2xl border bg-white p-3.5 shadow-2xs">
+            <div className="mb-2 border-b pb-1.5 text-xs font-extrabold uppercase text-gray-800">
+              Tồn kho
+            </div>
+            <div className="space-y-1 text-xs">
+              {[
+                { key: "", label: "Tất cả" },
+                { key: "in", label: "✓ Còn hàng trong kho (> 0)" },
+                { key: "below_min", label: "⚠️ Dưới định mức tồn" },
+                { key: "low", label: "⏳ Sắp hết hàng (1 – 5)" },
+                { key: "out", label: "❌ Hết hàng trong kho (0)" },
+              ].map((st) => (
+                <Link
+                  key={st.key}
+                  href={buildHref({ stock: st.key || undefined, page: undefined })}
+                  className={`block rounded-lg px-2.5 py-1.5 ${
+                    stock === st.key ? "bg-emerald-100 font-bold text-brand" : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  {st.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Card 3: Trạng thái & Hiển thị giá Web */}
+          <div className="rounded-2xl border bg-white p-3.5 shadow-2xs">
+            <div className="mb-2 border-b pb-1.5 text-xs font-extrabold uppercase text-gray-800">
+              Trạng thái &amp; Liên kết Web
+            </div>
+            <div className="space-y-1 text-xs">
+              {[
+                { key: "", label: "Tất cả trạng thái" },
+                { key: "published", label: "🌐 Hàng đang kinh doanh (Hiện Web)" },
+                { key: "hidden", label: "🙈 Hàng ngừng KD (Đang ẩn)" },
+                { key: "contact_only", label: "📞 Hiện 'Liên hệ' ngoài Web" },
+              ].map(( item ) => (
+                <Link
+                  key={item.key}
+                  href={buildHref({ status: item.key || undefined, page: undefined })}
+                  className={`block rounded-lg px-2.5 py-1.5 ${
+                    status === item.key ? "bg-emerald-100 font-bold text-brand" : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Card 4: Nhà cung cấp, Thương hiệu, Vị trí */}
+          <form method="get" action="/admin/products/" className="rounded-2xl border bg-white p-3.5 shadow-2xs space-y-2.5 text-xs">
+            {q ? <input type="hidden" name="q" value={q} /> : null}
+            {category ? <input type="hidden" name="category" value={category} /> : null}
+            {stock ? <input type="hidden" name="stock" value={stock} /> : null}
+            {status ? <input type="hidden" name="status" value={status} /> : null}
+            {viewMode === "pricebook" ? <input type="hidden" name="view" value="pricebook" /> : null}
+
+            <div className="border-b pb-1.5 font-extrabold uppercase text-gray-800">
+              Đối tác &amp; Thuộc tính
+            </div>
+
+            <div>
+              <label className="mb-1 block font-bold text-gray-600">Nhà cung cấp</label>
+              <select name="supplier" defaultValue={supplier} className="w-full rounded-lg border px-2 py-1.5 text-xs">
+                <option value="">-- Tất cả Nhà cung cấp --</option>
+                {facets.suppliers.map((s) => (
+                  <option key={s.v} value={s.v}>
+                    {s.v} ({s.n})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block font-bold text-gray-600">Thương hiệu</label>
+              <select name="brand" defaultValue={brand} className="w-full rounded-lg border px-2 py-1.5 text-xs">
+                <option value="">-- Tất cả Thương hiệu --</option>
+                {facets.brands.map((b) => (
+                  <option key={b.v} value={b.v}>
+                    {b.v} ({b.n})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {facets.locations.length > 0 && (
+              <div>
+                <label className="mb-1 block font-bold text-gray-600">Vị trí kệ</label>
+                <select name="location" defaultValue={location} className="w-full rounded-lg border px-2 py-1.5 text-xs">
+                  <option value="">-- Tất cả Vị trí --</option>
+                  {facets.locations.map((l) => (
+                    <option key={l.v} value={l.v}>
+                      {l.v} ({l.n})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <button className="w-full rounded-lg bg-brand py-1.5 font-bold text-white hover:bg-brand-dark cursor-pointer">
+              Áp dụng bộ lọc
+            </button>
+          </form>
+        </aside>
+
+        {/* RIGHT MAIN AREA: Bulk Action Bar + KiotViet Table + Pagination */}
+        <div className="min-w-0 space-y-3">
+          <form
+            id="bulk"
+            action={bulkProductsAction}
+            className="flex flex-wrap items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/70 p-2.5 text-xs"
+          >
+            <input type="hidden" name="return_to" value={returnTo} />
+            <span className="font-bold text-blue-900">⚡ Thao tác hàng loạt (tick SP bên dưới):</span>
+            <select name="category_id" defaultValue="" className={`${ui.input} max-w-[190px] py-1 text-xs`}>
+              <option value="">— Chuyển nhóm hàng —</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <select name="visibility" defaultValue="" className={`${ui.input} max-w-[170px] py-1 text-xs`}>
+              <option value="">— Trạng thái KD —</option>
+              <option value="publish">🌐 Cho phép KD (Hiện Web)</option>
+              <option value="hide">🙈 Ngừng KD (Ẩn Web)</option>
+            </select>
+            <select name="price_display" defaultValue="" className={`${ui.input} max-w-[195px] py-1 text-xs`}>
+              <option value="">— Hiển thị giá Web —</option>
+              <option value="contact_only">📞 Hiện &quot;Liên hệ&quot; ngoài Web</option>
+              <option value="show_price">💰 Hiện giá bán ngoài Web</option>
+            </select>
+            <button className="rounded-lg bg-blue-700 px-3 py-1.5 font-bold text-white hover:bg-blue-800 cursor-pointer">
+              Áp dụng
+            </button>
+          </form>
+
+          <KiotVietProductsTable
+            rows={rows}
+            total={total}
+            summary={summary}
+            returnTo={returnTo}
+            viewMode={viewMode}
+          />
+
+          <Pagination
+            basePath="/admin/products/"
+            page={page}
+            total={total}
+            params={{
+              q: q || undefined,
+              category: category ? String(category) : undefined,
+              stock: stock || undefined,
+              status: status || undefined,
+              supplier: supplier || undefined,
+              brand: brand || undefined,
+              location: location || undefined,
+              view: viewMode === "pricebook" ? "pricebook" : undefined,
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 }

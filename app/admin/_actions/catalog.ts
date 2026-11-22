@@ -148,7 +148,9 @@ export async function adjustProductInventoryAction(formData: FormData) {
   const admin = await requireRole(ADMIN_ACTION_ROLES.inventory_finance);
   const id = num(formData, "id");
   const here = `/admin/products/${id}/`;
-  const mode = str(formData, "mode") === "import" ? "import" : "stocktake";
+  const rawMode = str(formData, "mode");
+  const mode: "import" | "stocktake" | "internal_use" | "damage" =
+    rawMode === "import" || rawMode === "internal_use" || rawMode === "damage" ? rawMode : "stocktake";
   const qty = num(formData, "qty");
   const unitCost = Math.max(0, num(formData, "unit_cost"));
   const updateCost = str(formData, "update_cost") === "1";
@@ -158,23 +160,114 @@ export async function adjustProductInventoryAction(formData: FormData) {
   const cur = await one<{ stock: number }>("SELECT stock FROM products WHERE id = ?", id);
   if (!cur) back("/admin/products/", "Không tìm thấy sản phẩm.");
 
-  const changeQty = mode === "import" ? qty : Math.max(0, qty) - cur!.stock;
+  const changeQty =
+    mode === "import"
+      ? Math.max(1, qty)
+      : mode === "internal_use" || mode === "damage"
+        ? -Math.max(1, qty)
+        : Math.max(0, qty) - cur!.stock;
   if (changeQty === 0 && !updateCost) {
     back(here, "Số lượng không thay đổi.");
   }
+
+  const defaultPrefix =
+    mode === "import" ? "PN" : mode === "internal_use" ? "XNB" : mode === "damage" ? "XH" : "KK";
+  const defaultNote =
+    mode === "import"
+      ? "Nhập hàng từ chi tiết sản phẩm"
+      : mode === "internal_use"
+        ? "Xuất dùng nội bộ (#/InternalUse)"
+        : mode === "damage"
+          ? "Xuất hủy hàng hỏng/hết hạn (#/DamageItems)"
+          : "Kiểm kho cân bằng tồn";
 
   await recordInventoryMovement({
     productId: id,
     changeQty,
     unitCost: unitCost > 0 ? unitCost : undefined,
-    updateCostPrice: updateCost && unitCost >= 0,
+    updateCostPrice: mode === "import" && updateCost && unitCost >= 0,
     reason: mode,
-    refCode: refCode || (mode === "import" ? `PN-${id}` : `KK-${id}`),
-    note: note || (mode === "import" ? "Nhập hàng từ chi tiết sản phẩm" : "Kiểm kho cân bằng tồn"),
+    refCode: refCode || `${defaultPrefix}-${id}`,
+    note: note || defaultNote,
     createdBy: admin.email,
   });
   refresh();
   redirect(`${here}?saved=1`);
+}
+
+export async function cloneProductAction(formData: FormData) {
+  const admin = await requireRole(ADMIN_ACTION_ROLES.catalog_write);
+  await Promise.all([ensureSeoColumns(), ensureRetailOpsSchema()]);
+  const id = num(formData, "id");
+  const src = await one<Record<string, unknown>>("SELECT * FROM products WHERE id = ?", id);
+  if (!src) return back("/admin/products/", "Không tìm thấy sản phẩm cần sao chép.");
+
+  const suffix = Date.now().toString().slice(-4);
+  const newName = `${String(src.name || "Sản phẩm")} (Bản sao)`;
+  const newSlug = `${slugify(String(src.slug || src.name || "san-pham"))}-copy-${suffix}`;
+  const oldSku = String(src.sku || "").trim();
+  const newSku = oldSku ? `${oldSku}-CP${suffix}` : `SP-CP${suffix}`;
+
+  const ins = await run(
+    `INSERT INTO products (
+      name, slug, category_id, price, cost_price, sale_price, stock, min_stock, max_stock,
+      weight_grams, summary, description, image, featured, is_published, contact_only,
+      sku, kv_code, barcode, brand, origin, unit, location, supplier, gallery, video_url
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    newName,
+    newSlug,
+    Number(src.category_id) || 1,
+    Number(src.price) || 0,
+    Number(src.cost_price) || 0,
+    src.sale_price !== null && src.sale_price !== undefined ? Number(src.sale_price) : null,
+    Number(src.stock) || 0,
+    Number(src.min_stock) || 0,
+    Number(src.max_stock) || 999999999,
+    Number(src.weight_grams) || 0,
+    String(src.summary || ""),
+    String(src.description || ""),
+    src.image ? String(src.image) : null,
+    0,
+    0, // start hidden (draft) so admin can review before publishing
+    Number(src.contact_only) || 0,
+    newSku,
+    "",
+    "",
+    String(src.brand || ""),
+    String(src.origin || ""),
+    String(src.unit || ""),
+    String(src.location || ""),
+    String(src.supplier || ""),
+    String(src.gallery || ""),
+    String(src.video_url || ""),
+  );
+  const newId = Number(ins.lastInsertRowid);
+  logWarn("admin.product_cloned", { fromId: id, newId, actor: admin.email });
+  refresh();
+  redirect(`/admin/products/${newId}/?saved=1`);
+}
+
+export async function quickUpdateProductPricingAction(formData: FormData) {
+  await requireRole(ADMIN_ACTION_ROLES.catalog_write);
+  await ensureRetailOpsSchema();
+  const id = num(formData, "id");
+  const price = Math.max(0, num(formData, "price"));
+  const costPrice = Math.max(0, num(formData, "cost_price"));
+  const rawSale = str(formData, "sale_price");
+  const salePrice = rawSale ? Math.max(0, num(formData, "sale_price")) : null;
+  const contactOnly = str(formData, "contact_only") === "1" ? 1 : 0;
+
+  await run(
+    "UPDATE products SET price = ?, cost_price = ?, sale_price = ?, contact_only = ? WHERE id = ?",
+    price,
+    costPrice,
+    salePrice !== null && salePrice > 0 && salePrice < price ? salePrice : null,
+    contactOnly,
+    id,
+  );
+  refresh();
+  const returnTo = str(formData, "return_to");
+  redirect(returnTo && returnTo.startsWith("/admin/products") ? returnTo : "/admin/products/?view=pricebook&saved=1");
 }
 
 /** Bulk: move to category and/or publish/hide the selected products. */

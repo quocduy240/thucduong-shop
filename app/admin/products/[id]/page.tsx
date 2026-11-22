@@ -25,7 +25,9 @@ const REASON_LABELS: Record<string, { text: string; badge: string }> = {
   import: { text: "Nhập hàng", badge: "bg-emerald-100 text-emerald-800" },
   stocktake: { text: "Kiểm kho", badge: "bg-blue-100 text-blue-800" },
   sale: { text: "Bán hàng", badge: "bg-amber-100 text-amber-800" },
-  cancel: { text: "Hoàn huỷ đơn", badge: "bg-purple-100 text-purple-800" },
+  cancel: { text: "Trả hàng / Hoàn kho", badge: "bg-purple-100 text-purple-800" },
+  internal_use: { text: "Xuất dùng nội bộ", badge: "bg-cyan-100 text-cyan-800" },
+  damage: { text: "Xuất hủy", badge: "bg-red-100 text-red-800" },
   kiotviet_sync: { text: "Đồng bộ KiotViet", badge: "bg-indigo-100 text-indigo-800" },
 };
 
@@ -453,6 +455,8 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
                         <select form="inv-adjust" name="mode" defaultValue="import" className={input}>
                           <option value="import">➕ Nhập hàng (+SL)</option>
                           <option value="stocktake">⚖️ Kiểm kho (Đặt tồn mới)</option>
+                          <option value="internal_use">📤 Xuất dùng nội bộ (-SL)</option>
+                          <option value="damage">🗑️ Xuất hủy hàng hỏng (-SL)</option>
                         </select>
                       </div>
                       <div>

@@ -60,6 +60,32 @@ export async function importInventoryAction(formData: FormData) {
   redirect("/admin/inventory/?tab=import&saved=1");
 }
 
+export async function exportInventoryIssueAction(formData: FormData) {
+  const admin = await requireRole(ADMIN_ACTION_ROLES.inventory_finance);
+  const productId = num(formData, "product_id");
+  const qty = Math.max(1, num(formData, "qty"));
+  const issueType = str(formData, "issue_type") === "damage" ? "damage" : "internal_use";
+  const rawNote = str(formData, "note");
+  const prefix = issueType === "damage" ? "XH" : "XNB";
+  const refCode = str(formData, "ref_code") || `${prefix}-${Date.now().toString().slice(-6)}`;
+  const defaultNote =
+    issueType === "damage"
+      ? "Xuất hủy hàng hỏng / hết hạn (#/DamageItems)"
+      : "Xuất dùng nội bộ tại cửa hàng (#/InternalUse)";
+
+  if (!productId) back("/admin/inventory/?tab=import", "Vui lòng chọn sản phẩm cần xuất.");
+  await recordInventoryMovement({
+    productId,
+    changeQty: -qty,
+    reason: issueType,
+    refCode,
+    note: rawNote || defaultNote,
+    createdBy: admin.email,
+  });
+  refresh();
+  redirect("/admin/inventory/?tab=import&saved=1");
+}
+
 export async function stocktakeInventoryAction(formData: FormData) {
   const admin = await requireRole(ADMIN_ACTION_ROLES.inventory_finance);
   const productId = num(formData, "product_id");
