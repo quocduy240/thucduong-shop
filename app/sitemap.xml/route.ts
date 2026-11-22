@@ -1,5 +1,7 @@
 import { buildSitemapEntries } from "@/lib/sitemaps";
 
+export const dynamic = "force-dynamic";
+
 function xmlEscape(s: string): string {
   return s
     .replace(/&/g, "&amp;")

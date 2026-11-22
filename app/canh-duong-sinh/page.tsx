@@ -2,6 +2,8 @@ import CanhDuongSinhLanding from "@/components/CanhDuongSinhLanding";
 import { getProducts, url } from "@/lib/data";
 import { getSite, getWidgetSettings } from "@/lib/settings";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Canh Dưỡng Sinh King Kung Chính Hãng | Thực Dưỡng Phúc Thọ",
   description:

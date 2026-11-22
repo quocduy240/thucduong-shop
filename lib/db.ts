@@ -34,22 +34,32 @@ function normalizeParams(params: unknown[]): unknown[] {
 }
 
 export async function all<T = Record<string, unknown>>(sql: string, ...params: unknown[]): Promise<T[]> {
-  const db = await getDb();
-  const stmt = db.prepare(sql);
-  const bound = params.length ? stmt.bind(...normalizeParams(params)) : stmt;
-  const res = await bound.all<T>();
-  return (res.results ?? []).map((r) => ({ ...(r as Record<string, unknown>) }) as T);
+  try {
+    const db = await getDb();
+    const stmt = db.prepare(sql);
+    const bound = params.length ? stmt.bind(...normalizeParams(params)) : stmt;
+    const res = await bound.all<T>();
+    return (res.results ?? []).map((r) => ({ ...(r as Record<string, unknown>) }) as T);
+  } catch (err) {
+    if (String(err).includes("no such table")) return [];
+    throw err;
+  }
 }
 
 export async function one<T = Record<string, unknown>>(
   sql: string,
   ...params: unknown[]
 ): Promise<T | undefined> {
-  const db = await getDb();
-  const stmt = db.prepare(sql);
-  const bound = params.length ? stmt.bind(...normalizeParams(params)) : stmt;
-  const row = await bound.first<T>();
-  return row ? ({ ...(row as Record<string, unknown>) } as T) : undefined;
+  try {
+    const db = await getDb();
+    const stmt = db.prepare(sql);
+    const bound = params.length ? stmt.bind(...normalizeParams(params)) : stmt;
+    const row = await bound.first<T>();
+    return row ? ({ ...(row as Record<string, unknown>) } as T) : undefined;
+  } catch (err) {
+    if (String(err).includes("no such table")) return undefined;
+    throw err;
+  }
 }
 
 export async function run(sql: string, ...params: unknown[]): Promise<D1RunResult> {

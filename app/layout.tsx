@@ -10,6 +10,8 @@ import MobileBottomBar from "@/components/MobileBottomBar";
 import { getSite, getWidgetSettings } from "@/lib/settings";
 import { getThemeSettings } from "@/lib/theme-settings";
 
+export const dynamic = "force-dynamic";
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
