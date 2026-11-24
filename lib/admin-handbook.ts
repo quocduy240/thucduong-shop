@@ -615,12 +615,12 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
         badge: "Mới",
         items: [
           {
-            heading: "Bảo vệ Server Actions theo nhóm quyền (RBAC)",
-            body: "Mọi thao tác nhạy cảm (xoá sản phẩm/bài viết, cập nhật đơn hàng, cài đặt SMTP/API Key, tạo/xoá tài khoản quản trị) đều được kiểm tra quyền trực tiếp ở tầng máy chủ theo vai trò (Super Admin / Admin / Editor / Sales) và tự chặn xoá tài khoản Super Admin cuối cùng.",
+            heading: "Bảo vệ toàn diện Pages, APIs & Server Actions theo nhóm quyền (RBAC)",
+            body: "Mọi trang quản trị (/admin/*), API quản trị (/api/admin/*) và Server Actions nhạy cảm (xoá sản phẩm/bài viết, cập nhật đơn hàng, cài đặt SMTP/API Key, tạo/xoá tài khoản quản trị) đều được kiểm tra quyền trực tiếp ở tầng máy chủ theo ma trận vai trò (Super Admin / Admin / Editor / Sales), chặn leo thang đặc quyền qua URL trực tiếp và tự chặn xoá tài khoản Super Admin cuối cùng. Các endpoint Cron và Webhook KiotViet bắt buộc xác thực chữ ký bí mật (Fail-Closed).",
           },
           {
-            heading: "Sổ cái điểm thưởng hợp nhất (Single Source of Truth)",
-            body: "Điểm tích luỹ của thành viên chỉ được cộng chính thức khi đơn hàng chuyển sang 'Hoàn thành (done)' và đồng bộ 2 chiều giữa bảng members, member_profiles và sổ giao dịch point_transactions — kể cả khi Admin điều chỉnh thủ công tại /admin/members/.",
+            heading: "Sổ cái điểm thưởng hợp nhất & Tự động thu hồi khi Huỷ/Trả hàng",
+            body: "Điểm tích luỹ của thành viên được cộng khi đơn hàng chuyển sang 'Hoàn thành (done)' (bao gồm cả đơn bán tại quầy POS có thông tin khách hàng) và tự động thu hồi (refund_reversal) nếu đơn đã hoàn thành bị chuyển sang 'Đã huỷ (cancelled)' hoặc 'Khách trả hàng (returned)'. Số dư điểm luôn đồng bộ 2 chiều giữa bảng members, member_profiles và sổ giao dịch point_transactions.",
           },
           {
             heading: "Tự động làm mới Cache trang chủ & danh mục",

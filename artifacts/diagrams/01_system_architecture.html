@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1400px;
+    height: 860px;
+    overflow: hidden;
+    background: #ffffff;
+    font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+    color: #202124;
+    -webkit-font-smoothing: antialiased;
+  }
+  .canvas {
+    width: 1400px;
+    height: 860px;
+    padding: 20px 26px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+  }
+  .hdr {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 2px solid #137333;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+  .hdr-left h1 {
+    font-size: 21px;
+    font-weight: 800;
+    color: #137333;
+    letter-spacing: -0.2px;
+    line-height: 1.25;
+  }
+  .hdr-left p {
+    margin-top: 3px;
+    font-size: 12.5px;
+    color: #5f6368;
+    font-weight: 500;
+  }
+  .hdr-tag {
+    background: #e6f4ea;
+    color: #137333;
+    border: 1px solid #86efac;
+    border-radius: 999px;
+    padding: 5px 13px;
+    font-size: 11.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .main {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 0;
+  }
+  .ftr {
+    margin-top: 8px;
+    padding-top: 7px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10.5px;
+    color: #5f6368;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .legend-item { display: inline-flex; align-items: center; gap: 5px; font-weight: 500; }
+  .legend-dot { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+  .mono { font-family: 'Consolas', 'Courier New', monospace; font-size: 10.5px; }
+  .pill {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+</style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="hdr">
+      <div class="hdr-left">
+        <h1>Kiến trúc Tổng thể Hệ thống Thực Dưỡng Phúc Thọ (thucduong-shop)</h1>
+        <p>Mô hình Edge Serverless Monolith trên Next.js 16.4.6 + OpenNext Cloudflare Workers + D1 + KV + Tích hợp AI & Bán lẻ</p>
+      </div>
+      <div class="hdr-tag">SYSTEM ARCHITECTURE</div>
+    </div>
+    <div class="main">
+      
+    <div style="display:flex;flex-direction:column;gap:4px;">
+      <!-- Layer 1: Clients -->
+      <div style="border:1.5px solid #cbd5e1;border-radius:12px;padding:8px 10px;background:#ffffff;">
+        <div style="font-size:11px;font-weight:800;color:#334155;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Tầng 1: Kênh Khách hàng, Vận hành Nội bộ & Điểm vào Hệ thống</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+          <div style="background:#f8fafc;border:1.5px solid #94a3b8;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#334155;margin-bottom:2px;">Storefront Web / Mobile</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">thucduongshop.duyvo.win</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• Mua sắm, Tìm kiếm, Giỏ hàng Cookie</div><div>• Tư vấn AI (/tu-van-nhanh/), Thành viên</div><div>• Thư viện 318 Video & 12 Tài liệu</div></div>
+    </div>
+          <div style="background:#eff6ff;border:1.5px solid #60a5fa;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#1d4ed8;margin-bottom:2px;">Admin Portal (/admin/*)</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">4 Vai trò RBAC (scrypt + cookie)</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• 39 trang quản trị, 9 nhóm Server Actions</div><div>• AiIdleQueueProvider (concurrency=1)</div><div>• Inline Frontend Edit Overlay</div></div>
+    </div>
+          <div style="background:#fffbeb;border:1.5px solid #fbbf24;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#b45309;margin-bottom:2px;">Bán hàng POS & In A5</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">/admin/pos/ & /admin/orders/[id]/</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• Bán nhanh tại quầy / Telesale</div><div>• Trừ kho tức thì + Sổ quỹ 3 Quỹ</div><div>• In hóa đơn chuẩn KiotViet A5/A4/K80</div></div>
+    </div>
+          <div style="background:#faf5ff;border:1.5px solid #c084fc;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#6b21a8;margin-bottom:2px;">Webhooks & External Crons</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">Tự động hóa Liên hệ thống</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• POST /api/kiotviet/webhook</div><div>• GET /api/cron/compliance-sync|crm|youtube</div><div>• Idle Workers (/idle-worker + x-idle-secret)</div></div>
+    </div>
+        </div>
+      </div>
+
+      
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;height:20px;">
+      <svg width="24" height="18" viewBox="0 0 24 18"><path d="M12 0 L12 13 M6 8 L12 15 L18 8" stroke="#137333" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span style="font-size:10.5px;font-weight:700;color:#137333;background:#e6f4ea;padding:1px 8px;border-radius:999px;border:1px solid #bbf7d0;">HTTPS / TLS 1.3 + Security Headers & CSP (next.config.ts)</span>
+      <svg width="24" height="18" viewBox="0 0 24 18"><path d="M12 0 L12 13 M6 8 L12 15 L18 8" stroke="#137333" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+
+      <!-- Layer 2: Cloudflare Edge -->
+      <div style="border:1.5px solid #93c5fd;border-radius:12px;padding:8px 10px;background:#f8fbff;">
+        <div style="font-size:11px;font-weight:800;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Tầng 2: Cloudflare Edge Network & Phân phối Nội dung</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+          <div style="background:#eff6ff;border:1.5px solid #60a5fa;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#1d4ed8;margin-bottom:2px;">Custom Domain & WAF</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">Routing & Bảo vệ Biên</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• Pattern: thucduongshop.duyvo.win</div><div>• Header cf-connecting-ip cho Rate Limit</div><div>• HSTS 1 năm + SAMEORIGIN + nosniff</div></div>
+    </div>
+          <div style="background:#eff6ff;border:1.5px solid #60a5fa;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#1d4ed8;margin-bottom:2px;">Static Assets (ASSETS)</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">.open-next/assets</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• JS/CSS bundles, favicon, public/*</div><div>• /uploads/* (Cache 30 ngày + SWR 1 ngày)</div><div>• Ảnh mẫu & bài viết pre-imported</div></div>
+    </div>
+          <div style="background:#f0fdfa;border:1.5px solid #5eead4;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#0f766e;margin-bottom:2px;">Image Resizing / CDN</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">lib/image-url.ts</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• Biến NEXT_PUBLIC_CF_IMAGE_RESIZING=1</div><div>• Chuyển /cdn-cgi/image/ (WebP/AVIF)</div><div>• Tùy chọn NEXT_PUBLIC_MEDIA_CDN_URL</div></div>
+    </div>
+          <div style="background:#eff6ff;border:1.5px solid #60a5fa;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#1d4ed8;margin-bottom:2px;">OpenNext Adapter</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">@opennextjs/cloudflare 1.20.17</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• Entry: .open-next/worker.js</div><div>• Flags: nodejs_compat, strictly_public</div><div>• Binding WORKER_SELF_REFERENCE</div></div>
+    </div>
+        </div>
+      </div>
+
+      
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;height:20px;">
+      <svg width="24" height="18" viewBox="0 0 24 18"><path d="M12 0 L12 13 M6 8 L12 15 L18 8" stroke="#137333" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span style="font-size:10.5px;font-weight:700;color:#137333;background:#e6f4ea;padding:1px 8px;border-radius:999px;border:1px solid #bbf7d0;">Cloudflare Workers (workerd) + Next.js 16.4.6 App Router Execution</span>
+      <svg width="24" height="18" viewBox="0 0 24 18"><path d="M12 0 L12 13 M6 8 L12 15 L18 8" stroke="#137333" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+
+      <!-- Layer 3: Application Worker -->
+      <div style="border:2px solid #22c55e;border-radius:12px;padding:9px 10px;background:#f4fbf6;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:11px;font-weight:800;color:#15803d;text-transform:uppercase;letter-spacing:0.4px;">Tầng 3: Logic Ứng dụng Next.js 16.4.6 & React 19.3 trên Cloudflare Workers (293 tệp · 65.234 LOC)</span>
+          <span class="pill" style="background:#dcfce7;color:#166534;border:1px solid #86efac;">Pure TS trên workerd (không dùng cheerio ở runtime)</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+          <div style="background:#f0fdf4;border:1.5px solid #4ade80;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#15803d;margin-bottom:2px;">Storefront SSR & SEO</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">28 files App + 39 Components</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• URL tương thích LoveItop (.html & /)</div><div>• Dynamic BlockZone (4 cấp đệ quy)</div><div>• JSON-LD, Sitemap.xml, 3 Theme Zero-FOUC</div></div>
+    </div>
+          <div style="background:#f0fdf4;border:1.5px solid #4ade80;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#15803d;margin-bottom:2px;">E-commerce & Checkout</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">lib/cart.ts · checkout-helpers.ts</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• Trừ tồn kho Atomic + Hoàn bù lỗi</div><div>• Flash Sale UTC+7 + Coupon + Hạng thẻ</div><div>• Idempotency 10p + Rate Limit trượt</div></div>
+    </div>
+          <div style="background:#fffbeb;border:1.5px solid #fbbf24;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#b45309;margin-bottom:2px;">Retail, CRM & Loyalty</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">lib/retail-ops · crm · loyalty.ts</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• Thẻ kho + Sổ quỹ 3 Quỹ + EOD COGS</div><div>• RFM 5 phân khúc + Zalo 1-Click</div><div>• 10 nguồn tích điểm + Đổi quà Atomic</div></div>
+    </div>
+          <div style="background:#faf5ff;border:1.5px solid #c084fc;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#6b21a8;margin-bottom:2px;">AI Gateway & Workers</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">lib/gemini-key · post/product-importer</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• Tư vấn nhanh + Hồ sơ /ho-so-tu-van/</div><div>• Lab OCR, AI Rewrite, Image Clean</div><div>• Tuân thủ NĐ 15/2018 + TT 09/2015</div></div>
+    </div>
+        </div>
+      </div>
+
+      
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;height:20px;">
+      <svg width="24" height="18" viewBox="0 0 24 18"><path d="M12 0 L12 13 M6 8 L12 15 L18 8" stroke="#137333" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span style="font-size:10.5px;font-weight:700;color:#137333;background:#e6f4ea;padding:1px 8px;border-radius:999px;border:1px solid #bbf7d0;">Bindings: env.DB (D1) · env.NEXT_INC_CACHE_KV · env.MEDIA_BUCKET (R2) + External HTTPS/TLS</span>
+      <svg width="24" height="18" viewBox="0 0 24 18"><path d="M12 0 L12 13 M6 8 L12 15 L18 8" stroke="#137333" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+
+      <!-- Layer 4 & 5 Split: Storage + External Integrations -->
+      <div style="display:grid;grid-template-columns:1.15fr 1.35fr;gap:12px;">
+        <div style="border:1.5px solid #14b8a6;border-radius:12px;padding:8px 10px;background:#f5fdfa;">
+          <div style="font-size:11px;font-weight:800;color:#0f766e;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Tầng 4: Lưu trữ & Bộ nhớ Đệm (Cloudflare Data Plane)</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+            <div style="background:#f0fdfa;border:1.5px solid #5eead4;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#0f766e;margin-bottom:2px;">Cloudflare D1 (DB)</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">thucduong-shop-db</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• 34+ bảng SQLite phân tán</div><div>• 18 composite indexes</div><div>• Backup gzip ngày lúc 03:00</div></div>
+    </div>
+            <div style="background:#f0fdfa;border:1.5px solid #5eead4;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#0f766e;margin-bottom:2px;">Cloudflare KV Cache</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">NEXT_INC_CACHE_KV</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• Regional Cache TTL 300s</div><div>• 9 CACHE_TAGS (revalidateTag)</div><div>• Làm mới ngay khi Admin lưu</div></div>
+    </div>
+            <div style="background:#f0fdfa;border:1.5px solid #5eead4;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#0f766e;margin-bottom:2px;">Media R2 / D1 Fallback</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">MEDIA_BUCKET / D1</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• Ưu tiên R2 (chưa khai báo ở wrangler)</div><div>• Fallback D1 media_files & assets</div><div>• Cache 1 năm + ETag 304</div></div>
+    </div>
+          </div>
+        </div>
+
+        <div style="border:1.5px solid #a855f7;border-radius:12px;padding:8px 10px;background:#fdfaff;">
+          <div style="font-size:11px;font-weight:800;color:#6b21a8;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Tầng 5: Tích hợp Dịch vụ Ngoài (External Gateways)</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+            <div style="background:#faf5ff;border:1.5px solid #c084fc;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#6b21a8;margin-bottom:2px;">Google Gemini API</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">generativelanguage.googleapis.com</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• Text: 2.5-flash / flash-latest</div><div>• Image: 3.1 / 2.5-flash-image</div><div>• Lab Vision OCR: 3.8-flash</div></div>
+    </div>
+            <div style="background:#fffbeb;border:1.5px solid #fbbf24;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#b45309;margin-bottom:2px;">KiotViet & Provinces</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">id.kiotviet.vn · public.kiotapi.com</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• OAuth2 Push Order / Pull Stock</div><div>• Import Excel .xlsx (node:zlib)</div><div>• Provinces Open-API v2 (34/3321)</div></div>
+    </div>
+            <div style="background:#f8fafc;border:1.5px solid #94a3b8;border-radius:10px;padding:8px 11px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:12.5px;font-weight:800;color:#334155;margin-bottom:2px;">SMTP, YouTube & VietQR</div>
+      <div style="font-size:10.5px;color:#475569;font-weight:600;margin-bottom:4px;">TCP TLS / RSS / img.vietqr.io</div>
+      <div style="font-size:10.5px;color:#1e293b;line-height:1.38;"><div>• Raw SMTP (node:net/tls 465/587)</div><div>• YouTube RSS @quocduy2401</div><div>• VietQR BIDV 8610312888</div></div>
+    </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+    <div class="ftr">
+      <div class="legend"><span class="legend-item"><span class="legend-dot" style="background:#f0fdf4;border:1.5px solid #4ade80;"></span>Storefront & Edge</span><span class="legend-item"><span class="legend-dot" style="background:#eff6ff;border:1.5px solid #60a5fa;"></span>Cloudflare Infra</span><span class="legend-item"><span class="legend-dot" style="background:#fffbeb;border:1.5px solid #fbbf24;"></span>Retail / POS / KiotViet</span><span class="legend-item"><span class="legend-dot" style="background:#faf5ff;border:1.5px solid #c084fc;"></span>AI & External APIs</span><span class="legend-item"><span class="legend-dot" style="background:#f0fdfa;border:1.5px solid #5eead4;"></span>Data Plane (D1/KV/R2)</span></div>
+      <div>Nguồn: wrangler.jsonc, open-next.config.ts, next.config.ts, lib/db.ts (HEAD 557fbf9)</div>
+    </div>
+  </div>
+</body>
+</html>

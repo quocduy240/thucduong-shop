@@ -1,10 +1,10 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { all } from "@/lib/db";
 import type { MemberProfile, PointRule, RewardItem } from "@/lib/loyalty";
 import LoyaltyAdminClient from "@/components/admin/LoyaltyAdminClient";
 
 export default async function AdminLoyaltyPage() {
-  await requireAdmin();
+  await requireAdminPath("/admin/loyalty/");
 
   const [rules, rewards, redemptions, profiles] = await Promise.all([
     all<PointRule>("SELECT * FROM point_rules ORDER BY priority ASC, id ASC"),

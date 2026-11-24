@@ -118,7 +118,7 @@ export async function onOrderStatusChanged(orderId: number, prevStatus: string, 
         description: `Quà chào mừng từ mã giới thiệu (đơn #${order.code})`,
       });
     }
-  } else if (prevStatus === "done" && nextStatus === "cancelled") {
+  } else if (prevStatus === "done" && (nextStatus === "cancelled" || nextStatus === "returned")) {
     const orig = await one<{ change_amount: number }>(
       `SELECT change_amount FROM point_transactions
        WHERE member_id = ? AND source = 'purchase' AND reference_type = 'order' AND reference_id = ?`,
@@ -210,7 +210,7 @@ export async function awardCommentOrReviewPoints(params: {
   content: string;
 }) {
   const profile = await getMemberProfileByUserId(params.userId);
-  if (!profile) return { awarded: false };
+  if (!profile) return { awarded: false, points: 0 };
 
   // Check verified purchase for this product
   const contactConds: string[] = [];
@@ -242,8 +242,8 @@ export async function awardCommentOrReviewPoints(params: {
        WHERE member_id = ? AND source = 'review' AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')`,
       profile.id,
     );
-    if ((monthCount?.cnt ?? 0) >= 5) return { awarded: false, reason: "monthly_limit" };
-    return awardPoints({
+    if ((monthCount?.cnt ?? 0) >= 5) return { awarded: false, reason: "monthly_limit", points: 0 };
+    const res = await awardPoints({
       memberId: profile.id,
       source: "review",
       amount: 30,
@@ -251,9 +251,10 @@ export async function awardCommentOrReviewPoints(params: {
       referenceId: params.commentId,
       description: "Đánh giá sản phẩm đã mua (Verified Purchase)",
     });
+    return { ...res, points: res.awarded ? 30 : 0 };
   }
 
-  if (params.content.trim().length < 50) return { awarded: false, reason: "too_short" };
+  if (params.content.trim().length < 50) return { awarded: false, reason: "too_short", points: 0 };
   const today = todayHoChiMinh();
   const dayCount = await one<{ cnt: number }>(
     `SELECT COUNT(*) AS cnt FROM point_transactions
@@ -261,9 +262,9 @@ export async function awardCommentOrReviewPoints(params: {
     profile.id,
     today,
   );
-  if ((dayCount?.cnt ?? 0) >= 3) return { awarded: false, reason: "daily_limit" };
+  if ((dayCount?.cnt ?? 0) >= 3) return { awarded: false, reason: "daily_limit", points: 0 };
 
-  return awardPoints({
+  const res = await awardPoints({
     memberId: profile.id,
     source: "comment",
     amount: 10,
@@ -271,6 +272,7 @@ export async function awardCommentOrReviewPoints(params: {
     referenceId: params.commentId,
     description: "Bình luận chất lượng chia sẻ trải nghiệm",
   });
+  return { ...res, points: res.awarded ? 10 : 0 };
 }
 
 /**

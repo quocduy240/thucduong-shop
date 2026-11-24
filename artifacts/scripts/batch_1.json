@@ -1,0 +1,606 @@
+[
+  {
+    "op": "set-default-style",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "line_spacing": 115
+  },
+  {
+    "op": "heading",
+    "text": "Báo cáo Phân tích Kỹ thuật Toàn diện Hệ thống Thực Dưỡng Phúc Thọ (thucduong-shop)",
+    "level": "TITLE",
+    "font_family": "Roboto",
+    "font_size": 28,
+    "bold": true,
+    "text_color": "#137333",
+    "space_below": 4
+  },
+  {
+    "op": "rich-text",
+    "font_family": "Roboto",
+    "font_size": 10,
+    "text_color": "#5f6368",
+    "space_below": 8,
+    "runs": [
+      {
+        "font_family": "Roboto",
+        "bold": true,
+        "italic": false,
+        "text_color": "#137333",
+        "text": "Hệ thống: "
+      },
+      {
+        "font_family": "Roboto",
+        "bold": false,
+        "italic": false,
+        "text_color": "#202124",
+        "text": "thucduong-shop (thucduongshop.duyvo.win)  •  "
+      },
+      {
+        "font_family": "Roboto",
+        "bold": true,
+        "italic": false,
+        "text_color": "#137333",
+        "text": "Phiên bản mã nguồn: "
+      },
+      {
+        "font_family": "Roboto",
+        "bold": false,
+        "italic": false,
+        "text_color": "#202124",
+        "text": "Commit 557fbf9 (110 commits)  •  "
+      },
+      {
+        "font_family": "Roboto",
+        "bold": true,
+        "italic": false,
+        "text_color": "#137333",
+        "text": "Ngày lập: "
+      },
+      {
+        "font_family": "Roboto",
+        "bold": false,
+        "italic": false,
+        "text_color": "#202124",
+        "text": "22/11/2026  •  "
+      },
+      {
+        "font_family": "Roboto",
+        "bold": true,
+        "italic": false,
+        "text_color": "#137333",
+        "text": "Quy mô: "
+      },
+      {
+        "font_family": "Roboto",
+        "bold": false,
+        "italic": false,
+        "text_color": "#202124",
+        "text": "293 tệp, 65.234 dòng mã"
+      }
+    ],
+    "italic": true
+  },
+  {
+    "op": "horizontal-rule"
+  },
+  {
+    "op": "heading",
+    "text": "1. Tóm tắt Điều hành & Bối cảnh Tiến hóa Hệ thống",
+    "level": "2",
+    "font_family": "Roboto",
+    "font_size": 18,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 20,
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Dự án thucduong-shop khởi nguồn là một bản dựng thử (prototype) chạy cục bộ bằng Next.js 16 và node:sqlite (như vẫn còn mô tả trong README.md và AGENTS.md) nhằm đánh giá phương án chuyển đổi website thucduongphuctho.net từ nền tảng SaaS LoveItop sang một kiến trúc tự chủ hoàn toàn. Qua 110 commit phát triển liên tục đến trạng thái HEAD 557fbf9, hệ thống đã lột xác khỏi quy mô bản mẫu ban đầu để trở thành nền tảng thương mại điện tử, xuất bản nội dung chuyên sâu, bán lẻ đa kênh và tư vấn y khoa ứng dụng AI phục vụ vận hành thực tế cho Thực Dưỡng Phúc Thọ (HKD Cửa Hàng Phúc Thọ, GPKD 089185004882, địa chỉ tại KDC Bình Hưng, xã Bình Hưng, TP.HCM) trên tên miền chính thức https://thucduongshop.duyvo.win.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Điểm chuyển dịch kiến trúc quan trọng nhất diễn ra từ commit cf9acf4 khi toàn bộ tầng dữ liệu được chuyển từ SQLite cục bộ sang Cloudflare D1 và ứng dụng được đóng gói chạy trực tiếp trên Cloudflare Workers (workerd) thông qua bộ chuyển đổi @opennextjs/cloudflare. Toàn bộ tệp tin mã nguồn được kiểm đếm tự động tại workspace hiện đạt 293 tệp với 65.234 dòng mã (không tính thư mục node_modules, .next, .open-next, public/uploads, data và tệp package-lock.json). Hơn 56,5% khối lượng mã nằm ở tầng nghiệp vụ lõi (lib/: 18.496 dòng) và giao diện quản trị (components/admin/: 18.393 dòng), phản ánh độ phức tạp thực tế của các phân hệ POS, đồng bộ KiotViet, CRM 360 độ, Loyalty đa tầng và hệ sinh thái AI tuân thủ pháp luật.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "rich-text",
+    "font_family": "Roboto",
+    "font_size": 10.5,
+    "text_color": "#202124",
+    "space_below": 8,
+    "runs": [
+      {
+        "font_family": "Roboto",
+        "bold": true,
+        "italic": false,
+        "text_color": "#137333",
+        "text": "TLDR: "
+      },
+      {
+        "font_family": "Roboto",
+        "bold": false,
+        "italic": false,
+        "text_color": "#202124",
+        "text": "thucduong-shop là một Edge Serverless Monolith triển khai trên Cloudflare Workers + D1 + KV + (tùy chọn) R2. Hệ thống giữ nguyên 100% sơ đồ URL và API giỏ hàng/thanh toán của nền tảng LoveItop cũ để bảo toàn SEO, đồng thời tích hợp trọn vẹn chuỗi nghiệp vụ bán lẻ POS/KiotViet, chăm sóc khách hàng RFM, tích điểm đổi quà và quy trình AI y khoa tuân thủ NĐ 15/2018/NĐ-CP và Google YMYL."
+      }
+    ],
+    "paragraph_bg_color": "#e6f4ea",
+    "space_above": 6
+  },
+  {
+    "op": "append",
+    "text": "Hình 2. Phân bổ Quy mô Mã nguồn và Tỷ trọng Các Phân hệ trong thucduong-shop",
+    "font_family": "Roboto",
+    "font_size": 10.5,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 8,
+    "space_below": 4
+  },
+  {
+    "op": "append",
+    "text": "Bảng dưới đây tổng hợp số liệu đo đạc trực tiếp trên từng phân hệ thư mục của mã nguồn, giúp đánh giá mức độ đầu tư kỹ thuật và ranh giới trách nhiệm giữa các lớp kiến trúc.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "insert-table",
+    "table_data": [
+      [
+        "Phân hệ / Thư mục",
+        "Số tệp",
+        "Số dòng mã (LOC)",
+        "Tỷ trọng",
+        "Vai trò & Nội dung chính"
+      ],
+      [
+        "lib/ (Core & Domain Logic)",
+        "57",
+        "18.496",
+        "28,4%",
+        "Truy vấn D1, Bảo mật, Loyalty, CRM, KiotViet, Retail Ops, AI Gateway, Importers"
+      ],
+      [
+        "components/admin/ (Giao diện Admin)",
+        "37",
+        "18.393",
+        "28,2%",
+        "POS, Bảng SP & In A5 KiotViet, CRM Dashboard, Loyalty Admin, Importer Studio"
+      ],
+      [
+        "components/ (Giao diện Storefront)",
+        "39",
+        "9.681",
+        "14,8%",
+        "Header, Mega Menu, Flash Sale, Quick Consult, Video/Doc Library, MemberPortal"
+      ],
+      [
+        "app/admin/ (Trang & Export Admin)",
+        "39",
+        "7.576",
+        "11,6%",
+        "39 trang quản trị, Kho vận 5 tab, Flash Sale 3 tab, Xuất CSV đối soát & KiotViet"
+      ],
+      [
+        "app/api/admin/ (Admin & AI API)",
+        "26",
+        "3.722",
+        "5,7%",
+        "AI Rewrite, Image Edit, Mindmap, Idle Workers, Lab OCR, KiotViet Excel Import"
+      ],
+      [
+        "app/ (Trang Storefront)",
+        "28",
+        "2.052",
+        "3,1%",
+        "Trang chủ, Catalog, Route động 3 cấp, Canh Dưỡng Sinh, Cart/Checkout, Sitemap"
+      ],
+      [
+        "app/admin/_actions/ (Server Actions)",
+        "9",
+        "1.905",
+        "2,9%",
+        "9 module Server Actions kiểm tra RBAC: auth, catalog, content, orders, retail..."
+      ],
+      [
+        "app/api/ (Public, Webhook & Cron)",
+        "27",
+        "1.394",
+        "2,1%",
+        "Checkout nguyên tử, Coupon, Member Auth, Loyalty, Media Serving, Health, 3 Cron"
+      ],
+      [
+        "scripts/ (CLI & Migration Scripts)",
+        "7",
+        "802",
+        "1,2%",
+        "Crawl LoveItop & Haravan, Export D1, Verify Backup, Provinces v2, OpenNext patch"
+      ],
+      [
+        "Tests, CI/CD, SQL, Docs & Skills",
+        "24",
+        "1.213",
+        "1,9%",
+        "8 tệp unit test (450 LOC), 3 GH Workflows (202 LOC), 2 migrations, cấu hình & docs"
+      ],
+      [
+        "TỔNG CỘNG TOÀN DỰ ÁN",
+        "293",
+        "65.234",
+        "100,0%",
+        "Đo kiểm trên trạng thái HEAD 557fbf9 (loại trừ thư mục build & assets nhị phân)"
+      ]
+    ],
+    "table_header_bg_color": "#e6f4ea",
+    "table_header_text_color": "#137333",
+    "table_header_bold": true,
+    "table_font_family": "Roboto",
+    "table_font_size": 9.5,
+    "table_border_color": "#dadce0",
+    "table_border_width": 0.5
+  },
+  {
+    "op": "append",
+    "text": "Số liệu cho thấy tầng giao diện quản trị và nghiệp vụ lõi chiếm tỷ trọng lớn gấp hơn 3 lần tầng giao diện bán hàng Storefront, khẳng định trọng tâm kiến trúc đã dịch chuyển mạnh sang tự động hóa vận hành cửa hàng và tối ưu quy trình biên tập nội dung bằng AI.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "heading",
+    "text": "2. Phân tích Yêu cầu Hệ thống (Requirements Specification)",
+    "level": "2",
+    "font_family": "Roboto",
+    "font_size": 18,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 20,
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Hệ thống được thiết kế để giải quyết song song hai bài toán: di chuyển an toàn một website bán hàng và kiến thức thực dưỡng lâu năm mà không làm đứt gãy lưu lượng tìm kiếm tự nhiên, đồng thời khắc phục hoàn toàn sự rời rạc dữ liệu giữa bán hàng online, bán tại quầy (POS), phần mềm KiotViet và quy trình tư vấn chăm sóc khách hàng dài hạn.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "rich-text",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_below": 3,
+    "runs": [
+      {
+        "font_family": "Roboto",
+        "bold": true,
+        "italic": false,
+        "text_color": "#137333",
+        "text": "Mục tiêu (Goal): "
+      },
+      {
+        "font_family": "Roboto",
+        "bold": false,
+        "italic": false,
+        "text_color": "#202124",
+        "text": "Tái lập chính xác cấu trúc URL (.html và trailing slash /) cùng các endpoint giỏ hàng/checkout của LoveItop, cung cấp hệ sinh thái nội dung đa phương tiện (bài viết, 318 video YouTube, 12 tài liệu PDF/sách), hợp nhất dữ liệu khách hàng đa kênh và triển khai trợ lý AI y khoa có kiểm soát pháp lý."
+      }
+    ],
+    "bullet_preset": "BULLET_DISC_CIRCLE_SQUARE",
+    "space_above": 2
+  },
+  {
+    "op": "rich-text",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_below": 3,
+    "runs": [
+      {
+        "font_family": "Roboto",
+        "bold": true,
+        "italic": false,
+        "text_color": "#D93025",
+        "text": "Ngoài phạm vi (Non-Goal): "
+      },
+      {
+        "font_family": "Roboto",
+        "bold": false,
+        "italic": false,
+        "text_color": "#202124",
+        "text": "Chưa tích hợp cổng thanh toán trực tuyến tự động gạch nợ (VNPay/MoMo webhook), chưa có hệ thống Affiliate đa cấp, chưa hỗ trợ đặt mật khẩu khôi phục qua OTP SMS/Email cho khách hàng cuối, và chưa kích hoạt Cloudflare Cron Triggers trực tiếp trong wrangler.jsonc."
+      }
+    ],
+    "bullet_preset": "BULLET_DISC_CIRCLE_SQUARE",
+    "space_above": 2
+  },
+  {
+    "op": "append",
+    "text": "Các yêu cầu chức năng (Functional Requirements) được phân chia thành 8 nhóm nghiệp vụ rõ ràng, tương ứng trực tiếp với các route và module triển khai trong mã nguồn.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "insert-table",
+    "table_data": [
+      [
+        "Mã nhóm",
+        "Nhóm Yêu cầu Chức năng",
+        "Tính năng Chi tiết đã Triển khai",
+        "Điểm vào Chính trong Hệ thống"
+      ],
+      [
+        "FR-01",
+        "Storefront & Thương mại điện tử",
+        "Trang chủ theo danh mục; lọc đa chiều (hãng, xuất xứ, giá, tồn kho); Landing Canh Dưỡng Sinh; Flash Sale UTC+7; Giỏ cookie; Checkout trừ kho nguyên tử + VietQR BIDV; Tra cứu đơn.",
+        "/, /san-pham/, /canh-duong-sinh/, /cart, /checkout, /tra-cuu-don-hang/"
+      ],
+      [
+        "FR-02",
+        "CMS, Thư viện Media & Marketing",
+        "Bài viết 3 cấp kèm combo mua chung; 318 Video YouTube tự đồng bộ RSS; 12 Tài liệu với 5 cơ chế mở khóa; BlockZone 10 vị trí đệ quy; QR động /q/[slug]; MXH /go/social/[id].",
+        "/[section]/[slug]/[post], /thu-vien/*, /q/[slug], /go/social/[id]"
+      ],
+      [
+        "FR-03",
+        "Bán lẻ POS, Kho vận & Sổ quỹ",
+        "Bán nhanh tại quầy POS; In hóa đơn KiotViet (A5/A4/K80, 16 block, chữ Việt); Thẻ kho 7 lý do; Trả hàng hoàn kho TH-; Sổ quỹ 3 Quỹ (Tiền mặt, Ngân hàng, KiotViet); Báo cáo EOD lãi gộp COGS.",
+        "/admin/pos/, /admin/orders/[id]/, /admin/inventory/"
+      ],
+      [
+        "FR-04",
+        "Tích hợp KiotViet Đa phương thức",
+        "Kết nối OAuth2 đẩy đơn Web sang KiotViet & kéo tồn kho về; Webhook cập nhật tồn kho; Import Excel .xlsx/.csv thuần TS; Xuất CSV đơn chuẩn KiotViet.",
+        "/admin/kiotviet/, /api/kiotviet/webhook, /admin/orders/export-kiotviet"
+      ],
+      [
+        "FR-05",
+        "CRM 360 độ & Tự động hóa",
+        "Gộp hồ sơ theo SĐT/Email; Phân khúc RFM 5 nhóm; Mẫu tin Zalo 1-Click; Lịch hẹn gọi lại & badge nhắc việc; Tag bệnh lý; Bảng hiệu suất tư vấn viên; Hàng đợi Email +3 và +25 ngày.",
+        "/admin/crm/, /api/admin/crm, /api/cron/crm-automation"
+      ],
+      [
+        "FR-06",
+        "Loyalty & Gamification",
+        "4 hạng thành viên (Đồng, Bạc, Vàng, Kim cương); Hợp nhất điểm khách vãng lai; 10 nguồn tích điểm (mua hàng, điểm danh, đọc bài >=70%, đánh giá); Kho quà & đổi voucher/quà hiện vật nguyên tử.",
+        "/thanh-vien/, /admin/loyalty/, /api/loyalty/*"
+      ],
+      [
+        "FR-07",
+        "Trợ lý AI & Tuân thủ Y khoa",
+        "Tư vấn nhanh 3 bước + BMI châu Á + Hồ sơ PDF /ho-so-tu-van/[token]/; Đọc phiếu xét nghiệm AI (Ảnh/PDF + giọng nói); Nhập & viết lại bài/SP bằng AI; Bộ lọc Luật VN & YMYL.",
+        "/tu-van-nhanh/, /admin/quick-consult/, /admin/lab-analysis/, /admin/*/import/"
+      ],
+      [
+        "FR-08",
+        "Quản trị, RBAC & Công cụ Migration",
+        "Phân quyền 4 vai trò x 13 miền hành động; Sửa nhanh trực tiếp ngoài Frontend; Sitemap XML/HTML & SEO 0-100 điểm; 3 bộ theme có chế độ chữ to 19px; 7 script CLI crawl dữ liệu.",
+        "/admin/*, /api/admin/staff, /sitemap.xml, /so-do-trang.html, scripts/*.mjs"
+      ]
+    ],
+    "table_header_bg_color": "#e6f4ea",
+    "table_header_text_color": "#137333",
+    "table_header_bold": true,
+    "table_font_family": "Roboto",
+    "table_font_size": 9.5,
+    "table_border_color": "#dadce0",
+    "table_border_width": 0.5
+  },
+  {
+    "op": "append",
+    "text": "Về mặt yêu cầu phi chức năng (Non-Functional Requirements), hệ thống đặt trọng tâm vào 5 trụ cột vận hành trên môi trường Edge và nhóm khách hàng đặc thù của ngành thực dưỡng:",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "bullet-list",
+    "text": "Hiệu năng & Tương thích Edge (workerd): Không sử dụng native C++ bindings (loại bỏ better-sqlite3, sharp) và không đưa thư viện phân tích DOM nặng như cheerio vào runtime API routes. Mọi tác vụ xử lý HTML, ZIP Excel và SMTP TLS đều viết bằng TypeScript thuần hoặc API tích hợp sẵn của Node compat.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 6,
+    "space_below": 2
+  },
+  {
+    "op": "bullet-list",
+    "text": "Trải nghiệm Người cao tuổi & Khả năng tiếp cận: Hệ thống theme tích hợp sẵn chế độ 'Người Lớn Tuổi' (19px, chiều cao dòng 1.8, nền giấy ấm #fffdf5, tương phản cao) được nạp đồng bộ trước khi render HTML để tránh nhấp nháy giao diện (Zero-FOUC), đi kèm nhập liệu bằng giọng nói tiếng Việt (vi-VN) ở widget hỏi nhanh và phòng xét nghiệm.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 2,
+    "space_below": 2
+  },
+  {
+    "op": "bullet-list",
+    "text": "An toàn Dữ liệu & Tuân thủ YMYL: Mọi bài viết nhập qua AI phải đi qua bộ kiểm duyệt câu từ cấm theo Luật Quảng cáo, Nghị định 15/2018/NĐ-CP, Thông tư 09/2015/TT-BYT, Google YMYL và chính sách y tế YouTube, kèm khối miễn trừ trách nhiệm y khoa.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 2,
+    "space_below": 2
+  },
+  {
+    "op": "bullet-list",
+    "text": "Độ bền & Khả năng Phục hồi: Trừ kho và đổi quà dùng điều kiện nguyên tử SQL kèm cơ chế bù hoàn; tác vụ AI dài dùng khóa lease D1 (35-40 giây) chống kẹt worker; cơ sở dữ liệu D1 được sao lưu tự động mỗi ngày lúc 03:00 sáng giờ Việt Nam và kiểm chứng toàn vẹn 9 bảng cốt lõi.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 2,
+    "space_below": 8
+  },
+  {
+    "op": "heading",
+    "text": "3. Kiến trúc Tổng thể Hệ thống (System Architecture)",
+    "level": "2",
+    "font_family": "Roboto",
+    "font_size": 18,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 20,
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "thucduong-shop áp dụng kiến trúc Edge Serverless Monolith: toàn bộ giao diện người dùng (Storefront), cổng quản trị (Admin), lớp truy vấn dữ liệu, các API tích hợp và hàng đợi công việc AI đều đóng gói chung thành một Cloudflare Worker duy nhất mang tên thucduong-shop (entry point .open-next/worker.js). Cách tiếp cận này loại bỏ hoàn toàn chi phí vận hành máy chủ riêng hay container Docker ở production, đồng thời tận dụng độ trễ thấp tại các điểm biên (Edge PoP) của Cloudflare.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Hình 1. Kiến trúc Tổng thể Hệ thống Thực Dưỡng Phúc Thọ trên Hạ tầng Cloudflare",
+    "font_family": "Roboto",
+    "font_size": 10.5,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 8,
+    "space_below": 4
+  },
+  {
+    "op": "append",
+    "text": "Sơ đồ trên minh họa luồng đi của một yêu cầu từ tầng khách hàng đi qua lớp bảo vệ biên (Cloudflare WAF, TLS, Security Headers và phân phối tài sản tĩnh ASSETS), vào môi trường thực thi workerd với Next.js 16.4.6 App Router, tương tác với tầng lưu trữ Cloudflare D1, Cloudflare KV và tùy chọn R2, rồi kết nối ra các cổng dịch vụ ngoài qua HTTPS hoặc TCP TLS. Bảng sau liệt kê chính xác ngăn xếp công nghệ và các Cloudflare Bindings đã cấu hình trong package.json, wrangler.jsonc và open-next.config.ts.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "insert-table",
+    "table_data": [
+      [
+        "Thành phần / Lớp",
+        "Công nghệ / Binding",
+        "Phiên bản / Định danh",
+        "Vai trò Cụ thể trong Hệ thống"
+      ],
+      [
+        "Framework Web & UI",
+        "Next.js App Router + React",
+        "next 16.4.6 · react 19.3.0",
+        "SSR theo yêu cầu, Server Actions, Route Handlers, Turbopack + Tailwind CSS 4.3.3"
+      ],
+      [
+        "Runtime Adapter",
+        "@opennextjs/cloudflare + Wrangler",
+        "1.20.17 · wrangler 4.164.0",
+        "Biên dịch Next.js sang Worker bundle (.open-next/worker.js), compatibility_date 2025-05-05"
+      ],
+      [
+        "Ngôn ngữ & Node Runtime",
+        "TypeScript + Node.js",
+        "TS 5.x (strict) · Node 24 (.nvmrc)",
+        "Bật cờ nodejs_compat và global_fetch_strictly_public trên workerd"
+      ],
+      [
+        "Cơ sở Dữ liệu Chính",
+        "Cloudflare D1 (Binding: DB)",
+        "thucduong-shop-db (111f93d1-...)",
+        "Cơ sở dữ liệu SQLite phân tán lưu trữ 48 bảng nghiệp vụ, truy vấn qua lib/db.ts"
+      ],
+      [
+        "Bộ nhớ đệm Tầng Ứng dụng",
+        "Cloudflare KV (NEXT_INC_CACHE_KV)",
+        "ID: 7d2bb67691374880ae6f015b5775449d",
+        "Incremental Cache + Regional Cache (mode long-lived, TTL 300s) tại open-next.config.ts"
+      ],
+      [
+        "Tài sản Tĩnh & Self-Ref",
+        "ASSETS + WORKER_SELF_REFERENCE",
+        ".open-next/assets · thucduong-shop",
+        "Phân phối bundle JS/CSS, ảnh public/uploads/* và tự gọi nội bộ trong OpenNext"
+      ],
+      [
+        "Lưu trữ Media Đám mây",
+        "Cloudflare R2 (MEDIA_BUCKET)",
+        "Tùy chọn (chưa khai báo ở wrangler)",
+        "Lưu ảnh/PDF tải lên; khi chưa gắn bucket sẽ tự động fallback sang bảng D1"
+      ],
+      [
+        "Thư viện Phụ trợ",
+        "qrcode (prod) · cheerio (devOnly)",
+        "qrcode ^1.5.4 · cheerio ^1.2.0",
+        "qrcode sinh mã SVG động cho /api/qr/[slug]; cheerio chỉ chạy ở script CLI offline"
+      ]
+    ],
+    "table_header_bg_color": "#e6f4ea",
+    "table_header_text_color": "#137333",
+    "table_header_bold": true,
+    "table_font_family": "Roboto",
+    "table_font_size": 9.5,
+    "table_border_color": "#dadce0",
+    "table_border_width": 0.5
+  },
+  {
+    "op": "append",
+    "text": "Trong quá trình đọc mã nguồn, có thể nhận diện 4 Quyết định Kiến trúc Cốt lõi (Architecture Decision Records) định hình cách đội ngũ kỹ thuật kiểm soát độ ổn định hệ thống trên Cloudflare Workers:",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "bullet-list",
+    "text": "ADR-01 (Không dùng ORM, không native module): Thay vì Prisma hay better-sqlite3 vốn dễ vướng giới hạn kích thước bundle hoặc lỗi biên dịch C++ trên workerd, hệ thống dùng một lớp bao siêu mỏng tại lib/db.ts (84 dòng) gọi trực tiếp env.DB.prepare().bind().all/first/run/batch, trải phẳng hàng kết quả (spread object) để truyền an toàn qua ranh giới Server-Client Component.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 6,
+    "space_below": 2
+  },
+  {
+    "op": "bullet-list",
+    "text": "ADR-02 (Tách biệt Runtime Pure TypeScript khỏi CLI Scraper): Thư viện cheerio được giữ ở devDependencies chỉ phục vụ scripts/import-post.mjs và scripts/import-products.mjs chạy trên Node cục bộ. Toàn bộ route xử lý HTML, RSS YouTube và giải nén file Excel .xlsx trên Cloudflare Workers được viết lại hoàn toàn bằng Regex, XML parser nhẹ và node:zlib.inflateRawSync.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 2,
+    "space_below": 2
+  },
+  {
+    "op": "bullet-list",
+    "text": "ADR-03 (Hợp nhất AI Gateway & Giảm thiểu Token trước khi gọi LLM): Thay vì gửi nguyên khối HTML CKEditor hoặc ảnh thô lên Gemini, lớp tiền xử lý tại server bóc tách CSS, script, số điện thoại và tên miền nguồn trước, đồng thời lọc ảnh qua bước phân loại nhẹ rồi mới gọi model sinh ảnh khi thực sự phát hiện watermark.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 2,
+    "space_below": 2
+  },
+  {
+    "op": "bullet-list",
+    "text": "ADR-04 (Xử lý Tác vụ Dài bằng Máy trạng thái Chia bước + Khóa Lease D1): Do giới hạn thời gian thực thi HTTP của Cloudflare Workers, mọi quy trình nặng (nhập bài viết 4 ảnh AI, làm sạch hàng loạt 20 sản phẩm, phân tích xét nghiệm) đều không chạy một lèo trong một request mà lưu từng bước (step_cursor) vào D1 kết hợp khóa lease thời hạn 35-40 giây.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 2,
+    "space_below": 8
+  }
+]

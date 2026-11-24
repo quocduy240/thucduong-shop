@@ -12,6 +12,7 @@ import {
   type RewardItem,
 } from "./loyalty";
 import { sendEmail } from "./mail";
+import { escapeHtml } from "./security";
 
 export type RfmSegment = "vip" | "refill_due" | "at_risk" | "new_buyer" | "lead";
 
@@ -427,16 +428,16 @@ export async function runCrmEmailAutomation(): Promise<{ processed: number; sent
         : `[Thực Dưỡng Phúc Thọ] Hỏi thăm & ưu đãi đặt lại đơn hàng #${item.orderCode}`;
     const html = `
       <div style="font-family:sans-serif;line-height:1.6;color:#1f2937">
-        <p>Kính chào anh/chị <strong>${item.customerName}</strong>,</p>
-        <p>${item.messageText}</p>
+        <p>Kính chào anh/chị <strong>${escapeHtml(item.customerName)}</strong>,</p>
+        <p>${escapeHtml(item.messageText)}</p>
         <p>Quý khách có thể xem lại đơn hàng và điểm thưởng tại:
           <a href="https://thucduongshop.duyvo.win/thanh-vien/">thucduongshop.duyvo.win/thanh-vien/</a>
         </p>
         <p>Trân trọng,<br/><strong>Thực Dưỡng Phúc Thọ</strong> · Hotline: 0767.518.592</p>
       </div>
     `;
-    const ok = await sendEmail({ to: item.email, subject, html });
-    if (ok) {
+    const ok = await sendEmail({ to: item.email, subject, html }).catch(() => ({ sent: false }));
+    if (ok.sent) {
       await markAutomationSent(item.orderId, item.stepCode, "email", item.email);
       sent++;
     } else {

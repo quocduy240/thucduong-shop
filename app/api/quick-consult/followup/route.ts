@@ -1,7 +1,11 @@
 import { currentAdmin } from "@/lib/auth";
 import { getQuickConsultById, updateQuickConsultFollowup } from "@/lib/quick-consult";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { safeEqualSecret } from "@/lib/security";
 
 export async function POST(req: Request) {
+  const rl = checkRateLimit(getClientIp(req), { namespace: "quick-consult-followup", limit: 10, windowMs: 10 * 60_000 });
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterSec);
   try {
     const body = (await req.json()) as {
       id?: number;
@@ -29,7 +33,7 @@ export async function POST(req: Request) {
     const admin = await currentAdmin();
     if (!admin) {
       const existing = await getQuickConsultById(id);
-      if (!existing || !body.shareToken || existing.share_token !== body.shareToken) {
+      if (!existing || !body.shareToken || !safeEqualSecret(existing.share_token, body.shareToken)) {
         return Response.json({ error: "Không có quyền cập nhật hồ sơ này." }, { status: 403 });
       }
     }

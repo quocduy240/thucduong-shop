@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1400px;
+    height: 770px;
+    overflow: hidden;
+    background: #ffffff;
+    font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+    color: #202124;
+    -webkit-font-smoothing: antialiased;
+  }
+  .canvas {
+    width: 1400px;
+    height: 770px;
+    padding: 20px 26px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+  }
+  .hdr {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 2px solid #137333;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+  .hdr-left h1 {
+    font-size: 21px;
+    font-weight: 800;
+    color: #137333;
+    letter-spacing: -0.2px;
+    line-height: 1.25;
+  }
+  .hdr-left p {
+    margin-top: 3px;
+    font-size: 12.5px;
+    color: #5f6368;
+    font-weight: 500;
+  }
+  .hdr-tag {
+    background: #e6f4ea;
+    color: #137333;
+    border: 1px solid #86efac;
+    border-radius: 999px;
+    padding: 5px 13px;
+    font-size: 11.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .main {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 0;
+  }
+  .ftr {
+    margin-top: 8px;
+    padding-top: 7px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10.5px;
+    color: #5f6368;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .legend-item { display: inline-flex; align-items: center; gap: 5px; font-weight: 500; }
+  .legend-dot { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+  .mono { font-family: 'Consolas', 'Courier New', monospace; font-size: 10.5px; }
+  .pill {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+</style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="hdr">
+      <div class="hdr-left">
+        <h1>Luồng Checkout Nguyên tử, Vòng đời Đơn hàng, Kho vận POS & Tích hợp KiotViet</h1>
+        <p>Cơ chế bảo toàn tồn kho khi đặt hàng đồng thời, 6 trạng thái xử lý đơn, Sổ quỹ 3 Quỹ và đồng bộ 2 chiều với KiotViet / CRM / Loyalty</p>
+      </div>
+      <div class="hdr-tag">RETAIL & ORDER FLOW</div>
+    </div>
+    <div class="main">
+      
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <!-- Top: Atomic Checkout Pipeline -->
+      <div style="border:1.5px solid #4ade80;border-radius:12px;padding:10px 12px;background:#f4fbf6;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:12.5px;font-weight:800;color:#14532d;">A. Luồng Đặt hàng Online & Trừ kho Nguyên tử (POST /api/data-checkout)</span>
+          <span class="pill" style="background:#dcfce7;color:#166534;">Rate Limit: 10 req/phút/IP · Idempotency: TTL 10 phút</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 22px 1fr 22px 1.15fr 22px 1.15fr 22px 1fr;align-items:stretch;">
+          
+    <div style="background:#ffffff;border:1.5px solid #86efac;border-radius:9px;padding:8px 9px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:11.5px;font-weight:800;color:#166534;line-height:1.2;">1. Giỏ & Khuyến mãi</div>
+      <div style="font-size:10px;color:#334155;margin-top:3px;line-height:1.35;">Cookie <span class='mono'>cart</span> (max 999)<br/>Flash Sale > sale_price<br/>Coupon + Giảm hạng thẻ (Silver 3%, Gold 5%, Diamond 7%)</div>
+    </div>
+          <div style="display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 10 L16 10 M11 5 L17 10 L11 15" stroke="#137333" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          
+    <div style="background:#ffffff;border:1.5px solid #86efac;border-radius:9px;padding:8px 9px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:11.5px;font-weight:800;color:#166534;line-height:1.2;">2. Kiểm tra Hợp lệ</div>
+      <div style="font-size:10px;color:#334155;margin-top:3px;line-height:1.35;">SĐT <span class='mono'>0\d{9,10}</span><br/>Xác thực Tỉnh/Phường trong <span class='mono'>wards</span><br/>Kiểm Idempotency-Key trong bộ nhớ Isolate</div>
+    </div>
+          <div style="display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 10 L16 10 M11 5 L17 10 L11 15" stroke="#137333" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          
+    <div style="background:#fef7e0;border:1.5px solid #fbbf24;border-radius:9px;padding:8px 9px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:11.5px;font-weight:800;color:#92400e;line-height:1.2;">3. Trừ kho Nguyên tử</div>
+      <div style="font-size:10px;color:#334155;margin-top:3px;line-height:1.35;"><span class='mono'>UPDATE products SET stock = stock - ? WHERE id = ? AND stock &gt;= ?</span><br/>Nếu 1 dòng thiếu kho -&gt; hoàn bù các dòng trước đó</div>
+    </div>
+          <div style="display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 10 L16 10 M11 5 L17 10 L11 15" stroke="#137333" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          
+    <div style="background:#ffffff;border:1.5px solid #60a5fa;border-radius:9px;padding:8px 9px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:11.5px;font-weight:800;color:#1d4ed8;line-height:1.2;">4. Batch Ghi DB</div>
+      <div style="font-size:10px;color:#334155;margin-top:3px;line-height:1.35;">Mã <span class='mono'>DH&lt;ts&gt;&lt;hex&gt;</span><br/>Insert <span class='mono'>orders</span> + <span class='mono'>order_items</span><br/>Tăng <span class='mono'>flash_sale_items.sold</span> &amp; <span class='mono'>coupons.used_count</span><br/>Bù kho nếu batch lỗi</div>
+    </div>
+          <div style="display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 10 L16 10 M11 5 L17 10 L11 15" stroke="#137333" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          
+    <div style="background:#eff6ff;border:1.5px solid #60a5fa;border-radius:9px;padding:8px 9px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:11.5px;font-weight:800;color:#1d4ed8;line-height:1.2;">5. Hậu xử lý & VietQR</div>
+      <div style="font-size:10px;color:#334155;margin-top:3px;line-height:1.35;">Liên kết <span class='mono'>member_profiles</span><br/>Xóa cookie <span class='mono'>cart</span><br/>Gửi SMTP via <span class='mono'>ctx.waitUntil</span><br/>Hiện VietQR BIDV 8610312888</div>
+    </div>
+        </div>
+      </div>
+
+      <!-- Middle: Order State Machine -->
+      <div style="border:1.5px solid #93c5fd;border-radius:12px;padding:10px 12px;background:#f8fbff;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:12.5px;font-weight:800;color:#1e3a8a;">B. Máy Trạng thái Vòng đời Đơn hàng (6 Trạng thái) & Hệ quả Liên hoàn</span>
+          <span class="pill" style="background:#dbeafe;color:#1e40af;">lib/admin-data.ts · app/admin/_actions/orders.ts</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 22px 1fr 22px 1fr 22px 1.25fr 18px 1.25fr;align-items:stretch;">
+          
+    <div style="background:#e0f2fe;border:1.5px solid #38bdf8;border-radius:9px;padding:8px 9px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:11.5px;font-weight:800;color:#0369a1;line-height:1.2;">Mới (new)</div>
+      <div style="font-size:10px;color:#334155;margin-top:3px;line-height:1.35;">Đơn web mới tạo.<br/>Hiển thị badge đỏ trên menu Admin.<br/>Đã trừ tồn kho web.</div>
+    </div>
+          <div style="display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 10 L16 10 M11 5 L17 10 L11 15" stroke="#137333" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          
+    <div style="background:#eef2ff;border:1.5px solid #818cf8;border-radius:9px;padding:8px 9px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:11.5px;font-weight:800;color:#3730a3;line-height:1.2;">Đã xác nhận (confirmed)</div>
+      <div style="font-size:10px;color:#334155;margin-top:3px;line-height:1.35;">Đã gọi xác nhận.<br/>Tạo từ POS nếu chọn thu COD.<br/>Có thể gắn ĐVVC (6 đối tác).</div>
+    </div>
+          <div style="display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 10 L16 10 M11 5 L17 10 L11 15" stroke="#137333" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          
+    <div style="background:#fef7e0;border:1.5px solid #fbbf24;border-radius:9px;padding:8px 9px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:11.5px;font-weight:800;color:#b45309;line-height:1.2;">Đang giao (shipping)</div>
+      <div style="font-size:10px;color:#334155;margin-top:3px;line-height:1.35;">Theo dõi <span class='mono'>shipping_status</span>:<br/>picked -&gt; shipping -&gt; delivered.<br/>Cập nhật mã vận đơn &amp; COD.</div>
+    </div>
+          <div style="display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 10 L16 10 M11 5 L17 10 L11 15" stroke="#137333" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          
+    <div style="background:#dcfce7;border:1.5px solid #22c55e;border-radius:9px;padding:8px 9px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:11.5px;font-weight:800;color:#15803d;line-height:1.2;">Hoàn thành (done)</div>
+      <div style="font-size:10px;color:#334155;margin-top:3px;line-height:1.35;">Gọi <span class='mono'>onOrderStatusChanged</span>:<br/>• Cộng điểm Loyalty (<span class='mono'>purchase</span>)<br/>• Mở khóa thưởng giới thiệu<br/>• Đưa vào hàng chờ CRM +3/+25d</div>
+    </div>
+          <div></div>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            
+    <div style="background:#fff1f2;border:1.5px solid #fb7185;border-radius:9px;padding:8px 9px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:11.5px;font-weight:800;color:#be123c;line-height:1.2;">Trả hàng (returned)</div>
+      <div style="font-size:10px;color:#334155;margin-top:3px;line-height:1.35;">Nút <span class='mono'>returnOrderAction</span>:<br/>Cộng hoàn kho thẻ <span class='mono'>TH-</span> + Phiếu chi hoàn tiền 3 Quỹ.</div>
+    </div>
+            
+    <div style="background:#fee2e2;border:1.5px solid #f87171;border-radius:9px;padding:8px 9px;display:flex;flex-direction:column;justify-content:center;">
+      <div style="font-size:11.5px;font-weight:800;color:#991b1b;line-height:1.2;">Đã hủy (cancelled)</div>
+      <div style="font-size:10px;color:#334155;margin-top:3px;line-height:1.35;">Hoàn kho <span class='mono'>reason=cancel</span>.<br/>Nếu từ <span class='mono'>done</span> -&gt; hủy: trừ hoàn điểm Loyalty.</div>
+    </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom: POS, Inventory, 3-Fund Cashbook & KiotViet Sync -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div style="border:1.5px solid #fbbf24;border-radius:10px;padding:9px 11px;background:#fffdf5;">
+          <div style="font-size:12px;font-weight:800;color:#b45309;margin-bottom:5px;">C. Bán hàng POS & In Hóa đơn KiotViet</div>
+          <div style="font-size:10.5px;color:#334155;line-height:1.42;">
+            • <span class="mono">/admin/pos/</span>: Tìm theo tên/SKU, giảm giá VNĐ, thanh toán Tiền mặt / CK Ngân hàng / Theo KiotViet / COD.<br/>
+            • Tự sinh mã <span class="mono">TD-POS-xxxxxx</span>, ghi Thẻ kho (<span class="mono">sale</span>) và tự lập Phiếu Thu vào đúng Quỹ tương ứng.<br/>
+            • <span class="mono">KiotVietInvoicePrintStudio</span>: 4 khổ giấy (A5 Dọc/Ngang, A4, K80), 16 block bật/tắt, đọc tiền chữ tiếng Việt, QR VietQR tự điền số tiền.
+          </div>
+        </div>
+        <div style="border:1.5px solid #f59e0b;border-radius:10px;padding:9px 11px;background:#fffbeb;">
+          <div style="font-size:12px;font-weight:800;color:#92400e;margin-bottom:5px;">D. Kho vận 5 Tab, Sổ quỹ 3 Quỹ & Báo cáo EOD</div>
+          <div style="font-size:10.5px;color:#334155;line-height:1.42;">
+            • <span class="mono">inventory_movements</span>: Theo dõi 7 lý do (<span class="mono">import, stocktake, sale, cancel, kiotviet_sync, internal_use, damage</span>).<br/>
+            • <span class="mono">cashbook_entries</span>: Tách biệt 3 Quỹ (<span class="mono">cash</span>, <span class="mono">bank</span>, <span class="mono">kiotviet</span>), tự tạo Phiếu Chi khi nhập hàng NCC.<br/>
+            • Báo cáo cuối ngày (EOD): Doanh thu thuần, Giá vốn COGS, Lãi gộp &amp; tỷ suất %, Đối soát thu chi 3 Quỹ.
+          </div>
+        </div>
+        <div style="border:1.5px solid #60a5fa;border-radius:10px;padding:9px 11px;background:#f8fbff;">
+          <div style="font-size:12px;font-weight:800;color:#1d4ed8;margin-bottom:5px;">E. Đồng bộ KiotViet 2 Chiều & CRM / Loyalty</div>
+          <div style="font-size:10.5px;color:#334155;line-height:1.42;">
+            • <strong>API OAuth2:</strong> Đẩy đơn Web -&gt; KiotViet (<span class="mono">POST /orders</span>) &amp; Kéo tồn kho (<span class="mono">GET /products</span> 100 SP/trang).<br/>
+            • <strong>Webhook & Excel:</strong> <span class="mono">/api/kiotviet/webhook</span> cập nhật tồn kho realtime; Bộ parse <span class="mono">.xlsx</span> ZIP thuần (<span class="mono">node:zlib</span>) không cần thư viện ngoài.<br/>
+            • <strong>CRM & Loyalty:</strong> Phân loại 5 nhóm RFM (<span class="mono">vip, refill_due, at_risk, new_buyer, lead</span>), Zalo 1 chạm, giữ khách khỏi thất thoát sàn TMĐT.
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+    <div class="ftr">
+      <div class="legend"><span class="legend-item"><span class="legend-dot" style="background:#dcfce7;border:1.5px solid #4ade80;"></span>Checkout & Trạng thái hoàn thành</span><span class="legend-item"><span class="legend-dot" style="background:#fef7e0;border:1.5px solid #fbbf24;"></span>Thẻ kho & Giao vận</span><span class="legend-item"><span class="legend-dot" style="background:#fee2e2;border:1.5px solid #f87171;"></span>Trả hàng / Hủy đơn</span><span class="legend-item"><span class="legend-dot" style="background:#eff6ff;border:1.5px solid #60a5fa;"></span>Tích hợp KiotViet & VietQR</span></div>
+      <div>Nguồn: app/api/data-checkout/route.ts, app/admin/_actions/orders.ts, lib/retail-ops.ts, lib/kiotviet*.ts, lib/crm.ts, lib/loyalty*.ts</div>
+    </div>
+  </div>
+</body>
+</html>

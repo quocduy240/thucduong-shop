@@ -4,7 +4,7 @@ import ConfirmButton from "@/components/admin/ConfirmButton";
 import KiotVietInvoicePrintStudio from "@/components/admin/KiotVietInvoicePrintStudio";
 import { Flash, PageHeader, StatusBadge, ui } from "@/components/admin/ui";
 import { ORDER_STATUS, getOrder } from "@/lib/admin-data";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { getOrderShippingInfo, listDeliveryPartners } from "@/lib/retail-ops";
 import { getInvoicePrintConfig, getSite } from "@/lib/settings";
 import { vnd } from "@/lib/site";
@@ -18,7 +18,7 @@ import {
 export const metadata = { title: "Chi tiết đơn & In hóa đơn KiotViet A5 | Quản trị" };
 
 export default async function OrderDetail({ params, searchParams }: PageProps<"/admin/orders/[id]">) {
-  await requireAdmin();
+  await requireAdminPath("/admin/orders/");
   const id = Number((await params).id);
   const sp = await searchParams;
   const [data, ship, partners, site, printConfig] = await Promise.all([

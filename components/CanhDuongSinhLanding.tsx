@@ -146,7 +146,7 @@ export default function CanhDuongSinhLanding({
       const res = await fetch(`/api/v2/add-to-cart/${prod.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity: qty }),
+        body: JSON.stringify({ qty, quantity: qty }),
       });
       if (res.ok) {
         setAddedKey(key);

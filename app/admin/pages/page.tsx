@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { Flash, PageHeader, ui } from "@/components/admin/ui";
 import { listAllPages } from "@/lib/admin-data";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { url } from "@/lib/data";
 
 export const metadata = { title: "Trang tĩnh | Quản trị" };
 
 export default async function PagesAdmin({ searchParams }: PageProps<"/admin/pages">) {
-  await requireAdmin();
+  await requireAdminPath("/admin/pages/");
   const sp = await searchParams;
   const pages = await listAllPages();
   return (

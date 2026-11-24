@@ -3,14 +3,14 @@ import { notFound } from "next/navigation";
 import ContentEditor from "@/components/admin/ContentEditor";
 import { Flash, PageHeader, ui } from "@/components/admin/ui";
 import { getPageRow } from "@/lib/admin-data";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { savePageAction } from "../../actions";
 
 export const metadata = { title: "Sửa trang | Quản trị" };
 
 // key = "<group or ->__<slug>", e.g. "-__gioi-thieu" or "chinh-sach__huong-dan-mua-hang"
 export default async function PageEdit({ params, searchParams }: PageProps<"/admin/pages/[key]">) {
-  await requireAdmin();
+  await requireAdminPath("/admin/pages/");
   const { key } = await params;
   const sp = await searchParams;
   const [g, slug] = decodeURIComponent(key).split("__");

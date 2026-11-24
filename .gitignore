@@ -48,3 +48,4 @@ note_shop_thucduongphuctho
 # Cloudflare OpenNext & Wrangler local state
 /.open-next/
 /.wrangler/
+/.vscode

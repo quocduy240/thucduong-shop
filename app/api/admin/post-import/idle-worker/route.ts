@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import { getPostIdleWorkerSummary, processNextIdlePostImportJob } from "@/lib/post-importer";
 import { safeEqualSecret } from "@/lib/security";
 
@@ -9,7 +9,7 @@ async function handleIdleRun(req: Request) {
   const isCronAuthorized = Boolean(secret) && safeEqualSecret(secret, reqSecret);
 
   if (!isCronAuthorized) {
-    const admin = await currentAdmin();
+    const admin = await currentAdminForPath("/admin/posts/");
     if (!admin) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }

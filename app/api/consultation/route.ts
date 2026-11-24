@@ -1,11 +1,14 @@
 import { run } from "@/lib/db";
 import { sendEmail } from "@/lib/mail";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { getSite, getWidgetSettings } from "@/lib/settings";
 
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 export async function POST(req: Request) {
+  const rl = checkRateLimit(getClientIp(req), { namespace: "consultation", limit: 5, windowMs: 10 * 60_000 });
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterSec);
   const body = (await req.json().catch(() => ({}))) as {
     name?: string;
     phone?: string;

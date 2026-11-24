@@ -1,4 +1,4 @@
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import { all, one, run } from "@/lib/db";
 import { callGeminiGenerateContent, resolveGeminiApiKey } from "@/lib/gemini-key";
 import { slugify } from "@/lib/uploads";
@@ -160,7 +160,7 @@ function parseReportIntoMindmap(topic: string, reportText: string): MindmapStruc
 }
 
 export async function POST(req: Request) {
-  if (!(await currentAdmin())) {
+  if (!(await currentAdminForPath("/admin/posts/"))) {
     return Response.json({ error: "Chưa đăng nhập quản trị." }, { status: 401 });
   }
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import { Flash, PageHeader, Pagination, pageParam, strParam, ui } from "@/components/admin/ui";
 import { getDocumentsOverview, listDocuments } from "@/lib/admin-data";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { vnd } from "@/lib/site";
 import { deleteDocumentAction, deleteDocumentLeadAction } from "../actions";
 
@@ -37,7 +37,7 @@ export default async function DocumentsAdminPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireAdmin();
+  await requireAdminPath("/admin/documents/");
   const sp = await searchParams;
   const activeTab = strParam(sp.tab) === "leads" ? "leads" : "docs";
   const q = strParam(sp.q);

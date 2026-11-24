@@ -2,7 +2,7 @@ import Link from "next/link";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import { Flash, PageHeader, Pagination, pageParam, strParam, ui } from "@/components/admin/ui";
 import { getPostsOverview, listPosts } from "@/lib/admin-data";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { getPostCategories, url } from "@/lib/data";
 import { deletePostAction } from "../actions";
 
@@ -18,7 +18,7 @@ function buildHref(params: Record<string, string | number | undefined>) {
 }
 
 export default async function PostsAdmin({ searchParams }: PageProps<"/admin/posts">) {
-  await requireAdmin();
+  await requireAdminPath("/admin/posts/");
   const sp = await searchParams;
   const q = strParam(sp.q);
   const category = Number(strParam(sp.category)) || 0;

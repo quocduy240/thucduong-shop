@@ -1,0 +1,480 @@
+[
+  {
+    "op": "set-default-style",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "line_spacing": 115
+  },
+  {
+    "op": "heading",
+    "text": "10. Kiến trúc Triển khai, CI/CD, Sao lưu & Vận hành (Deployment & DevOps)",
+    "level": "2",
+    "font_family": "Roboto",
+    "font_size": 18,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 20,
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Quy trình giao hàng liên tục (CI/CD) và bảo vệ dữ liệu của dự án được tự động hóa thông qua 3 workflow trên GitHub Actions kết hợp cùng công cụ dòng lệnh Wrangler và OpenNext. Khi code mới được đẩy lên nhánh main, hệ thống thực hiện kiểm tra kiểu TypeScript, chạy 22 unit test, đóng gói Worker và áp dụng chỉ mục hiệu năng trước khi phát hành lên tên miền production.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Hình 8. Quy trình CI/CD, Sao lưu D1 và Vận hành Production",
+    "font_family": "Roboto",
+    "font_size": 10.5,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 8,
+    "space_below": 4
+  },
+  {
+    "op": "append",
+    "text": "Toàn bộ cấu hình vận hành được quản lý tách biệt giữa các tệp khai báo hạ tầng (wrangler.jsonc, open-next.config.ts), bí mật trên Cloudflare Secrets / GitHub Secrets và cấu hình động trong bảng settings của D1. Bảng dưới đây tổng hợp đầy đủ các Bindings và Biến môi trường đang được mã nguồn sử dụng.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "insert-table",
+    "table_data": [
+      [
+        "Biến / Binding",
+        "Nơi khai báo / Lưu trữ",
+        "Mục đích & Cơ chế Dự phòng"
+      ],
+      [
+        "DB (D1 Database)",
+        "wrangler.jsonc (d1_databases)",
+        "Kết nối cơ sở dữ liệu chính thucduong-shop-db (ID: 111f93d1-e16a-4ecd-87e4-66ef459c2063)."
+      ],
+      [
+        "NEXT_INC_CACHE_KV",
+        "wrangler.jsonc (kv_namespaces)",
+        "Namespace KV lưu Next.js Incremental Cache và Regional Cache TTL 300s."
+      ],
+      [
+        "ASSETS & WORKER_SELF_REFERENCE",
+        "wrangler.jsonc",
+        "Phân phối tài sản tĩnh .open-next/assets và dịch vụ tự tham chiếu cho OpenNext."
+      ],
+      [
+        "MEDIA_BUCKET (R2)",
+        "Đọc động qua getCloudflareContext()",
+        "Bucket R2 lưu media tải lên; hiện CHƯA khai báo trong wrangler.jsonc nên mặc định fallback về D1."
+      ],
+      [
+        "GEMINI_API_KEY",
+        "Env Secret / settings.gemini_api_key",
+        "Khóa dự phòng cho AI Gateway khi quản trị viên chưa cấu hình khóa trong /admin/settings/."
+      ],
+      [
+        "CRON_SECRET & IDLE_WORKER_SECRET",
+        "Cloudflare Worker Secrets",
+        "Bảo vệ các endpoint /api/cron/* và /api/admin/*/idle-worker qua header x-cron-secret / x-idle-secret."
+      ],
+      [
+        "SMTP_HOST / PORT / USER / PASS",
+        "Env Secret / settings (mailDefaults)",
+        "Cấu hình dự phòng cho trình gửi mail SMTP TLS (mặc định smtp.gmail.com:465)."
+      ],
+      [
+        "NEXT_PUBLIC_MEDIA_CDN_URL",
+        "Environment Variable",
+        "Tên miền CDN công khai của R2 để rewrite đường dẫn /api/media/* trong lib/image-url.ts."
+      ],
+      [
+        "NEXT_PUBLIC_CF_IMAGE_RESIZING",
+        "Environment Variable ('1')",
+        "Khi bằng '1', kích hoạt bọc đường dẫn ảnh raster qua /cdn-cgi/image/ tối ưu WebP/AVIF."
+      ],
+      [
+        "CLOUDFLARE_API_TOKEN / ACCOUNT_ID",
+        "GitHub Secrets",
+        "Dùng trong deploy-cloudflare.yml và backup-d1.yml để chạy wrangler từ xa (nếu thiếu sẽ tự bỏ qua)."
+      ],
+      [
+        "R2_BACKUP_BUCKET",
+        "GitHub Repository Variable",
+        "Nếu được thiết lập, bản sao lưu D1 nén .sql.gz hằng ngày sẽ được đẩy thêm lên bucket R2 này."
+      ]
+    ],
+    "table_header_bg_color": "#e6f4ea",
+    "table_header_text_color": "#137333",
+    "table_header_bold": true,
+    "table_font_family": "Roboto",
+    "table_font_size": 9.5,
+    "table_border_color": "#dadce0",
+    "table_border_width": 0.5
+  },
+  {
+    "op": "append",
+    "text": "Một điểm cần lưu ý trong mô hình vận hành hiện tại là tệp wrangler.jsonc chưa khai báo khối triggers.crons. Vì vậy, ba endpoint định kỳ (/api/cron/compliance-sync, /api/cron/crm-automation, /api/cron/youtube-sync) hiện chưa tự chạy theo lịch cron của Cloudflare Worker mà dựa vào: (1) kích hoạt nền không chặn (ctx.waitUntil) khi có người truy cập trang bài giảng YouTube hoặc chạy trình nhập bài; (2) nút kích hoạt thủ công trong giao diện Admin; hoặc (3) bộ lập lịch ngoài gọi HTTP vào các đường dẫn cron.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Ba quy trình tự động hóa GitHub Actions đảm nhiệm vòng đời kiểm soát chất lượng, sao lưu và phát hành liên tục như trình bày trong bảng đối chiếu dưới đây.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "insert-table",
+    "table_data": [
+      [
+        "Workflow (.github/workflows/)",
+        "Lịch / Điều kiện Kích hoạt",
+        "Các Bước Thực thi Chính",
+        "Đầu ra & Bảo vệ Toàn vẹn"
+      ],
+      [
+        "deploy-cloudflare.yml",
+        "Push vào main (bỏ qua *.md, *.test.*), workflow_dispatch",
+        "npm ci -> typecheck -> 22 unit tests (tsx --test) -> opennextjs-cloudflare build -> wrangler d1 execute 0002_performance_indexes.sql -> deploy",
+        "Đảm bảo không phát hành mã lỗi kiểu/test; scripts/ensure-opennext-build.mjs tự vá postinstall khi thiếu build edge."
+      ],
+      [
+        "security-audit.yml",
+        "Push/PR main + Cron Thứ Hai 02:00 UTC (09:00 VN)",
+        "Job 1: npm audit (high) + typecheck; Job 2: Semgrep SAST (p/typescript, p/react, p/owasp-top-ten); Job 3: Trivy scan (vuln, secret, misconfig)",
+        "Chặn lỗ hổng phụ thuộc, rò rỉ khóa bí mật và các mẫu mã mất an toàn OWASP Top 10 trước khi gộp nhánh."
+      ],
+      [
+        "backup-d1.yml",
+        "Cron hằng ngày 20:00 UTC (03:00 sáng UTC+7) + thủ công",
+        "wrangler d1 export --remote -> scripts/verify-d1-backup.mjs (kiểm >=512B, 9 bảng cốt lõi, có INSERT) -> gzip -9 + sha256sum",
+        "Lưu GitHub Artifact 30 ngày kèm checksum SHA-256; tự động đẩy thêm lên bucket R2 nếu có vars.R2_BACKUP_BUCKET."
+      ]
+    ],
+    "table_header_bg_color": "#e6f4ea",
+    "table_header_text_color": "#137333",
+    "table_header_bold": true,
+    "table_font_family": "Roboto",
+    "table_font_size": 9.5,
+    "table_border_color": "#dadce0",
+    "table_border_width": 0.5
+  },
+  {
+    "op": "append",
+    "text": "Khi triển khai thực tế theo runbook .agents/skills/cf-deploy-verify/SKILL.md, kỹ sư vận hành luôn chạy npm run typecheck trước, sau đó gọi npm run cf:deploy (lưu ý: nếu Next.js gặp lỗi tạm thời khi prerender D1 ở nhiều worker song song, chỉ cần chạy lại lệnh cf:deploy), cuối cùng thực hiện smoke-test bằng curl trên https://thucduongshop.duyvo.win (luôn kèm dấu / cuối cho các endpoint POST để tránh chuyển hướng 308). Ở môi trường phát triển cục bộ, lập trình viên có thể chạy docker-compose.yml (image node:24, WATCHPACK_POLLING=true) hoặc npm run dev có initOpenNextCloudflareForDev() để mô phỏng D1/KV ngay trên máy.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "heading",
+    "text": "11. Đánh giá Kỹ thuật, Phát hiện Rủi ro từ Mã nguồn & Khuyến nghị Khắc phục",
+    "level": "2",
+    "font_family": "Roboto",
+    "font_size": 18,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 20,
+    "space_below": 6
+  },
+  {
+    "op": "rich-text",
+    "font_family": "Roboto",
+    "font_size": 10.5,
+    "text_color": "#202124",
+    "space_below": 8,
+    "runs": [
+      {
+        "font_family": "Roboto",
+        "bold": true,
+        "italic": false,
+        "text_color": "#D93025",
+        "text": "Tổng kết Kiểm toán Mã nguồn (HEAD 557fbf9): "
+      },
+      {
+        "font_family": "Roboto",
+        "bold": false,
+        "italic": false,
+        "text_color": "#202124",
+        "text": "Kiến trúc tổng thể của thucduong-shop rất chặt chẽ ở các điểm nóng nghiệp vụ (trừ kho nguyên tử, sổ cái Loyalty chống trùng lặp, khóa lease D1, khử độc file bằng Magic-Byte và đóng gói thuần TypeScript cho workerd). Tuy nhiên, quá trình rà soát chi tiết mã nguồn đã phát hiện 16 vấn đề cụ thể về bảo mật, tính đúng đắn dữ liệu, đồng bộ nghiệp vụ và hiệu năng cần ưu tiên khắc phục theo lộ trình dưới đây."
+      }
+    ],
+    "paragraph_bg_color": "#fce8e6",
+    "space_above": 6
+  },
+  {
+    "op": "append",
+    "text": "Bảng Ma trận Phát hiện Kỹ thuật dưới đây liệt kê đầy đủ các lỗi và lỗ hổng được xác minh trực tiếp từ mã nguồn kèm tệp phát sinh, mức độ rủi ro và giải pháp xử lý triệt để.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "insert-table",
+    "table_data": [
+      [
+        "Mức độ",
+        "Phân hệ / Tệp mã nguồn",
+        "Mô tả Chi tiết Vấn đề Phát hiện",
+        "Khuyến nghị Khắc phục"
+      ],
+      [
+        "CAO (Bảo mật)",
+        "app/api/cron/crm-automation/route.ts & app/api/kiotviet/webhook/route.ts",
+        "Nếu CRON_SECRET hoặc kiotviet_webhook_secret để trống, endpoint cho phép chạy KHÔNG CẦN XÁC THỰC; khi có secret lại so sánh bằng !== (dễ lộ thời gian) và cho phép truyền qua query ?secret=.",
+        "Từ chối 401/503 nếu secret chưa cấu hình (hoặc kiểm currentAdmin()), chỉ nhận qua header và đổi sang safeEqualSecret()."
+      ],
+      [
+        "CAO (RBAC)",
+        "orders/[id], crm, loyalty, members, sitemaps, themes, quick-consult/send-email, orders/export",
+        "Một số trang quản trị và API route mới kiểm tra currentAdmin()/requireAdmin() thay vì requireRole() khớp với phân quyền trên AdminNav, cho phép Editor/Sales gọi được API ngoài phạm vi menu.",
+        "Áp dụng helper kiểm tra vai trò thống nhất (canPerformAdminAction / canAccessAdminPath) cho tất cả 26 API route và 39 trang Admin."
+      ],
+      [
+        "CAO (Dữ liệu)",
+        "CanhDuongSinhLanding.tsx & app/api/v2/add-to-cart/[id]/route.ts",
+        "Landing Canh Dưỡng Sinh gửi JSON { quantity: qty } (và FlashSaleShowcase gửi { quantity: 1 }), nhưng endpoint add-to-cart đọc body.qty (mặc định 1), khiến chọn nhiều hộp trên landing chỉ thêm được 1 hộp.",
+        "Hỗ trợ đọc body.qty ?? body.quantity trong /api/v2/add-to-cart/[id] và thống nhất payload phía client."
+      ],
+      [
+        "CAO (Dữ liệu)",
+        "app/api/newsletter/route.ts & app/api/admin/blocks/route.ts",
+        "newsletter/route.ts gọi run(...) thiếu từ khóa await (nguy cơ rớt ghi D1 khi Worker đóng isolate); admin/blocks/route.ts gọi getAllBlocks() thiếu await khiến JSON trả về object Promise rỗng.",
+        "Bổ sung từ khóa await cho cả hai lời gọi bất đồng bộ ngay lập tức."
+      ],
+      [
+        "CAO (Logic)",
+        "lib/crm.ts (hàm runCrmEmailAutomation, dòng 438-440)",
+        "Kiểm tra if (ok) trên giá trị trả về của sendEmail(), trong khi sendEmail() luôn trả về object { sent: boolean }. Điều này khiến automation tự đánh dấu đã gửi vào crm_automation_logs ngay cả khi SMTP lỗi hoặc chưa cấu hình.",
+        "Đổi điều kiện kiểm tra thành if (ok.sent) và ghi log cảnh báo khi gửi thất bại."
+      ],
+      [
+        "CAO (Hạ tầng)",
+        "wrangler.jsonc & app/api/media/[...path]/route.ts",
+        "wrangler.jsonc chưa khai báo r2_buckets MEDIA_BUCKET. Đặc biệt, nếu bật R2 mà chưa cấu hình NEXT_PUBLIC_MEDIA_CDN_URL, đường dẫn /api/media/products/... sẽ lỗi 404 vì [...path]/route.ts chỉ đọc bảng D1 media_files chứ không đọc R2.",
+        "Cho phép [...path]/route.ts đọc fallback từ MEDIA_BUCKET (tương tự [slug]/route.ts) và cấu hình r2_buckets khi lên R2."
+      ],
+      [
+        "TRUNG BÌNH (Bảo mật)",
+        "submit-comment, api/consultation, api/newsletter, api/quick-consult/followup, ai-rewrite, admin/upload",
+        "4 endpoint ghi công khai chưa có rate limit; ai-rewrite chưa kiểm assertSafePublicHttpUrl khi cào URL; /admin/upload bằng JSON imageUrl chưa chạy verifyFileMagicBytes trên bytes tải về.",
+        "Gắn checkRateLimit cho 4 route công khai; bổ sung assertSafePublicHttpUrl vào ai-rewrite và verifyFileMagicBytes vào remote upload."
+      ],
+      [
+        "TRUNG BÌNH (Nghiệp vụ)",
+        "lib/loyalty-events.ts, app/admin/_actions/orders.ts, data-checkout, coupons/check",
+        "Chuyển đơn done -> returned không hoàn trừ điểm Loyalty (mã chỉ kiểm cancelled); đơn POS tạo mới trạng thái done không gọi onOrderStatusChanged; checkout đọc tier từ bảng members cũ (nơi diamond bị hạ thành gold) và coupons/check bỏ qua hạng diamond.",
+        "Đồng bộ tier từ member_profiles khi checkout & kiểm coupon; kích hoạt tích điểm cho đơn POS (nếu có SĐT) và trừ điểm khi trả hàng."
+      ],
+      [
+        "TRUNG BÌNH (AI & Sync)",
+        "quick-consult/analyze/route.ts, lab-analysis.ts, kiotviet.ts, BlockZone.tsx",
+        "analyze/route.ts bỏ sót 3 trường disclaimer khi lưu cấu hình; lab-analysis.ts đi vòng lib/gemini-key.ts (hardcode gemini-3.8-flash, khóa claim không độc quyền); syncInventoryFromKiotViet chỉ lấy 100 SP đầu; BlockZone gắn nhầm link sửa /admin/blocks/10000X/ cho QR block.",
+        "Hợp nhất lab-analysis qua AI Gateway và thêm khóa lease D1; thêm vòng lặp phân trang KiotViet; trỏ nút sửa QR trong BlockZone về /admin/qr/[id]/."
+      ],
+      [
+        "TRUNG BÌNH (Hiệu năng)",
+        "app/layout.tsx & wrangler.jsonc",
+        "app/layout.tsx đặt force-dynamic làm vô hiệu hóa revalidate cấp trang trên toàn Storefront; wrangler.jsonc chưa cấu hình triggers.crons cho 3 route cron định kỳ.",
+        "Chuyển boot Theme sang cookie/client hoặc giữ force-dynamic có chủ đích kèm mở rộng unstable_cache cho products/posts/blocks; thêm triggers.crons vào wrangler.jsonc."
+      ],
+      [
+        "THẤP (Tài liệu)",
+        "README.md, AGENTS.md, MindmapStudio.tsx, package.json",
+        "README.md và phần đầu AGENTS.md vẫn ghi kiến trúc SQLite cục bộ cũ thay vì D1/Workers; MindmapStudio.tsx đã xây dựng nhưng chưa gắn vào trang Admin nào; package.json thiếu script npm test.",
+        "Cập nhật tài liệu theo kiến trúc D1 hiện hành, gắn MindmapStudio vào menu Nội dung hoặc trình soạn thảo và thêm script 'test' vào package.json."
+      ]
+    ],
+    "table_header_bg_color": "#e6f4ea",
+    "table_header_text_color": "#137333",
+    "table_header_bold": true,
+    "table_font_family": "Roboto",
+    "table_font_size": 9.5,
+    "table_border_color": "#dadce0",
+    "table_border_width": 0.5,
+    "table_cell_colors": [
+      [
+        ""
+      ],
+      [
+        "#f4cccc",
+        "",
+        "",
+        ""
+      ],
+      [
+        "#f4cccc",
+        "",
+        "",
+        ""
+      ],
+      [
+        "#f4cccc",
+        "",
+        "",
+        ""
+      ],
+      [
+        "#f4cccc",
+        "",
+        "",
+        ""
+      ],
+      [
+        "#f4cccc",
+        "",
+        "",
+        ""
+      ],
+      [
+        "#f4cccc",
+        "",
+        "",
+        ""
+      ],
+      [
+        "#fff2cc",
+        "",
+        "",
+        ""
+      ],
+      [
+        "#fff2cc",
+        "",
+        "",
+        ""
+      ],
+      [
+        "#fff2cc",
+        "",
+        "",
+        ""
+      ],
+      [
+        "#fff2cc",
+        "",
+        "",
+        ""
+      ],
+      [
+        "#d9ead3",
+        "",
+        "",
+        ""
+      ]
+    ]
+  },
+  {
+    "op": "append",
+    "text": "Dựa trên mức độ tác động đến vận hành thực tế, lộ trình cải tiến được đề xuất thành 3 chặng ưu tiên rõ ràng:",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "rich-text",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_below": 3,
+    "runs": [
+      {
+        "font_family": "Roboto",
+        "bold": true,
+        "italic": false,
+        "text_color": "#D93025",
+        "text": "Giai đoạn 1 (Tuần 1 - Vá nóng An toàn & Dữ liệu): "
+      },
+      {
+        "font_family": "Roboto",
+        "bold": false,
+        "italic": false,
+        "text_color": "#202124",
+        "text": "Bổ sung await cho newsletter và blocks/route.ts; sửa body.qty ?? body.quantity tại add-to-cart; sửa điều kiện if (ok.sent) trong CRM automation; khóa chặt xác thực CRON_SECRET và KiotViet Webhook bằng safeEqualSecret(); bổ sung kiểm tra vai trò RBAC cho toàn bộ API /api/admin/*."
+      }
+    ],
+    "bullet_preset": "BULLET_DISC_CIRCLE_SQUARE",
+    "space_above": 4
+  },
+  {
+    "op": "rich-text",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_below": 3,
+    "runs": [
+      {
+        "font_family": "Roboto",
+        "bold": true,
+        "italic": false,
+        "text_color": "#b45309",
+        "text": "Giai đoạn 2 (Tuần 2 đến 3 - Đồng bộ Hạ tầng & Nghiệp vụ): "
+      },
+      {
+        "font_family": "Roboto",
+        "bold": false,
+        "italic": false,
+        "text_color": "#202124",
+        "text": "Khai báo r2_buckets MEDIA_BUCKET trong wrangler.jsonc kèm hỗ trợ đọc R2 tại /api/media/[...path]; khai báo triggers.crons trong wrangler.jsonc; đồng nhất giảm giá hạng Kim cương 7% và hoàn điểm khi trả hàng; đưa lab-analysis.ts qua AI Gateway chuẩn và sửa đường dẫn sửa QR trong BlockZone."
+      }
+    ],
+    "bullet_preset": "BULLET_DISC_CIRCLE_SQUARE",
+    "space_above": 3
+  },
+  {
+    "op": "rich-text",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_below": 8,
+    "runs": [
+      {
+        "font_family": "Roboto",
+        "bold": true,
+        "italic": false,
+        "text_color": "#137333",
+        "text": "Giai đoạn 3 (Tháng 1+ - Tối ưu Hiệu năng Edge & Kiểm thử): "
+      },
+      {
+        "font_family": "Roboto",
+        "bold": false,
+        "italic": false,
+        "text_color": "#202124",
+        "text": "Đưa truy vấn products, posts, blocks, flashSale vào unstable_cache gắn thẻ để giảm số lượt đọc D1 trên mỗi lượt tải trang; tích hợp kiểm thử tích hợp (integration tests) cho luồng Checkout/Loyalty và cập nhật đồng bộ tài liệu README.md/AGENTS.md."
+      }
+    ],
+    "bullet_preset": "BULLET_DISC_CIRCLE_SQUARE",
+    "space_above": 3
+  },
+  {
+    "op": "horizontal-rule"
+  },
+  {
+    "op": "append",
+    "text": "Báo cáo Phân tích Kỹ thuật Thực Dưỡng Phúc Thọ (thucduong-shop)  •  Tổng hợp trực tiếp từ mã nguồn HEAD 557fbf9  •  Tài liệu nội bộ",
+    "font_family": "Roboto",
+    "font_size": 8,
+    "italic": true,
+    "text_color": "#9aa0a6",
+    "alignment": "CENTER",
+    "space_above": 6
+  }
+]

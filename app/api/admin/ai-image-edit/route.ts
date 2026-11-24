@@ -1,4 +1,4 @@
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import { run } from "@/lib/db";
 import { callGeminiGenerateContent, resolveGeminiApiKey } from "@/lib/gemini-key";
 import { saveMediaAsset } from "@/lib/media-assets";
@@ -59,6 +59,7 @@ async function syncImageUrlAcrossDatabase(oldUrl: string, newUrl: string): Promi
     [`UPDATE products SET description = REPLACE(description, ?, ?) WHERE description LIKE ?`, [oldUrl, newUrl, `%${oldUrl}%`]],
     [`UPDATE posts SET cover = ? WHERE cover = ?`, [newUrl, oldUrl]],
     [`UPDATE posts SET content = REPLACE(content, ?, ?) WHERE content LIKE ?`, [oldUrl, newUrl, `%${oldUrl}%`]],
+    [`UPDATE content_blocks SET content_html = REPLACE(content_html, ?, ?) WHERE content_html LIKE ?`, [oldUrl, newUrl, `%${oldUrl}%`]],
     [`UPDATE reusable_blocks SET content = REPLACE(content, ?, ?) WHERE content LIKE ?`, [oldUrl, newUrl, `%${oldUrl}%`]],
     [`UPDATE pages SET content = REPLACE(content, ?, ?) WHERE content LIKE ?`, [oldUrl, newUrl, `%${oldUrl}%`]],
   ];
@@ -75,7 +76,7 @@ async function syncImageUrlAcrossDatabase(oldUrl: string, newUrl: string): Promi
 }
 
 export async function POST(req: Request) {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/posts/", "/admin/products/");
   if (!admin) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {

@@ -1,0 +1,653 @@
+[
+  {
+    "op": "set-default-style",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "line_spacing": 115
+  },
+  {
+    "op": "heading",
+    "text": "7. Kiến trúc AI 3 Tầng, Tư vấn Y khoa & Tuân thủ Pháp luật",
+    "level": "2",
+    "font_family": "Roboto",
+    "font_size": 18,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 20,
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Khác với cách tích hợp AI rời rạc theo từng route dễ gây phình chi phí token và hết thời gian chờ (timeout) trên nền tảng Serverless, thucduong-shop được thiết kế theo bản vẽ Kiến trúc AI 3 Tầng chuẩn hóa trong .agents/skills/thucduong-ai-architecture/SKILL.md. Ba tầng bao gồm Tầng Cấu hình Prompt & Tuân thủ Pháp lý, Tầng AI Gateway tối ưu token và Tầng Hàng đợi Điều phối song song giữa trình duyệt và máy chủ.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Hình 6. Kiến trúc AI 3 Tầng, Hàng đợi Client và D1 Lease-Locked Idle Workers",
+    "font_family": "Roboto",
+    "font_size": 10.5,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 8,
+    "space_below": 4
+  },
+  {
+    "op": "heading",
+    "text": "7.1 Phân tách 3 Tầng, Unified AI Gateway & Tối ưu Chi phí Token",
+    "level": "3",
+    "font_family": "Roboto",
+    "font_size": 13.5,
+    "bold": true,
+    "text_color": "#065a82",
+    "space_above": 13,
+    "space_below": 4
+  },
+  {
+    "op": "append",
+    "text": "Tầng 1 tách biệt toàn bộ prompt và quy chuẩn khỏi mã xử lý: lib/ai-motifs.ts định nghĩa 8 phong cách viết bài (duyvo, deep_research, youtube_lecture, gdocs_handbook, step_by_step, medical_wfpb, storytelling, seo_conversion) lưu mở rộng trong settings.ai_motifs_json; lib/medical-compliance.ts quản lý bộ quy tắc pháp lý; lib/medical-disclaimer.ts lưu 3 mẫu miễn trừ trách nhiệm y khoa (gemini_standard, warm_senior, legal_strict); còn lib/quick-consult-options.ts chứa cấu hình 4 đối tượng, 3 chuyên gia và 4 gói tư vấn.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Tại Tầng 2, cổng AI Gateway tập trung trong lib/gemini-key.ts giải quyết API Key theo thứ tự ưu tiên: khóa override truyền từ request (kiểm định định dạng AIza* hoặc AQ.*) -> khóa lưu trong D1 settings.gemini_api_key -> biến môi trường GEMINI_API_KEY. Khi gọi sinh văn bản, callGeminiGenerateContent() sử dụng cơ chế tự động dự phòng từ gemini-2.5-flash sang gemini-flash-latest (chỉ thử lại trên mã lỗi 400/404, timeout mặc định 25 giây). Nhằm tiết kiệm token tối đa, dữ liệu đầu vào từ web được làm sạch toàn bộ thẻ script/style/thuộc tính CSS/SĐT/tên miền nguồn bằng TypeScript thuần trước khi gửi Gemini, cấu trúc JSON schema trả về được ép chặt để loại bỏ chữ dư thừa, ảnh sản phẩm chỉ gọi model tái tạo ảnh khi bước kiểm tra trước trả về cờ HAS_WATERMARK, và phác đồ Tư vấn nhanh không có ghi chú riêng sẽ được tái sử dụng từ bảng cache SHA-256 quick_consult_cache trong 14 ngày.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "heading",
+    "text": "7.2 Hàng đợi Tuần tự Client & D1 Lease-Locked Idle Workers",
+    "level": "3",
+    "font_family": "Roboto",
+    "font_size": 13.5,
+    "bold": true,
+    "text_color": "#065a82",
+    "space_above": 13,
+    "space_below": 4
+  },
+  {
+    "op": "append",
+    "text": "Ở phía trình duyệt quản trị, AiIdleQueueProvider.tsx bao bọc toàn bộ /admin/* để ép mức đồng thời concurrency = 1. Giữa hai tác vụ liên tiếp, hàng đợi nghỉ 900ms và chờ thời điểm trình duyệt rảnh qua window.requestIdleCallback (timeout 1300ms), đồng thời tự học thời gian chạy thực tế bằng trung bình trượt hàm mũ EMA (65% ước lượng cũ + 35% thời gian mới) lưu trong localStorage để hiển thị đếm ngược ETA chính xác ngay trên nút nổi góc dưới trái. Ở phía máy chủ, các quy trình dài như nhập bài viết, nhập hàng loạt sản phẩm hay phân tích xét nghiệm hoạt động theo cơ chế Idle Worker khóa lease D1 nhằm tránh đụng độ giữa các lần gọi đồng thời.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "insert-table",
+    "table_data": [
+      [
+        "Phân hệ Worker",
+        "Bảng D1 & Trạng thái",
+        "Thời hạn Lease & Câu lệnh Chiếm quyền",
+        "Cơ chế Phục hồi & Thử lại"
+      ],
+      [
+        "Post Importer (post-import/idle-worker)",
+        "post_import_jobs (7 trạng thái: queued -> researching -> writing -> generating_images -> ready_review -> published / failed)",
+        "Khóa 40 giây: UPDATE ... SET locked_until = datetime('now', '+40 seconds') WHERE id = ? AND (locked_until IS NULL OR locked_until < datetime('now'))",
+        "Tự thu hồi khi quá 40s ở lần poll tiếp theo (1400ms/lần khi active). Gặp lỗi đánh dấu failed; Admin bấm retry_job để đặt lại queued."
+      ],
+      [
+        "Product Importer (product-import/idle-worker)",
+        "product_import_jobs (7 trạng thái: fetch_queued -> fetched -> imported -> cleaning_queued -> cleaning_running -> cleaned / failed)",
+        "Khóa 35 giây bằng điều kiện nguyên tử kiểm tra locked_until tương tự Post Importer.",
+        "Tự thu hồi sau 35s; UI poll 1200ms khi có việc; hỗ trợ xếp hàng tối đa 20 URL mới hoặc 50 sản phẩm chưa làm sạch."
+      ],
+      [
+        "Lab Analysis (lab-analysis/idle-worker)",
+        "lab_analyses (4 trạng thái: pending -> processing -> done / error)",
+        "Dùng trạng thái processing + started_at = datetime('now'); kích hoạt qua ctx.waitUntil() và Idle Callback 2500ms.",
+        "Nhặt lại các job processing bị treo quá 3 phút. Lưu ý: mệnh đề WHERE hiện bao gồm cả 'processing' nên chưa khóa độc quyền tuyệt đối nếu hai worker đọc cùng lúc."
+      ]
+    ],
+    "table_header_bg_color": "#e6f4ea",
+    "table_header_text_color": "#137333",
+    "table_header_bold": true,
+    "table_font_family": "Roboto",
+    "table_font_size": 9.5,
+    "table_border_color": "#dadce0",
+    "table_border_width": 0.5
+  },
+  {
+    "op": "heading",
+    "text": "7.3 Hệ thống Ứng dụng AI & Động cơ Tuân thủ Pháp luật Y tế",
+    "level": "3",
+    "font_family": "Roboto",
+    "font_size": 13.5,
+    "bold": true,
+    "text_color": "#065a82",
+    "space_above": 13,
+    "space_below": 4
+  },
+  {
+    "op": "append",
+    "text": "Trên nền tảng 3 tầng đó, 7 nhóm tính năng AI phục vụ xuyên suốt từ người mua hàng tới đội ngũ biên tập và chuyên viên y tế:",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "bullet-list",
+    "text": "Tư vấn Nhanh AI (/tu-van-nhanh/) & Hồ sơ Y tế PDF (/ho-so-tu-van/[token]/): Khách hàng trải qua 3 bước (Chọn đối tượng + tính chỉ số BMI chuẩn châu Á; Nhập khẩu phần 24h & chọn mục tiêu/bệnh lý/thói quen; Chọn phong cách Chuyên gia AI). Hệ thống ghép sản phẩm đang còn hàng theo 4 trụ cột Thực dưỡng (Thức ăn, Trợ phương, Thảo dược, Khác), kèm 3 video và 3 tài liệu liên quan để sinh bài tư vấn 550-750 từ có mã tra cứu share_token in PDF A4 và gửi email từ Admin.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 6,
+    "space_below": 2
+  },
+  {
+    "op": "bullet-list",
+    "text": "Phân tích Phiếu Xét nghiệm AI (/admin/lab-analysis/): Nhận tệp ảnh hoặc PDF tối đa 6MB cùng mô tả triệu chứng bằng văn bản hoặc giọng nói (Web Speech vi-VN), gọi trực tiếp Gemini 3.8 Flash Vision OCR xuất báo cáo 5 phần theo chuẩn WHO/AHA/ADA/KDIGO/EASL và tự động xóa chuỗi file_base64 sau khi hoàn tất để giải phóng dung lượng D1.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 2,
+    "space_below": 2
+  },
+  {
+    "op": "bullet-list",
+    "text": "Nghiên cứu & Viết bài Độc bản (/admin/posts/import/): Hỗ trợ trích xuất bài web hoặc phụ đề YouTube (kèm tối đa 2 link tham khảo phụ), lập dàn ý Đông - Tây Y, viết bài 800-1.400 từ, tự sinh bộ 3 đến 5 ảnh thương hiệu gắn logo Thực Dưỡng Phúc Thọ vào các mục H2 và cho phép viết lại theo chuẩn đề nghị có nút Hoàn tác.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 2,
+    "space_below": 2
+  },
+  {
+    "op": "bullet-list",
+    "text": "Nhập Sản phẩm Thông minh & Làm sạch 4 Bước (/admin/products/import/): Bóc tách JSON-LD/OpenGraph/HTML không tốn token, cảnh báo dấu vết trang nguồn (SĐT, email, link mua hàng đối thủ, ảnh ngoài), kiểm tra chênh lệch giá/hết hàng từ nguồn (check_update) và làm sạch tự động 4 bước.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 2,
+    "space_below": 2
+  },
+  {
+    "op": "bullet-list",
+    "text": "Biên tập & Xưởng Ảnh 0 Đồng (ContentEditor, ProductDescriptionAiPanel, AiImageRegenerateModal): Hỗ trợ viết lại toàn bài từ 4 nguồn (Web, YouTube, Google Docs, Deep Research), viết lại đoạn văn bôi đen theo 6 giọng văn, viết lại mô tả sản phẩm 3 phong cách và tái tạo ảnh bằng model sinh ảnh (fallback 0 đồng qua Canvas + bộ lọc sắc nét Unsharp Mask 3x3 khi hết quota) kèm đồng bộ URL mới trên toàn bộ DB.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 2,
+    "space_below": 2
+  },
+  {
+    "op": "bullet-list",
+    "text": "Động cơ Tuân thủ Pháp luật & YMYL (lib/medical-compliance.ts): Tự động chuẩn hóa nội dung bài nhập để tuân thủ Luật Quảng cáo VN, NĐ 15/2018/NĐ-CP, TT 09/2015/TT-BYT, Google Search YMYL và YouTube Medical Misinformation Policy. Mặc định thay thế 5 nhóm từ khóa cấm ('chữa khỏi 100%', 'đặc trị', 'thần dược', 'bỏ hẳn thuốc tây', 'cam kết khỏi bệnh'), chèn khối khuyến cáo y khoa và tự động đồng bộ cập nhật quy tắc mới mỗi 7 ngày (mở rộng tối đa 20 quy tắc).",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 2,
+    "space_below": 8
+  },
+  {
+    "op": "heading",
+    "text": "8. Bảo mật, Phân quyền RBAC, Lưu trữ Media & Giám sát",
+    "level": "2",
+    "font_family": "Roboto",
+    "font_size": 18,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 20,
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Mặc dù bắt đầu từ prototype nội bộ, hệ thống hiện tại đã xây dựng nhiều lớp kiểm soát bảo mật xuyên suốt từ tầng HTTP Edge, xác thực phiên, phân quyền vai trò chi tiết đến kiểm định tệp nhị phân tải lên và ẩn giấu bí mật trong nhật ký vận hành.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Hình 7. Phòng thủ Bảo mật Đa tầng, Ma trận RBAC và Đường ống Lưu trữ Media",
+    "font_family": "Roboto",
+    "font_size": 10.5,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 8,
+    "space_below": 4
+  },
+  {
+    "op": "heading",
+    "text": "8.1 Xác thực, Ma trận Phân quyền RBAC & Các Lớp Phòng vệ Web",
+    "level": "3",
+    "font_family": "Roboto",
+    "font_size": 13.5,
+    "bold": true,
+    "text_color": "#065a82",
+    "space_above": 13,
+    "space_below": 4
+  },
+  {
+    "op": "append",
+    "text": "Mật khẩu quản trị viên (lib/auth.ts) sử dụng thuật toán crypto.scrypt bất đồng bộ (khóa 64 byte, muối ngẫu nhiên 16 byte hex), còn tài khoản thành viên (lib/member-auth.ts) sử dụng scryptSync, đều kiểm chứng bằng crypto.timingSafeEqual chống tấn công dò thời gian. Phiên đăng nhập lưu bằng token ngẫu nhiên 32 byte trong D1 và gắn cookie HttpOnly, SameSite=Lax, bật cờ Secure ở production (TTL 7 ngày cho Admin và 30 ngày cho Member). Khi đổi mật khẩu quản trị, toàn bộ các phiên đăng nhập khác của tài khoản đó lập tức bị hủy.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Phân quyền RBAC tại lib/rbac.ts chia nhân sự thành 4 vai trò (super_admin, admin, editor, sales) kiểm soát cả đường dẫn truy cập (canAccessAdminPath) lẫn 13 miền hành động cụ thể ở tầng Server Actions (canPerformAdminAction), đồng thời tự động ngăn việc xóa tài khoản Super Admin cuối cùng.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "insert-table",
+    "table_data": [
+      [
+        "Miền Hành động (AdminActionDomain)",
+        "Super Admin",
+        "Admin",
+        "Editor",
+        "Sales",
+        "Chức năng & Điểm kiểm soát Chính"
+      ],
+      [
+        "system_settings & admin_accounts",
+        "Cho phép",
+        "Chặn (trừ xem trang)",
+        "Chặn",
+        "Chặn",
+        "Lưu cài đặt chung, SMTP, Gemini Key, KiotViet API, tạo/xóa tài khoản Admin"
+      ],
+      [
+        "coupons_manage, catalog_delete, content_delete",
+        "Cho phép",
+        "Cho phép",
+        "Chặn",
+        "Chặn",
+        "Tạo/xóa mã giảm giá; xóa sản phẩm, danh mục, bài viết, block, QR, tài liệu"
+      ],
+      [
+        "orders_ops, inventory_finance, members_manage, flash_sale, consultations",
+        "Cho phép",
+        "Cho phép",
+        "Chặn",
+        "Cho phép*",
+        "Xử lý đơn, POS, trả hàng, sổ quỹ, Flash Sale, CRM (*Sales tối đa +100đ/lần), Tư vấn AI"
+      ],
+      [
+        "content_write",
+        "Cho phép",
+        "Cho phép",
+        "Cho phép",
+        "Chặn",
+        "Viết/sửa bài viết, video, tài liệu, block, QR, trang tĩnh, danh mục, import bài"
+      ],
+      [
+        "catalog_write & comments_moderate",
+        "Cho phép",
+        "Cho phép",
+        "Cho phép",
+        "Cho phép",
+        "Chỉnh sửa thông tin sản phẩm và kiểm duyệt/xóa bình luận khách hàng"
+      ]
+    ],
+    "table_header_bg_color": "#e6f4ea",
+    "table_header_text_color": "#137333",
+    "table_header_bold": true,
+    "table_font_family": "Roboto",
+    "table_font_size": 9.5,
+    "table_border_color": "#dadce0",
+    "table_border_width": 0.5,
+    "table_cell_colors": [
+      [
+        ""
+      ],
+      [
+        "",
+        "#d9ead3",
+        "#fff2cc",
+        "#f4cccc",
+        "#f4cccc",
+        ""
+      ],
+      [
+        "",
+        "#d9ead3",
+        "#d9ead3",
+        "#f4cccc",
+        "#f4cccc",
+        ""
+      ],
+      [
+        "",
+        "#d9ead3",
+        "#d9ead3",
+        "#f4cccc",
+        "#d9ead3",
+        ""
+      ],
+      [
+        "",
+        "#d9ead3",
+        "#d9ead3",
+        "#d9ead3",
+        "#f4cccc",
+        ""
+      ],
+      [
+        "",
+        "#d9ead3",
+        "#d9ead3",
+        "#d9ead3",
+        "#d9ead3",
+        ""
+      ]
+    ]
+  },
+  {
+    "op": "append",
+    "text": "Để chống lạm dụng tự động (brute-force, spam AI và đặt hàng ảo), lib/rate-limit.ts triển khai bộ giới hạn tốc độ theo cửa sổ trượt lưu trên bộ nhớ Isolate (tối đa 5.000 key, tự dọn dẹp khi đầy), trích xuất IP ưu tiên qua header cf-connecting-ip và trả về mã HTTP 429 kèm Retry-After. Bảng sau ghi nhận 6 chính sách Rate Limit đang hoạt động trong mã nguồn.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "insert-table",
+    "table_data": [
+      [
+        "Điểm cuối / Hành động",
+        "Tệp Triển khai",
+        "Namespace & Định danh",
+        "Ngưỡng Cho phép",
+        "Mục đích Bảo vệ"
+      ],
+      [
+        "Đăng nhập Admin (loginAction)",
+        "app/admin/_actions/auth.ts",
+        "admin-login (ip:identifier)",
+        "8 lần / 5 phút",
+        "Chống dò mật khẩu quản trị bằng Email hoặc SĐT"
+      ],
+      [
+        "Tạo đơn Checkout",
+        "app/api/data-checkout/route.ts",
+        "checkout (Client IP)",
+        "10 lần / 1 phút",
+        "Chống spam đơn ảo và giữ kho liên tục"
+      ],
+      [
+        "Đăng ký / Đăng nhập Member",
+        "app/api/member/auth/route.ts",
+        "member-auth:register / login (IP)",
+        "12 lần / 5 phút",
+        "Chống tạo tài khoản rác nhận 100+50 điểm"
+      ],
+      [
+        "Tra cứu Đơn hàng",
+        "app/api/orders/lookup/route.ts",
+        "orders-lookup (Client IP)",
+        "15 lần / 5 phút",
+        "Chống dò mã đơn hàng và số điện thoại"
+      ],
+      [
+        "Tư vấn Nhanh AI",
+        "app/api/quick-consult/route.ts",
+        "quick-consult (Client IP)",
+        "6 lần / 5 phút",
+        "Bảo vệ hạn mức token và chi phí gọi Gemini API"
+      ],
+      [
+        "Tích điểm Đọc bài / Điểm danh",
+        "app/api/loyalty/earn/route.ts",
+        "loyalty-earn (member.id)",
+        "20 lần / 5 phút",
+        "Chống spam API cộng điểm tự động"
+      ]
+    ],
+    "table_header_bg_color": "#e6f4ea",
+    "table_header_text_color": "#137333",
+    "table_header_bold": true,
+    "table_font_family": "Roboto",
+    "table_font_size": 9.5,
+    "table_border_color": "#dadce0",
+    "table_border_width": 0.5
+  },
+  {
+    "op": "append",
+    "text": "Ngoài ra, hệ thống áp dụng kiểm tra URL công khai chống SSRF (assertSafePublicHttpUrl chặn loopback, RFC1918 và IP metadata 169.254.169.254 kết hợp cờ runtime global_fetch_strictly_public của Workers), lọc từ khóa bẻ khóa prompt (guardUserPromptInput), lọc HTML/SVG chống XSS (lib/sanitize-html.ts, lib/media-security.ts), chặn công thức Excel injection (bằng dấu nháy đơn trước ký tự =, +, -, @ khi xuất CSV) và bộ HTTP Security Headers toàn cục trong next.config.ts.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "heading",
+    "text": "8.2 Kiến trúc Lưu trữ Media & Hệ thống Giám sát (Observability)",
+    "level": "3",
+    "font_family": "Roboto",
+    "font_size": 13.5,
+    "bold": true,
+    "text_color": "#065a82",
+    "space_above": 13,
+    "space_below": 4
+  },
+  {
+    "op": "append",
+    "text": "Do Cloudflare Workers không có hệ thống tệp cục bộ bền vững khi chạy, dữ liệu hình ảnh và tài liệu của thucduong-shop đi qua ba đường dẫn riêng biệt: (1) Ảnh tĩnh có sẵn từ quá trình di chuyển dữ liệu nằm trong public/uploads/* và được đóng gói vào ASSETS; (2) Ảnh và tài liệu (PDF/DOCX/PPTX tối đa 1.5MB) tải lên qua trình soạn thảo đi qua lib/uploads.ts kiểm tra Magic-Byte thật (FFD8FF, 89504E47, RIFF..WEBP, %PDF-, PK, OLE2), khử mã độc SVG, băm tên SHA-256 16 ký tự và gửi qua bộ chuyển đổi kép lib/r2-storage.ts (ưu tiên R2 MEDIA_BUCKET, dự phòng bảng D1 media_files); (3) Ảnh do AI hoặc trình nhập tự động tạo ra lưu qua lib/media-assets.ts (ưu tiên R2 khóa media/<slug>, dự phòng bảng D1 media_assets).",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Về giám sát vận hành, lib/logger.ts chuẩn hóa nhật ký dạng JSON một dòng (logInfo, logWarn, logError) để tương thích Cloudflare Workers Logs và tự động đệ quy (tối đa 4 tầng) thay thế bằng '[REDACTED]' đối với mọi khóa chứa password, secret, token, apikey, authorization, cookie, smtp_pass, salt hoặc hash. Sức khỏe kết nối cơ sở dữ liệu được theo dõi qua endpoint GET /api/health/ (đo độ trễ truy vấn SELECT 1 AS ok và trả về HTTP 200 hoặc 503 với Cache-Control: no-store).",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "heading",
+    "text": "9. Chi tiết Triển khai Mã nguồn, Kiểm thử & Công cụ Vận hành",
+    "level": "2",
+    "font_family": "Roboto",
+    "font_size": 18,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 20,
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Cách tổ chức mã nguồn thể hiện sự cân bằng thực dụng giữa tốc độ phát triển tính năng và tính dễ bảo trì trên nền tảng Next.js App Router chạy trên workerd. Toàn bộ Server Actions của khu vực quản trị được chia nhỏ từ tệp đơn ban đầu thành 9 module chuyên biệt dưới app/admin/_actions/ (auth, catalog, content, orders, members, marketing, retail, settings, shared) và tái xuất tập trung qua app/admin/actions.ts. Tài liệu hướng dẫn sử dụng tích hợp sẵn (AdminHandbookDrawer) được định nghĩa trong lib/admin-handbook.ts để tự động hiển thị đúng hướng dẫn theo từng đường dẫn /admin/*.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Ba mô hình triển khai không phụ thuộc thư viện nặng (Zero-Dependency Workerd Patterns) là điểm sáng kỹ thuật đáng chú ý nhất trong tầng lib/:",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "bullet-list",
+    "text": "Trình khách SMTP thuần TCP/TLS (lib/mail.ts): Tự cài đặt giao thức bắt tay EHLO, nâng cấp STARTTLS (cổng 587) hoặc TLS ngầm định (cổng 465), xác thực AUTH LOGIN và mã hóa RFC 2047 UTF-8 Base64 trực tiếp trên node:net và node:tls thay vì kéo nodemailer vào bundle Worker.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 6,
+    "space_below": 2
+  },
+  {
+    "op": "bullet-list",
+    "text": "Bộ phân tích Bảng tính Excel .xlsx thuần TypeScript (lib/kiotviet-import.ts): Tự tìm bản ghi EOCD và Central Directory trong buffer nhị phân ZIP, giải nén dữ liệu XML bằng node:zlib.inflateRawSync và bóc tách 18 cột dữ liệu KiotViet với bộ đệm nhớ tối thiểu.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 2,
+    "space_below": 2
+  },
+  {
+    "op": "bullet-list",
+    "text": "Bộ tách Văn bản Web & Phụ đề YouTube (lib/html-extract.ts): Loại bỏ các khối nhiễu (header, nav, footer, sidebar, quảng cáo), trích xuất bài viết từ HTML và giải mã XML phụ đề YouTube để cấp cho AI Rewrite và Importer mà không cần JSDOM hay cheerio.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 2,
+    "space_below": 8
+  },
+  {
+    "op": "append",
+    "text": "Chất lượng logic cốt lõi được kiểm chứng thông qua 8 tệp kiểm thử đơn vị (tổng cộng 22 test cases, 450 dòng mã) viết bằng node:test và node:assert/strict. Do package.json chưa khai báo script test chính thức, bộ kiểm thử này được chạy tự động trong CI bằng lệnh npx --yes tsx --test.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "insert-table",
+    "table_data": [
+      [
+        "Tệp Kiểm thử",
+        "Số Test",
+        "Phạm vi & Đối tượng Kiểm định"
+      ],
+      [
+        "lib/backup-verify.test.ts",
+        "2",
+        "Xác minh SQL dump D1 đạt chuẩn (>=512B, đủ 9 bảng cốt lõi, có INSERT) và bắt lỗi header Wrangler CLI"
+      ],
+      [
+        "lib/checkout-helpers.test.ts",
+        "3",
+        "Tính duy nhất của mã đơn DH trong cùng mili-giây, tính giá theo hạng thẻ + coupon và chuẩn hóa Idempotency-Key"
+      ],
+      [
+        "lib/html-extract.test.ts",
+        "3",
+        "Giải mã HTML entities, bóc tách bài viết + ảnh lazy data-isrc và chia đoạn phụ đề XML YouTube"
+      ],
+      [
+        "lib/image-url.test.ts",
+        "3",
+        "Chuyển đổi URL sang R2 CDN, bọc /cdn-cgi/image/, sinh srcSet và bỏ qua SVG/host ngoài"
+      ],
+      [
+        "lib/logger.test.ts",
+        "3",
+        "Định dạng log JSON một dòng, che giấu bí mật đệ quy [REDACTED], cắt chuỗi 500 ký tự và giới hạn độ sâu 4"
+      ],
+      [
+        "lib/media-security.test.ts",
+        "4",
+        "Đối chiếu Magic-Byte (JPEG/PNG/GIF/WEBP/SVG/PDF/DOCX), chặn file giả mạo, lọc XSS trong SVG và băm SHA-256"
+      ],
+      [
+        "lib/rate-limit.test.ts",
+        "3",
+        "Cửa sổ trượt theo IP, khôi phục sau hết hạn cửa sổ, trích xuất cf-connecting-ip và phản hồi 429 Retry-After"
+      ],
+      [
+        "lib/rbac.test.ts",
+        "3",
+        "Kiểm chứng ranh giới truy cập đường dẫn và quyền hành động của 4 vai trò đảm bảo không leo thang đặc quyền"
+      ]
+    ],
+    "table_header_bg_color": "#e6f4ea",
+    "table_header_text_color": "#137333",
+    "table_header_bold": true,
+    "table_font_family": "Roboto",
+    "table_font_size": 9.5,
+    "table_border_color": "#dadce0",
+    "table_border_width": 0.5
+  },
+  {
+    "op": "append",
+    "text": "Bên cạnh mã nguồn ứng dụng, thư mục scripts/ chứa 7 công cụ dòng lệnh Node ES Module (.mjs) phục vụ di chuyển dữ liệu lịch sử và bảo trì hạ tầng Cloudflare D1:",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "insert-table",
+    "table_data": [
+      [
+        "Tên Script",
+        "Cách gọi / Lệnh npm",
+        "Chức năng & Tác động Dữ liệu"
+      ],
+      [
+        "ensure-opennext-build.mjs",
+        "npm run postinstall",
+        "Tự động vá lệnh deploy của @opennextjs/cloudflare để tự build nếu thiếu tệp .open-next/.build/open-next.config.edge.mjs khi chạy Cloudflare CI."
+      ],
+      [
+        "export-d1.mjs",
+        "node scripts/export-d1.mjs",
+        "Xuất toàn bộ bảng, chỉ mục và dữ liệu từ data/shop.db cục bộ ra tệp data/d1-dump.sql tương thích D1 (kèm DDL bảng media_files)."
+      ],
+      [
+        "import-post.mjs",
+        "npm run import:post -- <url>",
+        "Cào 1 bài viết 3 cấp từ thucduongphuctho.net bằng cheerio, tải ảnh về public/uploads/posts/<slug>/ và upsert vào SQLite cục bộ."
+      ],
+      [
+        "import-products.mjs",
+        "npm run import:products [--replace|--limit N]",
+        "Cào toàn bộ sản phẩm từ thucduongphuctho.net bằng 3 luồng đồng thời, tải ảnh về public/uploads/products/ và hỗ trợ xóa dữ liệu mẫu."
+      ],
+      [
+        "import-thucduongphuctho-net.mjs",
+        "node scripts/import-thucduongphuctho-net.mjs",
+        "Di chuyển danh mục và sản phẩm từ trang Haravan thucduongphuctho.net (JSON API + Sitemap), tạo ảnh và file SQL tại /tmp/import-phuctho-net.sql."
+      ],
+      [
+        "sync-provinces-vn.mjs",
+        "node scripts/sync-provinces-vn.mjs",
+        "Tải dữ liệu hành chính Việt Nam v2 (34 tỉnh/thành sau sáp nhập và ~3.321 xã/phường) từ provinces.open-api.vn ghi ra data/provinces-vn-v2.sql."
+      ],
+      [
+        "verify-d1-backup.mjs",
+        "node scripts/verify-d1-backup.mjs <file.sql>",
+        "Công cụ CLI kiểm tra tính toàn vẹn tệp sao lưu D1 được gọi hằng ngày trong GitHub Actions."
+      ]
+    ],
+    "table_header_bg_color": "#e6f4ea",
+    "table_header_text_color": "#137333",
+    "table_header_bold": true,
+    "table_font_family": "Roboto",
+    "table_font_size": 9.5,
+    "table_border_color": "#dadce0",
+    "table_border_width": 0.5
+  }
+]

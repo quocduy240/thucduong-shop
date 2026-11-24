@@ -198,15 +198,24 @@ export async function pushOrderToKiotViet(orderId: number): Promise<{ kvId: stri
 export async function syncInventoryFromKiotViet(createdBy = "admin"): Promise<{ matched: number; updated: number }> {
   await ensureRetailOpsSchema();
   const cfg = await getKiotVietConfig();
-  const res = await kvFetch<{
-    data?: { code?: string; inventories?: { onHand?: number; cost?: number; branchId?: number }[] }[];
-  }>(cfg, "/products?includeInventory=true&pageSize=100");
-
   const branchId = Number(cfg.branchId) || 0;
   let matched = 0;
   let updated = 0;
 
-  for (const kp of res.data ?? []) {
+  // Page through the whole KiotViet catalogue (100 items per page, hard cap 50 pages).
+  const PAGE = 100;
+  const all_: { code?: string; inventories?: { onHand?: number; cost?: number; branchId?: number }[] }[] = [];
+  for (let page = 0; page < 50; page++) {
+    const res = await kvFetch<{
+      total?: number;
+      data?: { code?: string; inventories?: { onHand?: number; cost?: number; branchId?: number }[] }[];
+    }>(cfg, `/products?includeInventory=true&pageSize=${PAGE}&currentItem=${page * PAGE}`);
+    const chunk = res.data ?? [];
+    all_.push(...chunk);
+    if (chunk.length < PAGE || (typeof res.total === "number" && all_.length >= res.total)) break;
+  }
+
+  for (const kp of all_) {
     const code = (kp.code ?? "").trim();
     if (!code) continue;
     const local = await one<{ id: number; stock: number }>(

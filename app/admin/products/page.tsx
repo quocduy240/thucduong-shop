@@ -2,13 +2,13 @@ import Link from "next/link";
 import KiotVietProductsTable from "@/components/admin/KiotVietProductsTable";
 import { Flash, Pagination, pageParam, strParam, ui } from "@/components/admin/ui";
 import { listProductCategoriesWithCount, listProducts } from "@/lib/admin-data";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { bulkProductsAction } from "../actions";
 
 export const metadata = { title: "Hàng hóa & Thiết lập giá (Chuẩn KiotViet) | Quản trị" };
 
 export default async function ProductsAdmin({ searchParams }: PageProps<"/admin/products">) {
-  await requireAdmin();
+  await requireAdminPath("/admin/products/");
   const sp = await searchParams;
   const q = strParam(sp.q);
   const category = Number(strParam(sp.category)) || 0;
