@@ -1,4 +1,4 @@
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import {
   runBackendExpertAnalysis,
   saveExpertProfileConfig,
@@ -6,7 +6,7 @@ import {
 } from "@/lib/quick-consult";
 
 export async function POST(req: Request) {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/quick-consult/");
   if (!admin) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {

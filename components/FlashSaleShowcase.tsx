@@ -87,7 +87,7 @@ export function FlashSaleShowcase({
       const res = await fetch(`/api/v2/add-to-cart/${productId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity: 1 }),
+        body: JSON.stringify({ qty: 1, quantity: 1 }),
       });
       const data = await res.json();
       if (data.success) {

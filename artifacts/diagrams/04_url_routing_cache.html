@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1400px;
+    height: 750px;
+    overflow: hidden;
+    background: #ffffff;
+    font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+    color: #202124;
+    -webkit-font-smoothing: antialiased;
+  }
+  .canvas {
+    width: 1400px;
+    height: 750px;
+    padding: 20px 26px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+  }
+  .hdr {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 2px solid #137333;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+  .hdr-left h1 {
+    font-size: 21px;
+    font-weight: 800;
+    color: #137333;
+    letter-spacing: -0.2px;
+    line-height: 1.25;
+  }
+  .hdr-left p {
+    margin-top: 3px;
+    font-size: 12.5px;
+    color: #5f6368;
+    font-weight: 500;
+  }
+  .hdr-tag {
+    background: #e6f4ea;
+    color: #137333;
+    border: 1px solid #86efac;
+    border-radius: 999px;
+    padding: 5px 13px;
+    font-size: 11.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .main {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 0;
+  }
+  .ftr {
+    margin-top: 8px;
+    padding-top: 7px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10.5px;
+    color: #5f6368;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .legend-item { display: inline-flex; align-items: center; gap: 5px; font-weight: 500; }
+  .legend-dot { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+  .mono { font-family: 'Consolas', 'Courier New', monospace; font-size: 10.5px; }
+  .pill {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+</style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="hdr">
+      <div class="hdr-left">
+        <h1>Sơ đồ Định tuyến URL Tương thích LoveItop & Kiến trúc Caching Đa tầng</h1>
+        <p>Cơ chế ưu tiên phân giải đường dẫn App Router và luồng bộ nhớ đệm qua Browser, Edge KV, React cache() và D1</p>
+      </div>
+      <div class="hdr-tag">ROUTING & CACHING</div>
+    </div>
+    <div class="main">
+      
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;height:100%;">
+      <!-- Left: URL Routing -->
+      <div style="border:1.5px solid #86efac;border-radius:12px;padding:10px 12px;background:#f9fefb;display:flex;flex-direction:column;justify-content:space-between;">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-size:13px;font-weight:800;color:#137333;">1. Phân giải Định tuyến URL (Tương thích LoveItop)</span>
+            <span class="pill" style="background:#dcfce7;color:#166534;">trailingSlash: true + skipTrailingSlashRedirect</span>
+          </div>
+          <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:8px;padding:7px 10px;margin-bottom:8px;font-size:11px;">
+            <strong>Single Source of Truth (<span class="mono">lib/data.ts -&gt; url.*</span>):</strong><br/>
+            Danh sách kết thúc bằng <span class="mono">/</span> · Chi tiết kết thúc bằng <span class="mono">.html</span> · Cart/Checkout/API không có dấu gạch chéo bắt buộc (lưu ý POST cần trailing <span class="mono">/</span>).
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            
+    <div style="background:#e6f4ea;border:1.5px solid #4ade80;border-radius:8px;padding:7px 10px;">
+      <div style="font-size:11.5px;font-weight:800;color:#14532d;">Ưu tiên 1: Tuyến Tĩnh Tường minh (Static Segments)</div>
+      <div style="font-size:10.5px;color:#334155;margin-top:2px;line-height:1.35;"><span class='mono'>/</span> (Home) · <span class='mono'>/san-pham/</span> · <span class='mono'>/canh-duong-sinh/</span> · <span class='mono'>/cart</span> · <span class='mono'>/checkout</span> · <span class='mono'>/search/</span> · <span class='mono'>/tu-van-nhanh/</span> · <span class='mono'>/thanh-vien/</span> · <span class='mono'>/tra-cuu-don-hang/</span> · <span class='mono'>/so-do-trang.html</span> · <span class='mono'>/sitemap.xml</span> · <span class='mono'>/robots.txt</span></div>
+    </div>
+            
+    <div style="background:#eff6ff;border:1.5px solid #60a5fa;border-radius:8px;padding:7px 10px;">
+      <div style="font-size:11.5px;font-weight:800;color:#1e3a8a;">Ưu tiên 2: Tuyến Động Chức năng & Theo dõi Chuyển hướng</div>
+      <div style="font-size:10.5px;color:#334155;margin-top:2px;line-height:1.35;"><span class='mono'>/san-pham/[category]/</span> · <span class='mono'>/san-pham/[category]/[product].html</span> · <span class='mono'>/ho-so-tu-van/[token]/</span> · <span class='mono'>/q/[slug]</span> (tăng scans + 302) · <span class='mono'>/go/social/[id]</span> (đếm clicks + UTM + 302)</div>
+    </div>
+            
+    <div style="background:#fef7e0;border:1.5px solid #fbbf24;border-radius:8px;padding:7px 10px;">
+      <div style="font-size:11.5px;font-weight:800;color:#92400e;">Ưu tiên 3: Bộ phân giải 1 Cấp app/[section]/page.tsx</div>
+      <div style="font-size:10.5px;color:#334155;margin-top:2px;line-height:1.35;">Kết thúc <span class='mono'>.html</span> -&gt; <span class='mono'>getPage('', slug)</span> (VD: /gioi-thieu.html).<br/>Ngược lại -&gt; <span class='mono'>getPostSection(section)</span>; riêng <span class='mono'>/thu-vien/</span> hiển thị <span class='mono'>&lt;VideoLibrary /&gt;</span>.</div>
+    </div>
+            
+    <div style="background:#fff7ed;border:1.5px solid #fb923c;border-radius:8px;padding:7px 10px;">
+      <div style="font-size:11.5px;font-weight:800;color:#9a3412;">Ưu tiên 4: Bộ phân giải 2 Cấp app/[section]/[slug]/page.tsx</div>
+      <div style="font-size:10.5px;color:#334155;margin-top:2px;line-height:1.35;">Có <span class='mono'>.html</span>: Ưu tiên <span class='mono'>getPage(first, slug)</span> (/chinh-sach/*.html) trước, sau đó fallback <span class='mono'>getPost(first, slug)</span> (URL bài viết ngắn).<br/>Không <span class='mono'>.html</span>: <span class='mono'>/thu-vien/tai-lieu-thuc-duong/</span> -&gt; <span class='mono'>&lt;DocumentLibrary /&gt;</span>, <span class='mono'>/thu-vien/bai-giang-thuc-duong/</span> -&gt; Trigger YouTube Sync + <span class='mono'>&lt;VideoLibrary /&gt;</span>.</div>
+    </div>
+            
+    <div style="background:#faf5ff;border:1.5px solid #c084fc;border-radius:8px;padding:7px 10px;">
+      <div style="font-size:11.5px;font-weight:800;color:#6b21a8;">Ưu tiên 5: Tuyến Chuẩn Canonical 3 Cấp [section]/[slug]/[post]</div>
+      <div style="font-size:10.5px;color:#334155;margin-top:2px;line-height:1.35;">URL chuẩn <span class='mono'>/&lt;section&gt;/&lt;category&gt;/&lt;slug&gt;.html</span>: xuất JSON-LD <span class='mono'>Article</span>, canonical URL, OpenGraph và nhúng <span class='mono'>&lt;ArticleReadTracker /&gt;</span> cộng +2 điểm Loyalty.</div>
+    </div>
+          </div>
+        </div>
+        <div style="font-size:10.5px;color:#475569;margin-top:6px;padding-top:5px;border-top:1px dashed #cbd5e1;">
+          Tất cả 22 Public/Webhook API routes (<span class="mono">/api/v2/*</span>, <span class="mono">/api/data-checkout</span>, <span class="mono">/load-comment</span>...) giữ nguyên đường dẫn tương thích LoveItop.
+        </div>
+      </div>
+
+      <!-- Right: Multi-layer Caching -->
+      <div style="border:1.5px solid #93c5fd;border-radius:12px;padding:10px 12px;background:#f8fbff;display:flex;flex-direction:column;justify-content:space-between;">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-size:13px;font-weight:800;color:#1d4ed8;">2. Kiến trúc Caching Đa tầng & Vô hiệu hóa Theo Tag</span>
+            <span class="pill" style="background:#dbeafe;color:#1e40af;">Regional KV TTL 300s</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            
+    <div style="background:#ffffff;border:1.5px solid #93c5fd;border-radius:8px;padding:7px 10px;">
+      <div style="font-size:11.5px;font-weight:800;color:#1e3a8a;">Tầng 1: HTTP / Browser / CDN Cache Phản hồi theo loại tài nguyên</div>
+      <div style="font-size:10.5px;color:#334155;margin-top:2px;line-height:1.35;">• <span class='mono'>/api/media/*</span>: <span class='mono'>public, max-age=31536000, immutable</span> (+ ETag 304 trên [slug])<br/>• <span class='mono'>/uploads/*</span>: 30 ngày + SWR 1 ngày · <span class='mono'>/sitemap.xml</span>: 300s · <span class='mono'>/robots.txt</span>: 3600s<br/>• <span class='mono'>/api/v2/cart-summary</span>, <span class='mono'>session-summary</span>, <span class='mono'>health</span>: <span class='mono'>no-store</span></div>
+    </div>
+            
+    <div style="background:#ffffff;border:1.5px solid #93c5fd;border-radius:8px;padding:7px 10px;">
+      <div style="font-size:11.5px;font-weight:800;color:#1e3a8a;">Tầng 2: Client Memory & SessionStorage Cache Giảm gọi API lặp trên trình duyệt</div>
+      <div style="font-size:10.5px;color:#334155;margin-top:2px;line-height:1.35;">• <span class='mono'>HeaderAccountCart</span>: cache giỏ/tên thành viên 45 giây + gộp inflight.<br/>• <span class='mono'>FrontendAdminProvider</span>: cache ngữ cảnh Admin 180 giây trong <span class='mono'>sessionStorage</span>.<br/>• <span class='mono'>DocumentLibrary</span> &amp; <span class='mono'>ThemeSwitcher</span>: lưu trạng thái tại <span class='mono'>localStorage</span>.</div>
+    </div>
+            
+    <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:8px;padding:7px 10px;">
+      <div style="font-size:11.5px;font-weight:800;color:#991b1b;">Tầng 3: SSR Root Layout & React Request Cache Lưu ý hành vi force-dynamic thực tế</div>
+      <div style="font-size:10.5px;color:#334155;margin-top:2px;line-height:1.35;">• <span class='mono'>app/layout.tsx</span> đặt <span class='mono'>export const dynamic = 'force-dynamic'</span> để luôn đọc Theme/Widget mới nhất, do đó vô hiệu hóa ISR cấp trang (<span class='mono'>revalidate = 60/300</span> ở trang con).<br/>• <span class='mono'>React cache()</span> khử trùng lặp truy vấn trùng trong cùng 1 request SSR.</div>
+    </div>
+            
+    <div style="background:#f0fdf4;border:1.5px solid #4ade80;border-radius:8px;padding:7px 10px;">
+      <div style="font-size:11.5px;font-weight:800;color:#166534;">Tầng 4: Next.js Data Cache (unstable_cache) + Cloudflare KV open-next.config.ts + lib/cache-tags.ts</div>
+      <div style="font-size:10.5px;color:#334155;margin-top:2px;line-height:1.35;">• Lưu trên <span class='mono'>NEXT_INC_CACHE_KV</span> kèm <span class='mono'>withRegionalCache</span> (mode long-lived 300s).<br/>• Đang cache: <span class='mono'>settings</span> (60s), <span class='mono'>product_categories</span> (60s), <span class='mono'>post_sections/categories</span> (120s), <span class='mono'>pages</span> (120s), <span class='mono'>videos/topics</span> (120s), <span class='mono'>documents</span> (120s).<br/>• Truy vấn <span class='mono'>products/posts/blocks/flashSale</span> hiện đọc trực tiếp D1 mỗi request.</div>
+    </div>
+            
+    <div style="background:#fef7e0;border:1.5px solid #fbbf24;border-radius:8px;padding:7px 10px;">
+      <div style="font-size:11.5px;font-weight:800;color:#92400e;">Cơ chế Vô hiệu hóa: invalidateStorefront(...tags) 9 Tag tập trung trong lib/cache-tags.ts</div>
+      <div style="font-size:10.5px;color:#334155;margin-top:2px;line-height:1.35;">Tags: <span class='mono'>site, categories, products, posts, pages, videos, documents, blocks, flashSale</span>.<br/>Khi Admin lưu dữ liệu -&gt; gọi <span class='mono'>revalidateTag(tag, 'max')</span> + <span class='mono'>revalidatePath('/', 'layout')</span>.</div>
+    </div>
+          </div>
+        </div>
+        <div style="font-size:10.5px;color:#475569;margin-top:6px;padding-top:5px;border-top:1px dashed #cbd5e1;">
+          Ngoài ra <span class="mono">quick_consult_cache</span> trong D1 lưu kết quả AI Tư vấn nhanh theo SHA-256 trong 14 ngày.
+        </div>
+      </div>
+    </div>
+    </div>
+    <div class="ftr">
+      <div class="legend"><span class="legend-item"><span class="legend-dot" style="background:#e6f4ea;border:1.5px solid #4ade80;"></span>Ưu tiên tuyến tĩnh / Storefront</span><span class="legend-item"><span class="legend-dot" style="background:#eff6ff;border:1.5px solid #60a5fa;"></span>Dynamic Resolution & HTTP Cache</span><span class="legend-item"><span class="legend-dot" style="background:#fef2f2;border:1.5px solid #fca5a5;"></span>Lưu ý force-dynamic</span><span class="legend-item"><span class="legend-dot" style="background:#fef7e0;border:1.5px solid #fbbf24;"></span>Tag Invalidation</span></div>
+      <div>Nguồn: next.config.ts, open-next.config.ts, lib/cache-tags.ts, lib/data.ts, app/[section]/**, app/layout.tsx</div>
+    </div>
+  </div>
+</body>
+</html>

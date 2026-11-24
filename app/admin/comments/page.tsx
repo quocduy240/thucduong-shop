@@ -1,13 +1,13 @@
 import { Flash, PageHeader, Pagination, pageParam, ui } from "@/components/admin/ui";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import { listComments } from "@/lib/admin-data";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { deleteCommentAction } from "../actions";
 
 export const metadata = { title: "Bình luận | Quản trị" };
 
 export default async function CommentsAdmin({ searchParams }: PageProps<"/admin/comments">) {
-  await requireAdmin();
+  await requireAdminPath("/admin/comments/");
   const sp = await searchParams;
   const page = pageParam(sp.page);
   const { rows, total } = await listComments(page);

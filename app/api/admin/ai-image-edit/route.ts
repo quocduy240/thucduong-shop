@@ -1,4 +1,4 @@
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import { run } from "@/lib/db";
 import { callGeminiGenerateContent, resolveGeminiApiKey } from "@/lib/gemini-key";
 import { saveMediaAsset } from "@/lib/media-assets";
@@ -75,7 +75,7 @@ async function syncImageUrlAcrossDatabase(oldUrl: string, newUrl: string): Promi
 }
 
 export async function POST(req: Request) {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/posts/", "/admin/products/", "/admin/blocks/", "/admin/pages/");
   if (!admin) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import { Flash, PageHeader, ui } from "@/components/admin/ui";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import {
   BLOCK_POSITION_LABELS,
   BLOCK_STYLE_LABELS,
@@ -20,7 +20,7 @@ export default async function BlocksAdminPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireAdmin();
+  await requireAdminPath("/admin/blocks/");
   const sp = await searchParams;
   const blocks = await getAllBlocks();
   const blockMap = new Map(blocks.map((b) => [b.slug, b]));

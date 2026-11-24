@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1400px;
+    height: 890px;
+    overflow: hidden;
+    background: #ffffff;
+    font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+    color: #202124;
+    -webkit-font-smoothing: antialiased;
+  }
+  .canvas {
+    width: 1400px;
+    height: 890px;
+    padding: 20px 26px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+  }
+  .hdr {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 2px solid #137333;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+  .hdr-left h1 {
+    font-size: 21px;
+    font-weight: 800;
+    color: #137333;
+    letter-spacing: -0.2px;
+    line-height: 1.25;
+  }
+  .hdr-left p {
+    margin-top: 3px;
+    font-size: 12.5px;
+    color: #5f6368;
+    font-weight: 500;
+  }
+  .hdr-tag {
+    background: #e6f4ea;
+    color: #137333;
+    border: 1px solid #86efac;
+    border-radius: 999px;
+    padding: 5px 13px;
+    font-size: 11.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .main {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 0;
+  }
+  .ftr {
+    margin-top: 8px;
+    padding-top: 7px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10.5px;
+    color: #5f6368;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .legend-item { display: inline-flex; align-items: center; gap: 5px; font-weight: 500; }
+  .legend-dot { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+  .mono { font-family: 'Consolas', 'Courier New', monospace; font-size: 10.5px; }
+  .pill {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+</style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="hdr">
+      <div class="hdr-left">
+        <h1>Sơ đồ Thực thể Quan hệ Cơ sở Dữ liệu Cloudflare D1 (Database ERD)</h1>
+        <p>Toàn bộ 48 bảng/thực thể (phát sinh từ baseline schema + ensure*Schema() + migrations/) phân theo 6 miền nghiệp vụ</p>
+      </div>
+      <div class="hdr-tag">D1 DATABASE ERD</div>
+    </div>
+    <div class="main">
+      
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:8px;">
+      
+    <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:8px 9px;display:flex;flex-direction:column;">
+      <div style="font-size:11.5px;font-weight:800;color:#15803d;margin-bottom:6px;border-bottom:1px solid #86efac;padding-bottom:4px;">1. Danh mục, Sản phẩm & Khuyến mãi (5 bảng)</div>
+      <div style="flex:1;">
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">product_categories</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">1 -> N products</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">PK id · slug (UQ) · name · sort · show_in_menu/home/footer · is_active · seo_title · description</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">products</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">N -> 1 category</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">PK id · slug (UQ) · FK category_id · sku/kv_code/barcode · price/sale_price/cost_price · contact_only · stock/min/max · is_published · source_url · seo_*</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">comments</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">N -> 1 product</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">PK id · FK product_id · name · content · rating (1..5) · created_at</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">flash_sale_slots & flash_sale_items</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">1:N slot · N:1 product</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">slots: PK id · start_hour · end_hour · discount_pct | items: FK slot_id · FK product_id · flash_price · quota · sold · gift_note</div>
+    </div></div>
+    </div>
+    <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:8px 9px;display:flex;flex-direction:column;">
+      <div style="font-size:11.5px;font-weight:800;color:#1d4ed8;margin-bottom:6px;border-bottom:1px solid #93c5fd;padding-bottom:4px;">2. Nội dung, Thư viện & Marketing (10 bảng)</div>
+      <div style="flex:1;">
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">post_sections -> post_categories -> posts</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Phân cấp 3 tầng</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">sections(PK slug) · categories(PK id, FK section_slug) · posts(PK id, FK category_id, cover, source_url, related_product_ids, seo_*)</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">pages & content_blocks</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Block đệ quy</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">pages: PK (grp, slug) · title · content | content_blocks: PK id · slug · style_variant · positions · target_post/product_ids</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">videos & youtube_sync_pending</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">318+ videos</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">videos: PK id · video_id · topic · title · sort | pending: PK video_id · youtube_url · status (pending|approved)</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">documents & document_leads</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">1 -> N leads</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">documents: PK id · doc_type · folder_path · access_mode · bundle_product_id · downloads | leads: FK document_id · contact</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">qr_codes</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Shortlink /q/[slug]</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">PK id · slug (UQ) · target_url · fg/bg_color · positions · target_post/product_ids · scans · active</div>
+    </div></div>
+    </div>
+    <div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:8px 9px;display:flex;flex-direction:column;">
+      <div style="font-size:11.5px;font-weight:800;color:#b45309;margin-bottom:6px;border-bottom:1px solid #fcd34d;padding-bottom:4px;">3. Đơn hàng, POS, Kho vận & Quỹ (9 bảng)</div>
+      <div style="flex:1;">
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">provinces & wards</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">1 -> N wards</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">provinces(PK code, name: 34) -> wards(PK code, FK province_code, name: 3.321)</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">orders & order_items</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">1 -> N items</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">orders: PK id · code (UQ) · phone · status (6 tt) · payment · coupon_code · shipping_* · kiotviet_order_id | items: FK order_id · product_id · price · qty</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">coupons</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Dùng tại Checkout</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">PK id · code (UQ) · type (percent|fixed) · value · min_order · max_discount · member_only · used_count · active</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">inventory_movements</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Thẻ kho lịch sử</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">PK id · product_id · change_qty · stock_after · unit_cost · reason (7 loại) · ref_code · created_by</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">cashbook_entries, suppliers & delivery_partners</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Sổ quỹ 3 Quỹ</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">cashbook: entry_type (in|out) · payment_method (cash|bank|kiotviet) · amount | suppliers (5+) · delivery_partners (6+)</div>
+    </div></div>
+    </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+      
+    <div style="background:#faf5ff;border:1.5px solid #d8b4fe;border-radius:10px;padding:8px 9px;display:flex;flex-direction:column;">
+      <div style="font-size:11.5px;font-weight:800;color:#6b21a8;margin-bottom:6px;border-bottom:1px solid #d8b4fe;padding-bottom:4px;">4. Quản trị, Thành viên, CRM & Loyalty (15 bảng)</div>
+      <div style="flex:1;">
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">admins & admin_sessions</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">RBAC 7 ngày</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">admins: PK id · email (UQ) · phone (UQ) · role (4 cấp) · salt/hash | sessions: PK token · FK admin_id · expires_at</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">members & member_sessions</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Auth 30 ngày</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">members: PK id · email (UQ) · phone · tier · points | member_sessions: PK token · FK member_id · expires_at</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">member_profiles & point_transactions</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Sổ cái Hợp nhất</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">profiles: PK id · user_id · current/lifetime_points · tier · status · merged_into_id · referral_code · total_orders/spent | tx: FK member_id · source (14) · ref_type/id</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">point_rules, reward_catalog, reward_redemptions</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Đổi quà Atomic</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">rules: code · points_formula | catalog: type · points_cost · stock · min_tier | redemptions: FK member_id · FK reward_id · coupon_code · fulfillment_status</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">referrals, daily_login_streaks & newsletter</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Gamification</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">referrals: referrer_id · referee_id · status | streaks: member_id · current/best_streak | newsletter_subscribers: email · status</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">crm_notes, crm_customer_tags & crm_automation_logs</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">RFM +3/+25 ngày</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">notes: customer_key · next_followup_date · followup_done | tags: (customer_key, tag) | logs: (order_id, step_code)</div>
+    </div></div>
+    </div>
+    <div style="background:#f0fdfa;border:1.5px solid #5eead4;border-radius:10px;padding:8px 9px;display:flex;flex-direction:column;">
+      <div style="font-size:11.5px;font-weight:800;color:#0f766e;margin-bottom:6px;border-bottom:1px solid #5eead4;padding-bottom:4px;">5. Hệ sinh thái AI, Tư vấn & Import (6 bảng)</div>
+      <div style="flex:1;">
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">quick_consultations</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Hồ sơ /ho-so-tu-van/</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">PK id · customer_name · phone · audience · height_cm · weight_kg · needs/conditions/habits/diet_recall_json · article_html · share_token · expert_report_html · booking_*</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">quick_consult_cache</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Cache AI 14 ngày</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">PK cache_key (SHA-256) · article_html · hit_count · created_at</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">lab_analyses</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Worker hồi phục 3p</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">PK id · patient_name · file_mime · file_base64 (xóa khi done) · raw_text · status · summary · analysis_html · started_at</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">post_import_jobs</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Lease lock 40s</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">PK id · source_url · extra_urls · status (7 tt) · step_cursor · locked_until (40s) · research_json · policy_audit_json · draft_json · post_id</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">product_import_jobs</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Lease lock 35s</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">PK id · source_url · product_id · status (7 tt) · step_cursor · locked_until (35s) · raw_payload · normalized_payload · working_images</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">consultation_requests</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Widget Hỏi nhanh</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">PK id · name · phone · question · page_url · status (new|done)</div>
+    </div></div>
+    </div>
+    <div style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:10px;padding:8px 9px;display:flex;flex-direction:column;">
+      <div style="font-size:11.5px;font-weight:800;color:#334155;margin-bottom:6px;border-bottom:1px solid #cbd5e1;padding-bottom:4px;">6. Cấu hình Hệ thống, Media & Chỉ mục (3 bảng + Indexes)</div>
+      <div style="flex:1;">
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">settings (Key-Value JSON & Config Store)</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">15+ nhóm cấu hình</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">PK key · value | Lưu: Brand/SMTP/Widget, gemini_api_key, ai_motifs_json, medical_compliance_policy, expert_consult_config, kiotviet_*, flash_sale_*, social_links_config, ui_themes_config, sitemap_config, youtube_sync_config, invoice_print_config_json</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">media_files (r2-storage fallback)</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Phục vụ /api/media/[...path]</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">PK path · mime · data_base64 · created_at</div>
+    </div>
+    <div style="background:#ffffff;border:1px solid #cbd5e1;border-radius:7px;padding:5px 8px;margin-bottom:5px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span class="mono" style="font-weight:800;font-size:11px;color:#0f172a;">media_assets (media-assets fallback)</span>
+        <span style="font-size:9.5px;color:#475569;font-weight:600;background:#f1f5f9;padding:1px 5px;border-radius:4px;">Phục vụ /api/media/[slug]</span>
+      </div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;line-height:1.3;">PK slug · mime_type · data_base64 · created_at</div>
+    </div><div style="background:#e2e8f0;border-radius:7px;padding:6px 8px;margin-top:4px;font-size:10px;color:#1e293b;line-height:1.35;">
+      <strong>18 Composite Indexes (migrations/0002_performance_indexes.sql):</strong><br/>
+      • Catalog: <span class="mono">idx_products_cat_pub_feat</span>, <span class="mono">idx_comments_product_id</span><br/>
+      • Orders & Sessions: <span class="mono">idx_orders_phone_created</span>, <span class="mono">idx_orders_status_created</span>, <span class="mono">idx_admin/member_sessions_expires</span><br/>
+      • Loyalty & CRM: <span class="mono">idx_member_profiles_phone/email/user_status</span>, <span class="mono">idx_point_transactions_member_created</span>
+    </div>
+    <div style="background:#e6f4ea;border:1px solid #86efac;border-radius:7px;padding:6px 8px;margin-top:5px;font-size:10px;color:#14532d;line-height:1.35;">
+      <strong>Liên kết Khóa ngoại Liên miền (Cross-Domain Links):</strong><br/>
+      • <span class="mono">orders.coupon_code</span> &lt;-&gt; <span class="mono">coupons.code</span> / <span class="mono">reward_redemptions</span><br/>
+      • <span class="mono">orders.phone/email</span> -&gt; <span class="mono">member_profiles</span> -&gt; <span class="mono">crm_notes/tags</span><br/>
+      • <span class="mono">documents.bundle_product_id</span> -&gt; <span class="mono">products.id</span><br/>
+      • <span class="mono">post_import_jobs.post_id</span> -&gt; <span class="mono">posts.id</span> · <span class="mono">product_import_jobs.product_id</span> -&gt; <span class="mono">products.id</span>
+    </div></div>
+    </div>
+    </div>
+    </div>
+    <div class="ftr">
+      <div class="legend"><span class="legend-item"><span class="legend-dot" style="background:#f0fdf4;border:1.5px solid #86efac;"></span>Sản phẩm & Sale</span><span class="legend-item"><span class="legend-dot" style="background:#eff6ff;border:1.5px solid #93c5fd;"></span>CMS & Marketing</span><span class="legend-item"><span class="legend-dot" style="background:#fffbeb;border:1.5px solid #fcd34d;"></span>Bán lẻ & Kho vận</span><span class="legend-item"><span class="legend-dot" style="background:#faf5ff;border:1.5px solid #d8b4fe;"></span>CRM & Loyalty</span><span class="legend-item"><span class="legend-dot" style="background:#f0fdfa;border:1.5px solid #5eead4;"></span>AI & Hàng đợi Job</span><span class="legend-item"><span class="legend-dot" style="background:#f8fafc;border:1.5px solid #cbd5e1;"></span>Settings & Media</span></div>
+      <div>Nguồn: lib/db.ts, lib/retail-ops.ts, lib/loyalty.ts, lib/crm.ts, lib/post/product-importer.ts, migrations/0001 & 0002</div>
+    </div>
+  </div>
+</body>
+</html>

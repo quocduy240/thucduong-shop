@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1400px;
+    height: 670px;
+    overflow: hidden;
+    background: #ffffff;
+    font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+    color: #202124;
+    -webkit-font-smoothing: antialiased;
+  }
+  .canvas {
+    width: 1400px;
+    height: 670px;
+    padding: 20px 26px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+  }
+  .hdr {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 2px solid #137333;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+  .hdr-left h1 {
+    font-size: 21px;
+    font-weight: 800;
+    color: #137333;
+    letter-spacing: -0.2px;
+    line-height: 1.25;
+  }
+  .hdr-left p {
+    margin-top: 3px;
+    font-size: 12.5px;
+    color: #5f6368;
+    font-weight: 500;
+  }
+  .hdr-tag {
+    background: #e6f4ea;
+    color: #137333;
+    border: 1px solid #86efac;
+    border-radius: 999px;
+    padding: 5px 13px;
+    font-size: 11.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .main {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 0;
+  }
+  .ftr {
+    margin-top: 8px;
+    padding-top: 7px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10.5px;
+    color: #5f6368;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .legend-item { display: inline-flex; align-items: center; gap: 5px; font-weight: 500; }
+  .legend-dot { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+  .mono { font-family: 'Consolas', 'Courier New', monospace; font-size: 10.5px; }
+  .pill {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+</style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="hdr">
+      <div class="hdr-left">
+        <h1>Quy trình CI/CD, Sao lưu Tự động D1 & Kiến trúc Triển khai Production</h1>
+        <p>Tự động hóa kiểm thử, quét bảo mật SAST/Trivy, sao lưu cơ sở dữ liệu hằng ngày và vận hành trên Cloudflare Workers</p>
+      </div>
+      <div class="hdr-tag">CI/CD & DEPLOYMENT</div>
+    </div>
+    <div class="main">
+      
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <!-- Workflow 1: Deploy -->
+      <div style="border:1.5px solid #4ade80;border-radius:11px;padding:9px 12px;background:#f4fbf6;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+          <span style="font-size:12px;font-weight:800;color:#14532d;">1. Pipeline Triển khai Tự động (.github/workflows/deploy-cloudflare.yml)</span>
+          <span class="pill" style="background:#dcfce7;color:#166534;">Trigger: push main (bỏ qua *.md, *.test.*) + workflow_dispatch · Node 24</span>
+        </div>
+        <div style="display:grid;grid-template-columns:0.8fr 18px 1fr 18px 1.15fr 18px 1.25fr 18px 1.25fr 18px 1.15fr;align-items:center;">
+          <div style="background:#ffffff;border:1.5px solid #cbd5e1;border-radius:7px;padding:6px 8px;font-size:10.5px;color:#1e293b;font-weight:600;text-align:center;line-height:1.3;">Checkout &<br/>npm ci</div>
+          <div style="display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M1 8 L13 8 M9 4 L14 8 L9 12" stroke="#475569" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+          <div style="background:#ffffff;border:1.5px solid #cbd5e1;border-radius:7px;padding:6px 8px;font-size:10.5px;color:#1e293b;font-weight:600;text-align:center;line-height:1.3;">npm run typecheck<br/><span class='mono'>next typegen + tsc</span></div>
+          <div style="display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M1 8 L13 8 M9 4 L14 8 L9 12" stroke="#475569" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+          <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:7px;padding:6px 8px;font-size:10.5px;color:#1e3a8a;font-weight:600;text-align:center;line-height:1.3;">Unit Tests (22 cases)<br/><span class='mono'>npx tsx --test lib/*.test.ts</span></div>
+          <div style="display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M1 8 L13 8 M9 4 L14 8 L9 12" stroke="#475569" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+          <div style="background:#e6f4ea;border:1.5px solid #4ade80;border-radius:7px;padding:6px 8px;font-size:10.5px;color:#14532d;font-weight:600;text-align:center;line-height:1.3;">Build OpenNext Bundle<br/><span class='mono'>opennextjs-cloudflare build</span><br/>(+ postinstall auto-build)</div>
+          <div style="display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M1 8 L13 8 M9 4 L14 8 L9 12" stroke="#475569" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+          <div style="background:#fef7e0;border:1.5px solid #fbbf24;border-radius:7px;padding:6px 8px;font-size:10.5px;color:#92400e;font-weight:600;text-align:center;line-height:1.3;">Apply D1 Indexes<br/><span class='mono'>wrangler d1 execute</span><br/>0002_performance_indexes.sql</div>
+          <div style="display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M1 8 L13 8 M9 4 L14 8 L9 12" stroke="#475569" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+          <div style="background:#dcfce7;border:1.5px solid #22c55e;border-radius:7px;padding:6px 8px;font-size:10.5px;color:#14532d;font-weight:600;text-align:center;line-height:1.3;">Deploy Worker<br/><span class='mono'>opennextjs-cloudflare deploy</span><br/>(hoặc CF Workers Builds)</div>
+        </div>
+      </div>
+
+      <!-- Workflow 2: Security Audit -->
+      <div style="border:1.5px solid #fca5a5;border-radius:11px;padding:9px 12px;background:#fffafa;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+          <span style="font-size:12px;font-weight:800;color:#991b1b;">2. Pipeline Quét Bảo mật & AppSec (.github/workflows/security-audit.yml)</span>
+          <span class="pill" style="background:#fee2e2;color:#991b1b;">Trigger: push/PR main + Cron Thứ Hai 02:00 UTC (09:00 VN)</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+          <div style="background:#ffffff;border:1.5px solid #fca5a5;border-radius:7px;padding:6px 8px;font-size:10.5px;color:#7f1d1d;font-weight:600;text-align:center;line-height:1.3;">Job 1: Node Typecheck & NPM Audit<br/><span class='mono'>npm audit --omit=dev --audit-level=high</span> + typecheck</div>
+          <div style="background:#ffffff;border:1.5px solid #fca5a5;border-radius:7px;padding:6px 8px;font-size:10.5px;color:#7f1d1d;font-weight:600;text-align:center;line-height:1.3;">Job 2: Semgrep SAST<br/><span class='mono'>p/typescript, p/react, p/owasp-top-ten</span> (--error)</div>
+          <div style="background:#ffffff;border:1.5px solid #fca5a5;border-radius:7px;padding:6px 8px;font-size:10.5px;color:#7f1d1d;font-weight:600;text-align:center;line-height:1.3;">Job 3: Trivy Filesystem Scan<br/>Quét <span class='mono'>vuln, secret, misconfig</span> (HIGH, CRITICAL)</div>
+        </div>
+      </div>
+
+      <!-- Workflow 3: Daily Backup -->
+      <div style="border:1.5px solid #93c5fd;border-radius:11px;padding:9px 12px;background:#f8fbff;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+          <span style="font-size:12px;font-weight:800;color:#1d4ed8;">3. Pipeline Sao lưu D1 Hàng ngày (.github/workflows/backup-d1.yml)</span>
+          <span class="pill" style="background:#dbeafe;color:#1e40af;">Cron: 20:00 UTC = 03:00 Sáng VN Mỗi ngày</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1.1fr 18px 1.2fr 18px 1fr 18px 1.1fr 18px 1.1fr;align-items:center;">
+          <div style="background:#ffffff;border:1.5px solid #cbd5e1;border-radius:7px;padding:6px 8px;font-size:10.5px;color:#1e293b;font-weight:600;text-align:center;line-height:1.3;">wrangler d1 export<br/><span class='mono'>thucduong-shop-db</span><br/>--remote (.sql)</div>
+          <div style="display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M1 8 L13 8 M9 4 L14 8 L9 12" stroke="#475569" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+          <div style="background:#fef7e0;border:1.5px solid #fbbf24;border-radius:7px;padding:6px 8px;font-size:10.5px;color:#92400e;font-weight:600;text-align:center;line-height:1.3;">verify-d1-backup.mjs<br/>Kiểm >=512B, 9 bảng cốt lõi<br/>&amp; có lệnh INSERT INTO</div>
+          <div style="display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M1 8 L13 8 M9 4 L14 8 L9 12" stroke="#475569" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+          <div style="background:#ffffff;border:1.5px solid #cbd5e1;border-radius:7px;padding:6px 8px;font-size:10.5px;color:#1e293b;font-weight:600;text-align:center;line-height:1.3;">Nén & Băm<br/><span class='mono'>gzip -9</span> +<br/><span class='mono'>sha256sum</span></div>
+          <div style="display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M1 8 L13 8 M9 4 L14 8 L9 12" stroke="#475569" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+          <div style="background:#e6f4ea;border:1.5px solid #4ade80;border-radius:7px;padding:6px 8px;font-size:10.5px;color:#14532d;font-weight:600;text-align:center;line-height:1.3;">GitHub Artifacts<br/>Lưu <span class='mono'>.sql.gz</span> + <span class='mono'>.sha256</span><br/>trong 30 ngày</div>
+          <div style="display:flex;align-items:center;justify-content:center;"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M1 8 L13 8 M9 4 L14 8 L9 12" stroke="#475569" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div>
+          <div style="background:#eff6ff;border:1.5px solid #60a5fa;border-radius:7px;padding:6px 8px;font-size:10.5px;color:#1d4ed8;font-weight:600;text-align:center;line-height:1.3;">R2 Mirror (Tùy chọn)<br/>Nếu có <span class='mono'>vars.R2_BACKUP_BUCKET</span><br/>put d1-backups/*</div>
+        </div>
+      </div>
+
+      <!-- Bottom: Environments & Runbook -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="border:1.5px solid #cbd5e1;border-radius:10px;padding:9px 12px;background:#f8fafc;">
+          <div style="font-size:11.5px;font-weight:800;color:#334155;margin-bottom:4px;">Môi trường Phát triển (Local / Docker Dev)</div>
+          <div style="font-size:10.5px;color:#334155;line-height:1.4;">
+            • <span class="mono">docker-compose.yml</span> (<span class="mono">node:24</span>, cổng <span class="mono">3000</span>, <span class="mono">WATCHPACK_POLLING=true</span>) hoặc <span class="mono">npm run dev</span>.<br/>
+            • <span class="mono">next.config.ts</span> gọi <span class="mono">initOpenNextCloudflareForDev()</span> giả lập bindings D1/KV cục bộ.<br/>
+            • 7 script CLI (<span class="mono">scripts/*.mjs</span>) hỗ trợ đồng bộ 34 tỉnh/3.321 xã, crawl dữ liệu LoveItop/Haravan &amp; nạp D1 (<span class="mono">cf:db:local</span>).
+          </div>
+        </div>
+        <div style="border:1.5px solid #22c55e;border-radius:10px;padding:9px 12px;background:#f0fdf4;">
+          <div style="font-size:11.5px;font-weight:800;color:#14532d;margin-bottom:4px;">Môi trường Production (Cloudflare Edge + Giám sát)</div>
+          <div style="font-size:10.5px;color:#1e293b;line-height:1.4;">
+            • Domain: <span class="mono">https://thucduongshop.duyvo.win</span> | Worker: <span class="mono">thucduong-shop</span> (<span class="mono">2025-05-05</span>).<br/>
+            • Health Probe: <span class="mono">GET /api/health/</span> đo round-trip <span class="mono">SELECT 1</span> D1 trả về <span class="mono">200</span> hoặc <span class="mono">503</span>.<br/>
+            • Runbook <span class="mono">cf-deploy-verify</span>: typecheck -&gt; <span class="mono">cf:deploy</span> -&gt; <span class="mono">curl</span> smoke-test (nhớ <span class="mono">/</span> cuối URL POST).
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+    <div class="ftr">
+      <div class="legend"><span class="legend-item"><span class="legend-dot" style="background:#dcfce7;border:1.5px solid #4ade80;"></span>Build & Deploy Cloudflare</span><span class="legend-item"><span class="legend-dot" style="background:#fee2e2;border:1.5px solid #fca5a5;"></span>Security Audit (Semgrep/Trivy)</span><span class="legend-item"><span class="legend-dot" style="background:#dbeafe;border:1.5px solid #93c5fd;"></span>Backup & Verification</span><span class="legend-item"><span class="legend-dot" style="background:#fef7e0;border:1.5px solid #fbbf24;"></span>D1 Index / Integrity Gate</span></div>
+      <div>Nguồn: .github/workflows/*.yml, wrangler.jsonc, package.json, .agents/skills/cf-deploy-verify/SKILL.md</div>
+    </div>
+  </div>
+</body>
+</html>

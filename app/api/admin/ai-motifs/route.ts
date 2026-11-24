@@ -5,10 +5,10 @@ import {
   loadAiMotifs,
   upsertAiMotif,
 } from "@/lib/ai-motifs";
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 
 export async function GET() {
-  if (!(await currentAdmin())) {
+  if (!(await currentAdminForPath("/admin/posts/", "/admin/products/"))) {
     return Response.json({ error: "Chưa đăng nhập quản trị." }, { status: 401 });
   }
   const items = await loadAiMotifs();
@@ -16,7 +16,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  if (!(await currentAdmin())) {
+  if (!(await currentAdminForPath("/admin/posts/", "/admin/products/"))) {
     return Response.json({ error: "Chưa đăng nhập quản trị." }, { status: 401 });
   }
   const body = (await req.json().catch(() => ({}))) as {

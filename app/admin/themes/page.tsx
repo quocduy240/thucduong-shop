@@ -1,11 +1,11 @@
 import AdminThemeStudio from "@/components/admin/AdminThemeStudio";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { getThemeSettings } from "@/lib/theme-settings";
 
 export const metadata = { title: "Giao diện & Cỡ chữ | Quản trị" };
 
 export default async function AdminThemesPage() {
-  await requireAdmin();
+  await requireAdminPath("/admin/themes/");
   const config = await getThemeSettings();
 
   return (

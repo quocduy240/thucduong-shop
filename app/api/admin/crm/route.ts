@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import {
   addCrmNote,
   addCustomerTag,
@@ -12,13 +12,13 @@ import {
 } from "@/lib/crm";
 
 export async function GET() {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/crm/");
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   return NextResponse.json(await getCrmDashboardData());
 }
 
 export async function POST(req: Request) {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/crm/");
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const b = await req.json().catch(() => ({}));

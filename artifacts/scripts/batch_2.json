@@ -1,0 +1,541 @@
+[
+  {
+    "op": "set-default-style",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "line_spacing": 115
+  },
+  {
+    "op": "heading",
+    "text": "4. Thiết kế Cơ sở Dữ liệu & Mô hình Thực thể (Database Design & ERD)",
+    "level": "2",
+    "font_family": "Roboto",
+    "font_size": 18,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 20,
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Lược đồ cơ sở dữ liệu của thucduong-shop bao gồm tổng cộng 48 bảng thực thể phủ khắp 6 miền nghiệp vụ. Một đặc điểm thiết kế nổi bật là mô hình tự tiến hóa lược đồ theo nhu cầu (On-demand Additive Schema Migration): bên cạnh tập bảng nền tảng ban đầu và 2 tệp migration chính thức (migrations/0001_schema_sync.sql và 0002_performance_indexes.sql), nhiều module miền tự trang bị các hàm bảo đảm bảng và cột chạy lười (lazy initialization) kèm ghi nhớ promise theo vòng đời isolate.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Cụ thể, các hàm như ensureAdminSchema() (lib/auth.ts), ensureRetailOpsSchema() (lib/retail-ops.ts), ensureQrTable() (lib/qr.ts), ensureSeoColumns() (lib/seo.ts), ensureQuickConsultTables() (lib/quick-consult.ts), ensureLabTable() (lib/lab-analysis.ts), ensurePostImportTables() (lib/post-importer.ts), ensureProductImportTables() (lib/product-importer.ts), ensureYoutubeSyncTable() (lib/youtube-sync.ts) và ensureMediaAssetsTable() (lib/media-assets.ts) tự động kiểm tra PRAGMA table_info và thực thi CREATE TABLE IF NOT EXISTS hoặc ALTER TABLE ADD COLUMN khi thiếu cột. Cách làm này giúp mã nguồn tương thích ngược ngay lập tức với các bản dump dữ liệu cũ mà không bị lỗi thiếu cột.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Hình 3. Sơ đồ Thực thể Quan hệ Cơ sở Dữ liệu D1 (48 bảng theo 6 miền nghiệp vụ)",
+    "font_family": "Roboto",
+    "font_size": 10.5,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 8,
+    "space_below": 4
+  },
+  {
+    "op": "append",
+    "text": "Để hạn chế tối đa tình trạng quét toàn bảng (full table scan) trên Cloudflare D1 vốn tính phí theo số hàng đọc (rows read), tệp migrations/0002_performance_indexes.sql đã bổ sung 18 chỉ mục ghép (composite indexes) nhắm đúng vào các truy vấn lọc danh mục kèm is_published, đếm bình luận theo product_id, tra cứu đơn hàng theo số điện thoại/trạng thái, dọn dẹp phiên hết hạn và truy vết sổ cái điểm thưởng. Bảng dưới đây phân rã chi tiết danh mục thực thể theo từng miền nghiệp vụ.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "insert-table",
+    "table_data": [
+      [
+        "Miền Nghiệp vụ",
+        "Số bảng",
+        "Danh sách Bảng & Thực thể",
+        "Khóa chính / Cột Trọng yếu & Mối liên kết"
+      ],
+      [
+        "1. Danh mục, Sản phẩm & Sale",
+        "5",
+        "product_categories, products, comments, flash_sale_slots, flash_sale_items",
+        "products nối FK category_id; lưu price, sale_price, cost_price, contact_only, kv_code, sku, stock, min_stock, is_published, seo_*; comments nối product_id."
+      ],
+      [
+        "2. CMS, Thư viện & Marketing",
+        "10",
+        "post_sections, post_categories, posts, pages, content_blocks, videos, youtube_sync_pending, documents, document_leads, qr_codes",
+        "Phân cấp post_sections -> post_categories -> posts; pages khóa kép (grp, slug); documents liên kết bundle_product_id; qr_codes đếm scans tại /q/[slug]."
+      ],
+      [
+        "3. Đơn hàng, POS, Kho & Quỹ",
+        "9",
+        "provinces, wards, orders, order_items, coupons, inventory_movements, cashbook_entries, suppliers, delivery_partners",
+        "34 provinces -> 3.321 wards; orders lưu 6 trạng thái, vận đơn, kiotviet_order_id; inventory_movements ghi 7 lý do biến động; cashbook_entries tách 3 quỹ."
+      ],
+      [
+        "4. Quản trị, Member, CRM & Loyalty",
+        "15",
+        "admins, admin_sessions, members, member_sessions, member_profiles, point_transactions, point_rules, reward_catalog, reward_redemptions, referrals, daily_login_streaks, newsletter_subscribers, crm_notes, crm_customer_tags, crm_automation_logs",
+        "member_profiles là thực thể định danh hợp nhất (user_id nullable) kết nối sổ cái point_transactions (idempotent theo source + ref_type + ref_id) và crm_notes/tags."
+      ],
+      [
+        "5. Hệ sinh thái AI & Nhập liệu",
+        "6",
+        "quick_consultations, quick_consult_cache, lab_analyses, post_import_jobs, product_import_jobs, consultation_requests",
+        "Hàng đợi post/product_import_jobs dùng locked_until (40s/35s); lab_analyses dùng started_at; quick_consult_cache lưu HTML 14 ngày theo SHA-256."
+      ],
+      [
+        "6. Cấu hình & Media Fallback",
+        "3",
+        "settings, media_files, media_assets",
+        "settings (key/value) chứa hơn 15 cấu hình JSON & khóa API; media_files và media_assets lưu base64 dự phòng khi chưa gắn R2 MEDIA_BUCKET."
+      ]
+    ],
+    "table_header_bg_color": "#e6f4ea",
+    "table_header_text_color": "#137333",
+    "table_header_bold": true,
+    "table_font_family": "Roboto",
+    "table_font_size": 9.5,
+    "table_border_color": "#dadce0",
+    "table_border_width": 0.5
+  },
+  {
+    "op": "rich-text",
+    "font_family": "Roboto",
+    "font_size": 10.5,
+    "text_color": "#202124",
+    "space_below": 8,
+    "runs": [
+      {
+        "font_family": "Roboto",
+        "bold": true,
+        "italic": false,
+        "text_color": "#065a82",
+        "text": "Ghi chú thiết kế dữ liệu: "
+      },
+      {
+        "font_family": "Roboto",
+        "bold": false,
+        "italic": false,
+        "text_color": "#202124",
+        "text": "Hệ thống tồn tại sự song hành có kiểm soát giữa bảng members (cấu trúc ban đầu chỉ cho khách đăng ký) và bảng member_profiles (hỗ trợ cả khách mua vãng lai không tài khoản). Hàm resolveOnLoginOrRegister() và syncLegacyMember() trong lib/loyalty.ts đảm nhận đồng bộ điểm và tự động sáp nhập lịch sử mua hàng khi khách vãng lai đăng ký thành viên."
+      }
+    ],
+    "paragraph_bg_color": "#e8f0fe",
+    "space_above": 6
+  },
+  {
+    "op": "heading",
+    "text": "5. Thiết kế Storefront, Định tuyến URL, Caching & Kiến trúc SEO",
+    "level": "2",
+    "font_family": "Roboto",
+    "font_size": 18,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 20,
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Tầng giao diện công khai (Storefront) phải đáp ứng đồng thời hai mục tiêu kỹ thuật khắt khe: duy trì tương thích 100% với cấu trúc URL không đồng nhất của LoveItop (nơi trang danh sách kết thúc bằng dấu gạch chéo, trang bài viết/sản phẩm kết thúc bằng .html, còn giỏ hàng và API không có gạch chéo) và tối ưu hóa tốc độ tải trang trên Edge thông qua bộ nhớ đệm gắn thẻ kết hợp SEO ngữ nghĩa.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Hình 4. Định tuyến URL Tương thích LoveItop và Kiến trúc Caching Đa tầng",
+    "font_family": "Roboto",
+    "font_size": 10.5,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 8,
+    "space_below": 4
+  },
+  {
+    "op": "heading",
+    "text": "5.1 Phân giải Định tuyến URL & Các Phân hệ Storefront Nổi bật",
+    "level": "3",
+    "font_family": "Roboto",
+    "font_size": 13.5,
+    "bold": true,
+    "text_color": "#065a82",
+    "space_above": 13,
+    "space_below": 4
+  },
+  {
+    "op": "append",
+    "text": "Tệp next.config.ts thiết lập đồng thời trailingSlash: true và skipTrailingSlashRedirect: true, cho phép Next.js chấp nhận các route đặc biệt như /cart, /checkout hay /api/v2/add-to-cart/[id] mà không ép chuyển hướng 308 gây mất payload POST (riêng các client gọi POST tới API mới vẫn tuân thủ quy ước thêm dấu / ở cuối URL). Toàn bộ việc sinh liên kết nội bộ được tập trung vào đối tượng url trong lib/data.ts để không bao giờ xảy ra lệch đường dẫn giữa các trang.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "insert-table",
+    "table_data": [
+      [
+        "Mẫu Đường dẫn (URL)",
+        "File Xử lý",
+        "Độ ưu tiên & Logic Phân giải"
+      ],
+      [
+        "/",
+        "app/page.tsx",
+        "Trang chủ: Banner, lối tắt nhanh, Flash Sale, BlockZone home_top/bottom, 4 SP/danh mục (1 truy vấn ROW_NUMBER() chống N+1), 6 bài mới nhất."
+      ],
+      [
+        "/san-pham/ & /san-pham/[category]/",
+        "app/san-pham/**/page.tsx",
+        "Danh mục sản phẩm: Sắp xếp ưu tiên Canh Dưỡng Sinh (CDS_FIRST), lọc q/brand/origin/price/sale/stock/sort; ẩn SP khi is_published=0; hiện 'Liên hệ' nếu contact_only=1."
+      ],
+      [
+        "/san-pham/[category]/[product].html",
+        "app/san-pham/[category]/[product]/page.tsx",
+        "Chi tiết SP: ProductGallery zoom 2.2x, Flash Sale override, JSON-LD Product, đánh giá đã mua hàng, Video YouTube, RecentlyViewed (localStorage 8 SP)."
+      ],
+      [
+        "/canh-duong-sinh/",
+        "app/canh-duong-sinh/page.tsx",
+        "Landing page riêng cho dòng sản phẩm chủ lực Canh Dưỡng Sinh King Kung (Hòa tan 60 gói & Túi lọc 90 gói) kèm zoom 2.3x."
+      ],
+      [
+        "/cart -> /checkout -> /checkout/thankyou",
+        "app/cart/**, app/checkout/**",
+        "Giỏ hàng cookie cart (max 999) có thanh freeship 500.000đ; Checkout Tỉnh/Phường v2; Trang cảm ơn hiện ảnh VietQR BIDV 8610312888."
+      ],
+      [
+        "/tu-van-nhanh/ & /ho-so-tu-van/[token]/",
+        "app/tu-van-nhanh/**, app/ho-so-tu-van/**",
+        "Phễu tư vấn AI 3 bước kèm tính BMI châu Á và trang hồ sơ bệnh nhân in PDF A4 có mã share_token bảo mật."
+      ],
+      [
+        "/thanh-vien/ & /tra-cuu-don-hang/",
+        "app/thanh-vien/**, app/tra-cuu-don-hang/**",
+        "Cổng thành viên (thẻ hạng, đổi quà, điểm danh, ví voucher, mua lại 1-click) và tra cứu đơn công khai che SĐT."
+      ],
+      [
+        "/q/[slug] & /go/social/[id]",
+        "app/q/**, app/go/social/**",
+        "Chuyển hướng 302 cho QR động (cộng qr_codes.scans) và nút MXH/Sàn TMĐT (đếm clicks + tự gắn UTM tracking)."
+      ],
+      [
+        "/[section] (1 cấp động)",
+        "app/[section]/page.tsx",
+        "Nếu kết thúc .html -> tìm trang tĩnh (VD: /gioi-thieu.html); ngược lại -> chuyên mục bài viết (/thuc-duong/); riêng /thu-vien/ mở VideoLibrary."
+      ],
+      [
+        "/[section]/[slug] (2 cấp động)",
+        "app/[section]/[slug]/page.tsx",
+        "Có .html: ưu tiên trang tĩnh /chinh-sach/*.html trước URL bài viết ngắn. Không .html: tải DocumentLibrary (12 tài liệu, 5 chế độ mở khóa) hoặc VideoLibrary (318 video) + trigger RSS YouTube."
+      ],
+      [
+        "/[section]/[slug]/[post] (3 cấp chuẩn)",
+        "app/[section]/[slug]/[post]/page.tsx",
+        "URL bài viết chuẩn canonical: xuất JSON-LD Article, chèn tự động Block giữa bài (trước H2 thứ 2), gắn Combo mua chung và ArticleReadTracker (+2 điểm đọc bài)."
+      ]
+    ],
+    "table_header_bg_color": "#e6f4ea",
+    "table_header_text_color": "#137333",
+    "table_header_bold": true,
+    "table_font_family": "Roboto",
+    "table_font_size": 9.5,
+    "table_border_color": "#dadce0",
+    "table_border_width": 0.5
+  },
+  {
+    "op": "append",
+    "text": "Ngoài các trang truyền thống, Storefront sở hữu hệ thống lắp ghép giao diện linh hoạt đáng chú ý. Động cơ Content Block tại lib/blocks.ts hỗ trợ 10 vị trí hiển thị tự động (như post_top, post_middle, product_sidebar, home_bottom) cùng khả năng phân giải đệ quy tối đa 4 tầng lồng nhau cho các mã nhúng [[block:slug]], [[qr:slug]] và [[social:style:group]] có bảo vệ chống vòng lặp vô hạn. Song song đó, AdminThemeStudio cho phép tùy biến 3 bộ giao diện (Chuẩn Thực Dưỡng 16px, Người Lớn Tuổi 19px, Hiện Đại 15px) và FrontendAdminProvider bổ sung thanh công cụ nổi giúp quản trị viên sửa trực tiếp sản phẩm, bài viết hoặc chuyển nhanh sang chế độ 'Xem như User thường' ngay ngoài website.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "heading",
+    "text": "5.2 Chiến lược Bộ nhớ đệm (Caching) & Kiến trúc SEO",
+    "level": "3",
+    "font_family": "Roboto",
+    "font_size": 13.5,
+    "bold": true,
+    "text_color": "#065a82",
+    "space_above": 13,
+    "space_below": 4
+  },
+  {
+    "op": "append",
+    "text": "Kiến trúc caching kết hợp Cloudflare KV (NEXT_INC_CACHE_KV với withRegionalCache TTL 300 giây trong open-next.config.ts), React cache() và 9 thẻ CACHE_TAGS trong lib/cache-tags.ts (site, categories, products, posts, pages, videos, documents, blocks, flashSale). Tuy nhiên, một điểm kỹ thuật quan trọng cần lưu ý là app/layout.tsx hiện khai báo export const dynamic = 'force-dynamic' để luôn đọc cấu hình Theme và Widget mới nhất từ D1. Vì tệp layout gốc đặt force-dynamic, cấu hình revalidate = 60 hoặc 300 ở cấp trang con (như app/page.tsx hay trang bài viết/sản phẩm) thực chất bị bỏ qua, nhường chỗ cho cơ chế SSR động kết hợp lớp cache dữ liệu unstable_cache cho các bảng ít biến động (settings, danh mục, trang tĩnh, video, tài liệu). Khi Admin lưu thay đổi, hàm invalidateStorefront() sẽ gọi đồng thời revalidateTag(..., 'max') và revalidatePath('/', 'layout').",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Ở khía cạnh SEO, lib/seo.ts quản lý 3 cột seo_title, seo_description, seo_keywords cho từng sản phẩm và bài viết, hỗ trợ chấm điểm SEO 0-100 và xem trước SERP ngay trong trình biên tập. Trang chi tiết sản phẩm và bài viết canonical đều xuất thẻ OpenGraph, link canonical và dữ liệu có cấu trúc JSON-LD (Product kèm Offer/Availability có tính tới giá Flash Sale, hoặc Article) với ký tự < được mã hóa thành \\u003c để chống tấn công thoát thẻ script. Sơ đồ website được phát sinh động qua /sitemap.xml (lọc chỉ lấy sản phẩm đang công khai và danh mục đang bật), /robots.txt (chặn /admin/, /api/, /cart, /checkout) và sơ đồ HTML /so-do-trang.html.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "heading",
+    "text": "6. Thiết kế Nghiệp vụ Bán lẻ, POS, KiotViet, CRM 360 & Loyalty",
+    "level": "2",
+    "font_family": "Roboto",
+    "font_size": 18,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 20,
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Phân hệ vận hành bán lẻ của thucduong-shop biến một cửa hàng web đơn thuần thành hệ thống hợp nhất giữa kênh trực tuyến, bán hàng tại quầy (POS) và quản trị quan hệ khách hàng trọn đời. Toàn bộ vòng đời từ lúc khách bấm đặt hàng cho tới khi ghi sổ quỹ, đồng bộ KiotViet, tích điểm và chăm sóc tái mua được nối thành một chuỗi khép kín.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Hình 5. Luồng Checkout Nguyên tử, Vòng đời Đơn hàng, Kho vận POS và KiotViet",
+    "font_family": "Roboto",
+    "font_size": 10.5,
+    "bold": true,
+    "text_color": "#137333",
+    "space_above": 8,
+    "space_below": 4
+  },
+  {
+    "op": "heading",
+    "text": "6.1 Checkout Nguyên tử, Bán hàng POS, Kho vận & Sổ quỹ 3 Quỹ",
+    "level": "3",
+    "font_family": "Roboto",
+    "font_size": 13.5,
+    "bold": true,
+    "text_color": "#065a82",
+    "space_above": 13,
+    "space_below": 4
+  },
+  {
+    "op": "append",
+    "text": "Điểm chốt chặn an toàn nhất của luồng đặt hàng online tại POST /api/data-checkout nằm ở thao tác trừ kho có điều kiện SQL nguyên tử: UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?. Nếu bất kỳ mặt hàng nào trong giỏ không đủ tồn kho hoặc thao tác ghi batch vào orders/order_items gặp lỗi, hàm restoreDeductedStock() lập tức cộng hoàn lại số lượng đã trừ cho các sản phẩm trước đó. Yêu cầu đặt hàng cũng được bảo vệ bằng Rate Limiter (10 đơn/phút/IP) và kiểm tra khóa chống trùng lặp Idempotency-Key trong bộ nhớ isolate (TTL 10 phút).",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Sau khi đơn hàng được tạo, bộ máy trạng thái gồm 6 bước (new, confirmed, shipping, done, returned, cancelled) điều phối mọi biến động hậu mãi. Tại /admin/pos/, nhân viên có thể tìm nhanh sản phẩm theo tên hoặc mã SKU, áp dụng chiết khấu trực tiếp bằng tiền mặt và xuất hóa đơn ngay; với đơn thanh toán tiền mặt, chuyển khoản ngân hàng hoặc theo KiotViet, đơn chuyển thẳng sang trạng thái done và tự động tạo phiếu thu vào đúng quỹ tương ứng. Trang /admin/inventory/ gom 5 nghiệp vụ kho vận và tài chính: kiểm kho và cập nhật giá vốn; nhập hàng nhà cung cấp (mã PN-) kèm xuất nội bộ/xuất hủy (mã XNB-/XH-) ghi chi tiết vào thẻ kho inventory_movements (7 mã lý do); quản lý sổ quỹ tách bạch 3 quỹ (Tiền mặt, Chuyển khoản Ngân hàng, Theo KiotViet); danh mục nhà cung cấp và 6 đối tác giao vận; cùng Báo cáo cuối ngày (EOD) tính toán Doanh thu thuần, Giá vốn hàng bán (COGS) và Tỷ suất lãi gộp.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "append",
+    "text": "Đối với nghiệp vụ in ấn, KiotVietInvoicePrintStudio (lib/invoice-print.ts) cung cấp cấu hình chuẩn KiotViet với 4 khổ giấy (A5 Dọc 148x210mm, A5 Ngang 210x148mm, A4, hóa đơn nhiệt K80), 3 mức cỡ chữ và 16 block bật/tắt linh hoạt (từ logo, mã QR website, thông tin vận đơn, bảng 8 cột hàng hóa, đọc tổng tiền bằng chữ tiếng Việt vndToVietnameseWords(), mã VietQR tự điền số tiền đến khung chữ ký 2 hoặc 3 cột).",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "heading",
+    "text": "6.2 Tích hợp KiotViet Đa phương thức",
+    "level": "3",
+    "font_family": "Roboto",
+    "font_size": 13.5,
+    "bold": true,
+    "text_color": "#065a82",
+    "space_above": 13,
+    "space_below": 4
+  },
+  {
+    "op": "append",
+    "text": "Hệ thống tích hợp sâu với phần mềm KiotViet thông qua 4 kênh song song để thích ứng linh hoạt với hạ tầng cửa hàng:",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "bullet-list",
+    "text": "Đẩy đơn hàng qua REST API (lib/kiotviet.ts): Sử dụng luồng OAuth2 client_credentials tới https://id.kiotviet.vn/connect/token (cache token trong bộ nhớ tới trước khi hết hạn 60 giây) và gọi https://public.kiotapi.com/orders qua nút đẩy đơn thủ công trên trang chi tiết đơn hàng, lưu ngược lại kiotviet_order_id và kiotviet_code.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 6,
+    "space_below": 2
+  },
+  {
+    "op": "bullet-list",
+    "text": "Kéo tồn kho & Webhook thời gian thực: Chức năng syncInventoryFromKiotViet() lấy tối đa 100 sản phẩm kèm giá vốn và tồn kho chi nhánh để cân bằng chênh lệch vào thẻ kho; trong khi endpoint POST /api/kiotviet/webhook tiếp nhận thông báo đẩy từ KiotViet để cập nhật tồn kho tự động theo mã kv_code hoặc sku.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 2,
+    "space_below": 2
+  },
+  {
+    "op": "bullet-list",
+    "text": "Bộ nhập Excel/CSV thuần TypeScript (lib/kiotviet-import.ts): Tự giải nén file .xlsx (định dạng ZIP) bằng node:zlib.inflateRawSync và phân tích xl/sharedStrings.xml + sheet1.xml bằng regex mà không cần thư viện xlsx nặng nề. Hệ thống tự động loại bỏ hàng Dịch vụ, đồng bộ 15 nhóm ngành hàng gợi ý, quy về tồn kho >= 0 và thực thi theo từng batch 40 câu lệnh D1.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 2,
+    "space_below": 2
+  },
+  {
+    "op": "bullet-list",
+    "text": "Xuất file CSV chuẩn Import KiotViet (/admin/orders/export-kiotviet/): Kết xuất tối đa 500 dòng chi tiết đơn hàng gần nhất kèm UTF-8 BOM và mã SKU để kế toán nhập nhanh vào phần mềm.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "space_above": 2,
+    "space_below": 8
+  },
+  {
+    "op": "heading",
+    "text": "6.3 CRM 360 độ & Tự động hóa Chăm sóc",
+    "level": "3",
+    "font_family": "Roboto",
+    "font_size": 13.5,
+    "bold": true,
+    "text_color": "#065a82",
+    "space_above": 13,
+    "space_below": 4
+  },
+  {
+    "op": "append",
+    "text": "Phân hệ CRM tại lib/crm.ts và /admin/crm/ tổng hợp dữ liệu từ member_profiles, orders, crm_notes, crm_customer_tags và lịch sử đổi quà để tạo hồ sơ 360 độ cho từng khách hàng theo khóa định danh SĐT hoặc Email. Thuật toán classifyRfm() phân loại tự động 5 phân khúc hành vi: Lead chưa mua (0 đơn), Sắp hết sản phẩm (20 đến 45 ngày từ đơn gần nhất), Nguy cơ rời bỏ (trên 45 ngày), Khách VIP (từ 3 đơn hoặc tổng chi >= 3.000.000đ) và Khách mới (dưới 20 ngày). Nhân viên kinh doanh có thể xem cảnh báo lịch hẹn gọi lại đến hạn ngay trên thanh menu, gắn tag bệnh lý/nhu cầu (như #Tieu_duong, #Da_day), sao chép mẫu tin nhắn Zalo đã tự điền sẵn tên sản phẩm cuối và số điểm/mã ưu đãi đang có, theo dõi bảng xếp hạng doanh số/chăm sóc của đội ngũ tư vấn viên, hoặc vận hành hàng đợi tự động hóa gửi hướng dẫn sử dụng (+3 ngày) và nhắc mua lại (+25 ngày).",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "heading",
+    "text": "6.4 Hệ thống Tích điểm & Đổi quà (Loyalty Engine)",
+    "level": "3",
+    "font_family": "Roboto",
+    "font_size": 13.5,
+    "bold": true,
+    "text_color": "#065a82",
+    "space_above": 13,
+    "space_below": 4
+  },
+  {
+    "op": "append",
+    "text": "Cơ chế tích điểm được xây dựng quanh sổ cái point_transactions không thể sửa xóa (append-only ledger) kết hợp bảng hạng thành viên 4 bậc (Đồng: <1.000 điểm trọn đời, hệ số 1.0x; Bạc: >=1.000 điểm, hệ số 1.2x, giảm 3% đơn hàng; Vàng: >=3.000 điểm, hệ số 1.5x, giảm 5%; Kim cương: >=10.000 điểm, hệ số 2.0x, giảm 7%). Điểm mua hàng chỉ được ghi nhận chính thức khi đơn hàng chuyển trạng thái sang done thông qua hook onOrderStatusChanged(), đồng thời mở khóa phần thưởng giới thiệu (+200 điểm người giới thiệu, +100 điểm người được mời) và tự thu hồi điểm nếu đơn hoàn thành bị chuyển sang hủy (cancelled).",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  },
+  {
+    "op": "insert-table",
+    "table_data": [
+      [
+        "Nguồn Tích điểm (PointSource)",
+        "Công thức / Giá trị Mặc định",
+        "Điểm Kích hoạt (Trigger)",
+        "Cơ chế Chống Trục lợi & Idempotency"
+      ],
+      [
+        "purchase",
+        "floor((tổng đơn / 10.000) * hệ số hạng)",
+        "Đơn chuyển trạng thái done",
+        "Khóa duy nhất (member_id, purchase, order, orderId) trên sổ cái"
+      ],
+      [
+        "refund_reversal",
+        "Trừ đúng số điểm đã cộng ở giao dịch gốc",
+        "Đơn chuyển từ done sang cancelled",
+        "Truy vấn giao dịch gốc; khóa duy nhất theo orderId"
+      ],
+      [
+        "signup",
+        "+50 điểm (kèm 100 điểm khởi tạo legacy)",
+        "Đăng ký tài khoản /api/member/auth",
+        "Chỉ nhận 1 lần duy nhất trọn đời theo member_id"
+      ],
+      [
+        "referral_bonus / joined",
+        "+200 người giới thiệu / +100 người nhận",
+        "Khi người được mời hoàn thành đơn đầu tiên",
+        "Chặn tự giới thiệu theo ID, SĐT và Email; INSERT OR IGNORE"
+      ],
+      [
+        "daily_login & streak_bonus",
+        "+5/ngày; mốc 7 ngày +50; mốc 30 ngày +200",
+        "POST /api/loyalty/earn (action=daily_login)",
+        "Tính theo ngày múi giờ Asia/Ho_Chi_Minh (UTC+7); mỗi ngày tối đa 1 lần"
+      ],
+      [
+        "read_article",
+        "+2 điểm mỗi bài viết",
+        "ArticleReadTracker khi cuộn >=70% và >=30s",
+        "Mỗi bài viết 1 lần; giới hạn tối đa 5 điểm/ngày (UTC+7); Rate limit 20/5p"
+      ],
+      [
+        "download_doc",
+        "+5 điểm mỗi tài liệu",
+        "POST /api/documents/unlock",
+        "Mỗi tài liệu 1 lần; giới hạn tối đa 3 lượt/ngày (UTC+7)"
+      ],
+      [
+        "review (đã mua) / comment",
+        "+30 điểm (đánh giá đã mua) / +10 điểm",
+        "POST /submit-comment",
+        "Review đối chiếu orders(done); max 5/tháng; Comment >=50 ký tự, max 3/ngày"
+      ],
+      [
+        "admin_adjust / redemptions",
+        "Điều chỉnh thủ công hoặc trừ đổi quà",
+        "CRM / Admin Loyalty / POST /api/loyalty/redeem",
+        "Sales giới hạn tối đa +100 điểm/lần tại CRM; trừ kho & điểm nguyên tử"
+      ]
+    ],
+    "table_header_bg_color": "#e6f4ea",
+    "table_header_text_color": "#137333",
+    "table_header_bold": true,
+    "table_font_family": "Roboto",
+    "table_font_size": 9.5,
+    "table_border_color": "#dadce0",
+    "table_border_width": 0.5
+  },
+  {
+    "op": "append",
+    "text": "Khi thành viên đổi quà trong kho reward_catalog, hàm redeemReward() thực hiện trừ tồn kho phần quà và trừ số dư điểm theo điều kiện WHERE current_points >= cost, tự động hoàn tồn kho nếu số dư không đủ. Đối với voucher giảm giá/freeship, hệ thống phát sinh mã coupon cá nhân hóa (TDGIFT* hoặc TDFREE*); đối với quà hiện vật, hệ thống tự động tạo một nhắc việc chăm sóc ngay trong ngày trên bảng crm_notes dưới tên system@loyalty để nhân viên liên hệ giao quà.",
+    "font_family": "Roboto",
+    "font_size": 11,
+    "text_color": "#202124",
+    "alignment": "START",
+    "space_below": 6
+  }
+]

@@ -1,4 +1,4 @@
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import { callGeminiGenerateContent, resolveGeminiApiKey } from "@/lib/gemini-key";
 
 const TONE_PROMPTS: Record<string, string> = {
@@ -16,7 +16,7 @@ const TONE_PROMPTS: Record<string, string> = {
 };
 
 export async function POST(req: Request) {
-  const admin = await currentAdmin();
+  const admin = await currentAdminForPath("/admin/posts/", "/admin/products/");
   if (!admin) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   try {

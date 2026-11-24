@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import ContentEditor from "@/components/admin/ContentEditor";
 import { ui } from "@/components/admin/ui";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import {
   BLOCK_POSITION_LABELS,
   BLOCK_STYLE_LABELS,
@@ -23,7 +23,7 @@ export default async function BlockEditPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireAdmin();
+  await requireAdminPath("/admin/blocks/");
   const { id: rawId } = await params;
   const sp = await searchParams;
   const error = typeof sp.error === "string" ? sp.error : "";

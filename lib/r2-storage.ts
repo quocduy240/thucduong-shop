@@ -9,8 +9,17 @@ interface R2PutOptions {
   };
 }
 
+interface R2ObjectLike {
+  arrayBuffer(): Promise<ArrayBuffer>;
+  httpMetadata?: {
+    contentType?: string;
+    cacheControl?: string;
+  };
+}
+
 interface R2BucketLike {
   put(key: string, value: ArrayBuffer | Uint8Array | string, options?: R2PutOptions): Promise<unknown>;
+  get?(key: string): Promise<R2ObjectLike | null>;
   delete?(key: string): Promise<void>;
 }
 
@@ -89,4 +98,40 @@ export async function putMediaObject(
     bytes.toString("base64"),
   );
   return { storage: "d1", url: resolvePublicMediaUrl(cleanKey, "d1") };
+}
+
+/**
+ * Read binary media object from Cloudflare R2 (`MEDIA_BUCKET`) when bound.
+ * Tries the exact path first, then `media/<slug>` for single-segment assets saved via `media-assets.ts`.
+ */
+export async function getMediaObject(
+  mediaPath: string,
+): Promise<{ bytes: ArrayBuffer; contentType: string; cacheControl: string } | null> {
+  const cleanKey = mediaPath.replace(/^\/+/, "");
+  if (!cleanKey) return null;
+
+  const bucket = await resolveR2Bucket();
+  if (!bucket || typeof bucket.get !== "function") {
+    return null;
+  }
+
+  try {
+    let obj = await bucket.get(cleanKey);
+    if (!obj && !cleanKey.includes("/")) {
+      obj = await bucket.get(`media/${cleanKey}`);
+    }
+    if (!obj) return null;
+
+    return {
+      bytes: await obj.arrayBuffer(),
+      contentType: obj.httpMetadata?.contentType || "application/octet-stream",
+      cacheControl: obj.httpMetadata?.cacheControl || IMMUTABLE_CACHE_CONTROL,
+    };
+  } catch (err) {
+    logWarn("media.r2_read_failed", {
+      key: cleanKey,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
 }

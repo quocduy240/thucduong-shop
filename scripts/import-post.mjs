@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Import one article from the current (LoveItop) site into the local SQLite DB.
 //
-//   npm run import:post -- https://thucduongthienan.com/thuc-duong/thuc-duong-can-ban/<slug>.html
+//   npm run import:post -- https://thucduongphuctho.net/thuc-duong/thuc-duong-can-ban/<slug>.html
 //
 // - Reads title, date, description and the article body (.article-detail .decription)
 // - Downloads every image (lazy-loaded via data-isrc) to public/uploads/posts/<slug>/
@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import * as cheerio from "cheerio";
 
-const SOURCE_HOSTS = new Set(["thucduongthienan.com", "www.thucduongthienan.com"]);
+const SOURCE_HOSTS = new Set(["thucduongphuctho.net", "www.thucduongphuctho.net"]);
 const ROOT = process.cwd();
 const DB_PATH = path.join(ROOT, "data", "shop.db");
 const UA = "Mozilla/5.0 (X11; Linux x86_64) thucduong-shop-import";

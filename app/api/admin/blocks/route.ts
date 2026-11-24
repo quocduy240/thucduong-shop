@@ -1,9 +1,10 @@
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import { getAllBlocks } from "@/lib/blocks";
 
 export async function GET() {
-  if (!(await currentAdmin())) {
+  if (!(await currentAdminForPath("/admin/blocks/"))) {
     return Response.json({ items: [] }, { status: 401 });
   }
-  return Response.json({ items: getAllBlocks() });
+  const items = await getAllBlocks();
+  return Response.json({ items });
 }

@@ -1,4 +1,4 @@
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import { exportOrders, type OrderSort } from "@/lib/admin-data";
 
 const cell = (v: unknown) => {
@@ -10,7 +10,7 @@ const cell = (v: unknown) => {
 
 // GET /admin/orders/export - filtered orders as CSV (UTF-8 with BOM so Excel shows Vietnamese correctly).
 export async function GET(req: Request) {
-  if (!(await currentAdmin())) return new Response("Unauthorized", { status: 401 });
+  if (!(await currentAdminForPath("/admin/orders/"))) return new Response("Unauthorized", { status: 401 });
   const { searchParams } = new URL(req.url);
   const sortRaw = searchParams.get("sort") ?? "newest";
   const sort: OrderSort =

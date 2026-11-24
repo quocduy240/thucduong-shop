@@ -14,8 +14,8 @@ import fs from "node:fs";
 import path from "node:path";
 import * as cheerio from "cheerio";
 
-const ORIGIN = "https://thucduongthienan.com";
-const SOURCE_HOSTS = new Set(["thucduongthienan.com", "www.thucduongthienan.com"]);
+const ORIGIN = "https://thucduongphuctho.net";
+const SOURCE_HOSTS = new Set(["thucduongphuctho.net", "www.thucduongphuctho.net"]);
 const ROOT = process.cwd();
 const DB_PATH = path.join(ROOT, "data", "shop.db");
 const UA = "Mozilla/5.0 (X11; Linux x86_64) thucduong-shop-import";

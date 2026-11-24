@@ -15,6 +15,7 @@
     "import:post": "node scripts/import-post.mjs",
     "import:products": "node scripts/import-products.mjs",
     "typecheck": "next typegen && tsc --noEmit",
+    "test": "npx --yes tsx --test \"lib/**/*.test.ts\"",
     "security:check": "npm audit --omit=dev --audit-level=high && npm run typecheck"
   },
   "engines": {

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import { ui } from "@/components/admin/ui";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { getPosts, getProducts } from "@/lib/data";
 import { getQrCodeById, QR_POSITION_LABELS, type QrPosition } from "@/lib/qr";
 import { deleteQrAction, saveQrAction } from "../../actions";
@@ -16,7 +16,7 @@ export default async function QrEditPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireAdmin();
+  await requireAdminPath("/admin/qr/");
   const { id: rawId } = await params;
   const sp = await searchParams;
   const error = typeof sp.error === "string" ? sp.error : "";

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1400px;
+    height: 760px;
+    overflow: hidden;
+    background: #ffffff;
+    font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+    color: #202124;
+    -webkit-font-smoothing: antialiased;
+  }
+  .canvas {
+    width: 1400px;
+    height: 760px;
+    padding: 20px 26px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+  }
+  .hdr {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 2px solid #137333;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+  .hdr-left h1 {
+    font-size: 21px;
+    font-weight: 800;
+    color: #137333;
+    letter-spacing: -0.2px;
+    line-height: 1.25;
+  }
+  .hdr-left p {
+    margin-top: 3px;
+    font-size: 12.5px;
+    color: #5f6368;
+    font-weight: 500;
+  }
+  .hdr-tag {
+    background: #e6f4ea;
+    color: #137333;
+    border: 1px solid #86efac;
+    border-radius: 999px;
+    padding: 5px 13px;
+    font-size: 11.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .main {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 0;
+  }
+  .ftr {
+    margin-top: 8px;
+    padding-top: 7px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10.5px;
+    color: #5f6368;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+  .legend-item { display: inline-flex; align-items: center; gap: 5px; font-weight: 500; }
+  .legend-dot { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+  .mono { font-family: 'Consolas', 'Courier New', monospace; font-size: 10.5px; }
+  .pill {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+</style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="hdr">
+      <div class="hdr-left">
+        <h1>Phòng thủ Bảo mật Đa tầng, Ma trận RBAC & Đường ống Lưu trữ Media</h1>
+        <p>Kiến trúc kiểm soát truy cập, bảo vệ đầu vào AI/Web/File và cơ chế lưu trữ kép Cloudflare R2 + D1 Fallback</p>
+      </div>
+      <div class="hdr-tag">SECURITY & MEDIA</div>
+    </div>
+    <div class="main">
+      
+    <div style="display:grid;grid-template-columns:1.05fr 0.95fr;gap:14px;height:100%;">
+      <!-- Left: Security & RBAC -->
+      <div style="border:1.5px solid #fca5a5;border-radius:12px;padding:10px 12px;background:#fffafa;display:flex;flex-direction:column;justify-content:space-between;">
+        <div>
+          <div style="font-size:12.5px;font-weight:800;color:#b91c1c;margin-bottom:8px;">1. Phòng thủ Bảo mật Đa tầng & Ma trận Phân quyền RBAC</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+            <div style="background:#ffffff;border:1px solid #fecaca;border-radius:8px;padding:7px 9px;font-size:10.5px;line-height:1.38;">
+              <strong style="color:#991b1b;">Lớp 1: HTTP & Rate Limiting</strong><br/>
+              • Headers: HSTS, X-Frame SAMEORIGIN, nosniff, CSP <span class="mono">object-src 'none'</span>.<br/>
+              • Rate Limiter trượt trong bộ nhớ Isolate (cap 5.000 key): Login Admin (8/5p), Checkout (10/1p), Member Auth (12/5p), Tra cứu (15/5p), Quick Consult (6/5p), Loyalty Earn (20/5p).
+            </div>
+            <div style="background:#ffffff;border:1px solid #fecaca;border-radius:8px;padding:7px 9px;font-size:10.5px;line-height:1.38;">
+              <strong style="color:#991b1b;">Lớp 2: Auth & Session Cookies</strong><br/>
+              • Admin (<span class="mono">lib/auth.ts</span>): <span class="mono">scrypt</span> 64B + salt 16B, <span class="mono">timingSafeEqual</span>, TTL 7 ngày.<br/>
+              • Member (<span class='mono'>member-auth.ts</span>): <span class='mono'>scryptSync</span> 64B, TTL 30 ngày.<br/>
+              • Cookies: <span class="mono">HttpOnly, SameSite=Lax, Secure (prod)</span>.<br/>
+              • Bảo mật Cron/Idle: <span class="mono">safeEqualSecret()</span>.
+            </div>
+            <div style="background:#ffffff;border:1px solid #fecaca;border-radius:8px;padding:7px 9px;font-size:10.5px;line-height:1.38;">
+              <strong style="color:#991b1b;">Lớp 3: Sanitizer, SSRF & LLM Guard</strong><br/>
+              • <span class="mono">assertSafePublicHttpUrl</span> chặn RFC1918, localhost, 169.254.169.254 + <span class="mono">global_fetch_strictly_public</span>.<br/>
+              • <span class="mono">guardUserPromptInput</span> lọc jailbreak tiếng Việt/Anh.<br/>
+              • <span class="mono">sanitizeHtml</span> / <span class="mono">sanitizeAiHtml</span> lọc script/event/CSS.
+            </div>
+            <div style="background:#ffffff;border:1px solid #fecaca;border-radius:8px;padding:7px 9px;font-size:10.5px;line-height:1.38;">
+              <strong style="color:#991b1b;">Lớp 4: Structured Log & Audit Gaps</strong><br/>
+              • <span class="mono">lib/logger.ts</span>: Tự ẩn 11 từ khóa nhạy cảm (<span class="mono">[REDACTED]</span>), giới hạn sâu 4, dài 500.<br/>
+              • <strong>Điểm cần vá:</strong> <span class="mono">crm-automation</span> &amp; <span class="mono">kiotviet/webhook</span> mở nếu thiếu secret; 4 API ghi công khai chưa có rate limit.
+            </div>
+          </div>
+
+          <div style="font-size:11.5px;font-weight:800;color:#7f1d1d;margin-bottom:4px;">Ma trận RBAC: 4 Vai trò x 13 Miền Hành động (lib/rbac.ts)</div>
+          <table style="width:100%;border-collapse:collapse;font-size:10px;background:#ffffff;border:1px solid #cbd5e1;">
+            <thead>
+              <tr style="background:#fee2e2;color:#7f1d1d;">
+                <th style="padding:5px 6px;border:1px solid #e2e8f0;text-align:left;">Miền Quyền (AdminActionDomain)</th>
+                <th style="padding:5px 6px;border:1px solid #e2e8f0;">Super Admin</th>
+                <th style="padding:5px 6px;border:1px solid #e2e8f0;">Admin</th>
+                <th style="padding:5px 6px;border:1px solid #e2e8f0;">Editor</th>
+                <th style="padding:5px 6px;border:1px solid #e2e8f0;">Sales</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;font-weight:600;" class="mono">system_settings, admin_accounts</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#dcfce7;color:#166534;font-weight:700;">Cho phép</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#fef3c7;color:#92400e;font-weight:700;">Chặn (trừ view)</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#fee2e2;color:#991b1b;font-weight:700;">Chặn</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#fee2e2;color:#991b1b;font-weight:700;">Chặn</td>
+                  </tr><tr>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;font-weight:600;" class="mono">coupons_manage, catalog/content_delete</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#dcfce7;color:#166534;font-weight:700;">Cho phép</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#dcfce7;color:#166534;font-weight:700;">Cho phép</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#fee2e2;color:#991b1b;font-weight:700;">Chặn</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#fee2e2;color:#991b1b;font-weight:700;">Chặn</td>
+                  </tr><tr>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;font-weight:600;" class="mono">orders_ops, inventory, members, crm, AI</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#dcfce7;color:#166534;font-weight:700;">Cho phép</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#dcfce7;color:#166534;font-weight:700;">Cho phép</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#fee2e2;color:#991b1b;font-weight:700;">Chặn</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#dcfce7;color:#166534;font-weight:700;">Cho phép*</td>
+                  </tr><tr>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;font-weight:600;" class="mono">content_write (Bài, Video, Block, QR, SEO)</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#dcfce7;color:#166534;font-weight:700;">Cho phép</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#dcfce7;color:#166534;font-weight:700;">Cho phép</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#dcfce7;color:#166534;font-weight:700;">Cho phép</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#fee2e2;color:#991b1b;font-weight:700;">Chặn</td>
+                  </tr><tr>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;font-weight:600;" class="mono">catalog_write (Sửa SP), comments_moderate</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#dcfce7;color:#166534;font-weight:700;">Cho phép</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#dcfce7;color:#166534;font-weight:700;">Cho phép</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#dcfce7;color:#166534;font-weight:700;">Cho phép</td>
+                    <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;background:#dcfce7;color:#166534;font-weight:700;">Cho phép</td>
+                  </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="font-size:10px;color:#64748b;margin-top:5px;">
+          * Lưu ý kiểm toán: Sales bị giới hạn tối đa +100 điểm/lần tại CRM. Một số API route hiện mới kiểm tra <span class="mono">currentAdmin()</span> mà chưa kiểm vai trò chi tiết.
+        </div>
+      </div>
+
+      <!-- Right: Media Pipeline -->
+      <div style="border:1.5px solid #5eead4;border-radius:12px;padding:10px 12px;background:#f4fbfa;display:flex;flex-direction:column;justify-content:space-between;">
+        <div>
+          <div style="font-size:12.5px;font-weight:800;color:#0f766e;margin-bottom:8px;">2. Đường ống Kiểm duyệt & Lưu trữ Media (R2 / D1 / Edge)</div>
+          <div style="display:flex;flex-direction:column;gap:7px;">
+            <div style="background:#ffffff;border:1px solid #99f6e4;border-radius:8px;padding:7px 10px;">
+              <div style="font-size:11px;font-weight:800;color:#0f766e;">Bước 1: Tiếp nhận & Kiểm tra Định dạng Thật (Magic-Byte)</div>
+              <div style="font-size:10.5px;color:#334155;margin-top:2px;line-height:1.38;">
+                • Giới hạn <span class="mono">1.5 MB</span> (<span class="mono">lib/uploads.ts</span>), hỗ trợ Ảnh (JPEG, PNG, GIF, WebP, SVG) &amp; Tài liệu (PDF, DOC/DOCX, PPT/PPTX).<br/>
+                • <span class="mono">verifyFileMagicBytes()</span> đối chiếu byte đầu (<span class="mono">FFD8FF</span>, <span class="mono">89504E47</span>, <span class="mono">RIFF..WEBP</span>, <span class="mono">%PDF-</span>, <span class="mono">PK</span>, OLE2).<br/>
+                • <span class="mono">sanitizeSvgContent()</span> xóa thẻ <span class="mono">script/iframe/foreignObject</span>, <span class="mono">on*=</span>, <span class="mono">javascript:</span>.
+              </div>
+            </div>
+
+            <div style="background:#ffffff;border:1px solid #99f6e4;border-radius:8px;padding:7px 10px;">
+              <div style="font-size:11px;font-weight:800;color:#0f766e;">Bước 2: Đặt tên Nội dung (Content-Addressed SHA-256)</div>
+              <div style="font-size:10.5px;color:#334155;margin-top:2px;line-height:1.38;">
+                • <span class="mono">buildContentAddressedFilename()</span> băm SHA-256 lấy 16 ký tự hex (64-bit) tránh trùng lặp &amp; đảm bảo tính bất biến cache.
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div style="background:#e6f4ea;border:1.5px solid #4ade80;border-radius:8px;padding:7px 9px;">
+                <div style="font-size:11px;font-weight:800;color:#14532d;">Nhánh A: Structured Uploads</div>
+                <div style="font-size:10px;color:#1e293b;margin-top:2px;line-height:1.35;">
+                  <span class="mono">lib/r2-storage.ts</span> (Sản phẩm, Bài, Tài liệu)<br/>
+                  1. Nếu có R2 <span class="mono">MEDIA_BUCKET</span>: ghi khóa <span class="mono">products/&lt;hash&gt;</span>.<br/>
+                  2. Fallback: ghi Base64 vào bảng D1 <span class="mono">media_files</span>.<br/>
+                  Phục vụ qua <span class="mono">/api/media/[...path]</span> (không đọc R2!).
+                </div>
+              </div>
+              <div style="background:#eff6ff;border:1.5px solid #60a5fa;border-radius:8px;padding:7px 9px;">
+                <div style="font-size:11px;font-weight:800;color:#1d4ed8;">Nhánh B: AI & Importer Media</div>
+                <div style="font-size:10px;color:#1e293b;margin-top:2px;line-height:1.35;">
+                  <span class="mono">lib/media-assets.ts</span> (Ảnh AI, Importer)<br/>
+                  1. Nếu có R2 <span class="mono">MEDIA_BUCKET</span>: ghi khóa <span class="mono">media/&lt;slug&gt;</span>.<br/>
+                  2. Fallback: tự tạo bảng D1 <span class="mono">media_assets</span>.<br/>
+                  Phục vụ qua <span class="mono">/api/media/[slug]</span> (đọc cả R2 &amp; D1 + ETag 304).
+                </div>
+              </div>
+            </div>
+
+            <div style="background:#ffffff;border:1px solid #99f6e4;border-radius:8px;padding:7px 10px;">
+              <div style="font-size:11px;font-weight:800;color:#0f766e;">Bước 3: Tối ưu Ảnh & Phân phối Tĩnh (<span class="mono">lib/image-url.ts</span>)</div>
+              <div style="font-size:10.5px;color:#334155;margin-top:2px;line-height:1.38;">
+                • Tài sản tĩnh từ script offline nằm ở <span class="mono">public/uploads/*</span> (đóng gói vào <span class="mono">ASSETS</span>).<br/>
+                • <span class="mono">optimizeImageUrl()</span> &amp; <span class="mono">buildImageSrcSet(320,640,960)</span>: chuyển <span class="mono">/api/media/</span> sang CDN nếu có <span class="mono">NEXT_PUBLIC_MEDIA_CDN_URL</span>, bọc <span class="mono">/cdn-cgi/image/</span> (bỏ qua SVG/ICO).
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="background:#fef7e0;border:1px solid #fcd34d;border-radius:7px;padding:6px 9px;font-size:10px;color:#78350f;">
+          <strong>Cảnh báo cấu hình:</strong> <span class="mono">wrangler.jsonc</span> hiện chưa khai báo <span class="mono">r2_buckets</span> nên 100% file tải lên đang lưu trong D1. Nếu gắn <span class="mono">MEDIA_BUCKET</span> mà không đặt <span class="mono">NEXT_PUBLIC_MEDIA_CDN_URL</span>, <span class="mono">/api/media/[...path]</span> sẽ 404.
+        </div>
+      </div>
+    </div>
+    </div>
+    <div class="ftr">
+      <div class="legend"><span class="legend-item"><span class="legend-dot" style="background:#dcfce7;border:1.5px solid #4ade80;"></span>Lớp Bảo vệ / Được phép</span><span class="legend-item"><span class="legend-dot" style="background:#fef7e0;border:1.5px solid #fbbf24;"></span>Hạn chế một phần / Lưu ý</span><span class="legend-item"><span class="legend-dot" style="background:#fee2e2;border:1.5px solid #f87171;"></span>Từ chối / Rủi ro</span><span class="legend-item"><span class="legend-dot" style="background:#f0fdfa;border:1.5px solid #5eead4;"></span>Media Pipeline R2/D1</span></div>
+      <div>Nguồn: lib/rbac.ts, lib/auth.ts, lib/security.ts, lib/rate-limit.ts, lib/media-security.ts, lib/r2-storage.ts, lib/media-assets.ts</div>
+    </div>
+  </div>
+</body>
+</html>

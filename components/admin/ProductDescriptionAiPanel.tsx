@@ -191,7 +191,7 @@ export default function ProductDescriptionAiPanel({
                 type="text"
                 value={extraBlockedDomains}
                 onChange={(e) => setExtraBlockedDomains(e.target.value)}
-                placeholder="VD: thucduongthienan.com, tienkhang.com (cách nhau dấu phẩy)"
+                placeholder="VD: thucduongphuctho.net, tienkhang.com (cách nhau dấu phẩy)"
                 className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs outline-none focus:border-indigo-500"
               />
             </div>

@@ -1,9 +1,9 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { buildSitemapEntries } from "@/lib/sitemaps";
 import SitemapManagerClient from "@/components/admin/SitemapManagerClient";
 
 export default async function AdminSitemapsPage() {
-  await requireAdmin();
+  await requireAdminPath("/admin/sitemaps/");
   const data = await buildSitemapEntries();
 
   return (

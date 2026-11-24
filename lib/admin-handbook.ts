@@ -615,8 +615,8 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
         badge: "Mới",
         items: [
           {
-            heading: "Bảo vệ Server Actions theo nhóm quyền (RBAC)",
-            body: "Mọi thao tác nhạy cảm (xoá sản phẩm/bài viết, cập nhật đơn hàng, cài đặt SMTP/API Key, tạo/xoá tài khoản quản trị) đều được kiểm tra quyền trực tiếp ở tầng máy chủ theo vai trò (Super Admin / Admin / Editor / Sales) và tự chặn xoá tài khoản Super Admin cuối cùng.",
+            heading: "Bảo vệ toàn diện Pages, APIs & Server Actions theo nhóm quyền (RBAC)",
+            body: "Mọi trang quản trị (/admin/*), API quản trị (/api/admin/*) và Server Actions nhạy cảm đều được kiểm tra quyền trực tiếp ở tầng máy chủ qua requireAdminPath, currentAdminForPath và requireAdminAction theo đúng ma trận vai trò (Super Admin / Admin / Editor / Sales), chặn truy cập chéo qua URL và tự chặn xoá tài khoản Super Admin cuối cùng. Các endpoint Cron (/api/cron/*) và Webhook KiotViet (/api/kiotviet/webhook/) bắt buộc xác thực Fail-Closed bằng hằng thời gian (safeEqualSecret / HMAC-SHA256).",
           },
           {
             heading: "Sổ cái điểm thưởng hợp nhất (Single Source of Truth)",
@@ -627,8 +627,8 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
             body: "Cài đặt cửa hàng, danh mục, video và tài liệu được bộ nhớ đệm theo Tag để tải nhanh trên Edge; mỗi khi bạn lưu thay đổi trong Admin, hệ thống tự động xoá Cache liên quan ngay lập tức.",
           },
           {
-            heading: "Bảo mật tải ảnh (Magic-Byte + R2/Image Resizing) & Backup D1 tự động",
-            body: "Mọi ảnh/tài liệu tải lên đều được kiểm tra chữ ký file thật (chống giả mạo định dạng), làm sạch mã độc SVG, tự động ưu tiên lưu Cloudflare R2 khi đã gắn bucket MEDIA_BUCKET và tối ưu ảnh WebP/AVIF qua Cloudflare Image Resizing. Cơ sở dữ liệu D1 được sao lưu tự động mỗi ngày lúc 03:00 sáng (VN) qua GitHub Actions và kiểm tra toàn vẹn bảng dữ liệu trước khi nén lưu 30 ngày.",
+            heading: "Bảo mật tải ảnh (Magic-Byte + R2/Image Resizing), Media Streaming & Backup D1",
+            body: "Mọi ảnh/tài liệu tải lên đều được kiểm tra chữ ký file thật (chống giả mạo định dạng), làm sạch mã độc SVG, ưu tiên lưu Cloudflare R2 khi gắn bucket MEDIA_BUCKET, phát ảnh trực tiếp tại /api/media/[...path] từ R2 (kể cả khi chưa bật CDN riêng) và fallback an toàn sang D1 media_files/media_assets. Cơ sở dữ liệu D1 được sao lưu tự động hằng ngày lúc 03:00 sáng (VN) và các tác vụ Cron được kích hoạt tự động qua GitHub Actions.",
           },
         ],
       },

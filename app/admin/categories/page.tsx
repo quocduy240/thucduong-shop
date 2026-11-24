@@ -1,7 +1,7 @@
 import CategoriesManagerClient from "@/components/admin/CategoriesManagerClient";
 import { Flash, PageHeader } from "@/components/admin/ui";
 import { listPostCategoriesWithCount, listProductCategoriesWithCount } from "@/lib/admin-data";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { getPostSections } from "@/lib/data";
 import {
   deletePostCategoryAction,
@@ -13,7 +13,7 @@ import {
 export const metadata = { title: "Danh mục | Quản trị" };
 
 export default async function CategoriesAdmin({ searchParams }: PageProps<"/admin/categories">) {
-  await requireAdmin();
+  await requireAdminPath("/admin/categories/");
   const sp = await searchParams;
   const [productCats, postCats, sections] = await Promise.all([
     listProductCategoriesWithCount(),

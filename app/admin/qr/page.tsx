@@ -1,7 +1,7 @@
 import Link from "next/link";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import { Flash, PageHeader, ui } from "@/components/admin/ui";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { getAllQrCodes, QR_POSITION_LABELS, type QrPosition } from "@/lib/qr";
 import { deleteQrAction, toggleQrAction, updateQrUrlQuickAction } from "../actions";
 
@@ -12,7 +12,7 @@ export default async function QrAdminPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireAdmin();
+  await requireAdminPath("/admin/qr/");
   const sp = await searchParams;
   const qrCodes = await getAllQrCodes();
   const totalScans = qrCodes.reduce((s, q) => s + q.scans, 0);

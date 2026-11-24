@@ -1,7 +1,7 @@
 import { addToCart } from "@/lib/cart";
 import { one } from "@/lib/db";
 
-// POST /api/v2/add-to-cart/{id}  body: { qty?: number }  → { count, total }
+// POST /api/v2/add-to-cart/{id}  body: { qty?: number, quantity?: number } -> { count, total }
 export async function POST(req: Request, ctx: RouteContext<"/api/v2/add-to-cart/[id]">) {
   const id = Number((await ctx.params).id);
   const prod = Number.isInteger(id)
@@ -16,8 +16,10 @@ export async function POST(req: Request, ctx: RouteContext<"/api/v2/add-to-cart/
   if (prod.stock <= 0 || prod.price <= 0) {
     return Response.json({ error: "Sản phẩm hiện đang hết hàng." }, { status: 400 });
   }
-  const body = await req.json().catch(() => ({}));
-  const reqQty = Math.max(1, Math.floor(Number(body.qty) || 1));
+  const body = (await req.json().catch(() => ({}))) as { qty?: unknown; quantity?: unknown };
+  const rawQty =
+    body.qty ?? body.quantity ?? new URL(req.url).searchParams.get("quantity") ?? 1;
+  const reqQty = Math.min(999, Math.max(1, Math.floor(Number(rawQty) || 1)));
   if (reqQty > prod.stock) {
     return Response.json({ error: `Chỉ còn ${prod.stock} sản phẩm trong kho.` }, { status: 400 });
   }

@@ -9,7 +9,7 @@ import {
 } from "@/app/admin/actions";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import { Flash, PageHeader } from "@/components/admin/ui";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { getFlashSaleConfig, getFlashSaleItems, getFlashSaleSlots } from "@/lib/flash-sale";
 import { vnd } from "@/lib/site";
@@ -32,7 +32,7 @@ export default async function AdminFlashSalePage({
 }: {
   searchParams: Promise<{ saved?: string; err?: string; tab?: string; slot?: string }>;
 }) {
-  await requireAdmin();
+  await requireAdminPath("/admin/flash-sale/");
   const sp = await searchParams;
   const activeTab: TabKey =
     sp.tab === "slots" || sp.tab === "config" ? sp.tab : "deals";

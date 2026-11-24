@@ -8,7 +8,7 @@ import {
   listMembersPaged,
   listSubscribersPaged,
 } from "@/lib/admin-data";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPath } from "@/lib/auth";
 import { all } from "@/lib/db";
 import { normalizeRole } from "@/lib/rbac";
 import { vnd } from "@/lib/site";
@@ -40,7 +40,7 @@ export default async function MembersAdminPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const admin = await requireAdmin();
+  const admin = await requireAdminPath("/admin/members/");
   const sp = await searchParams;
   const q = strParam(sp.q);
   const tier = strParam(sp.tier);

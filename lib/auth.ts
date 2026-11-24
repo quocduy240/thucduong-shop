@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { all, one, run } from "./db";
-import { normalizeRole, type AdminRole } from "./rbac";
+import { canAccessAdminPath, normalizeRole, type AdminRole } from "./rbac";
 
 /** Admin accounts live in D1 (tables admins / admin_sessions). Passwords: scrypt + random salt. */
 export const ADMIN_COOKIE = "admin_session";
@@ -163,6 +163,28 @@ export async function requireRole(allowed: AdminRole[]): Promise<Admin> {
     redirect("/admin/?error=" + encodeURIComponent("Bạn không có quyền truy cập khu vực này."));
   }
   return a;
+}
+
+/**
+ * Require both an authenticated admin session AND permission for at least one
+ * of the given admin module paths (matching AdminNav RBAC rules).
+ */
+export async function requireAdminPath(...paths: string[]): Promise<Admin> {
+  const a = await requireAdmin();
+  if (!paths.some((p) => canAccessAdminPath(a.role, p))) {
+    redirect("/admin/?error=" + encodeURIComponent("Bạn không có quyền truy cập khu vực này."));
+  }
+  return a;
+}
+
+/**
+ * API route helper: returns the authenticated Admin if their role permits at
+ * least one of the specified admin paths, or undefined otherwise.
+ */
+export async function currentAdminForPath(...paths: string[]): Promise<Admin | undefined> {
+  const a = await currentAdmin();
+  if (!a) return undefined;
+  return paths.some((p) => canAccessAdminPath(a.role, p)) ? a : undefined;
 }
 
 /** Check a specific admin's password (used before changing it). */

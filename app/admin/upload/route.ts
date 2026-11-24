@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { currentAdmin } from "@/lib/auth";
+import { currentAdminForPath } from "@/lib/auth";
 import { assertSafePublicHttpUrl } from "@/lib/security";
 import { MAX_IMAGE_BYTES, saveGeneratedMedia, saveImage } from "@/lib/uploads";
 
@@ -13,7 +13,7 @@ const MIME_EXT: Record<string, string> = {
 
 // POST /admin/upload — accepts multipart FormData { file } OR JSON { imageUrl } and returns { url }.
 export async function POST(req: Request) {
-  if (!(await currentAdmin())) return Response.json({ error: "Chưa đăng nhập." }, { status: 401 });
+  if (!(await currentAdminForPath("/admin/upload", "/admin/posts/", "/admin/products/"))) return Response.json({ error: "Chưa đăng nhập." }, { status: 401 });
 
   const contentType = req.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {

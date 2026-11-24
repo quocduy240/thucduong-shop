@@ -33,4 +33,12 @@
       "custom_domain": true
     }
   ]
+  // Optional Cloudflare R2 Media Storage: create the bucket first via
+  // `npx wrangler r2 bucket create thucduong-media`, then uncomment below:
+  // ,"r2_buckets": [
+  //   {
+  //     "binding": "MEDIA_BUCKET",
+  //     "bucket_name": "thucduong-media"
+  //   }
+  // ]
 }
