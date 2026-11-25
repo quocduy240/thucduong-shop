@@ -23,13 +23,26 @@ export async function importInventoryAction(formData: FormData) {
   const qty = Math.max(1, num(formData, "qty"));
   const unitCost = Math.max(0, num(formData, "unit_cost"));
   const supplierName = str(formData, "supplier_name");
+  const batchCode = str(formData, "batch_code");
+  const expDate = str(formData, "exp_date");
   const rawNote = str(formData, "note");
-  const note = [supplierName ? `NCC: ${supplierName}` : "", rawNote].filter(Boolean).join(" · ") || "Nhập hàng từ nhà cung cấp";
+  const noteParts = [
+    supplierName ? `NCC: ${supplierName}` : "",
+    batchCode ? `Lô: ${batchCode}` : "",
+    expDate ? `HSD: ${expDate}` : "",
+    rawNote,
+  ].filter(Boolean);
+  const note = noteParts.join(" · ") || "Nhập hàng từ nhà cung cấp";
   const recordCashOut = str(formData, "record_cash_out") === "1";
   const rawMethod = str(formData, "payment_method");
   const paymentMethod: CashbookPaymentMethod =
     rawMethod === "bank" || rawMethod === "kiotviet" ? rawMethod : "cash";
   const refCode = str(formData, "ref_code") || `PN-${Date.now().toString().slice(-6)}`;
+  const totalImportCost = qty * unitCost;
+  const rawPaidAmount = str(formData, "paid_amount");
+  const paidAmount =
+    rawPaidAmount !== "" ? Math.min(totalImportCost, Math.max(0, num(formData, "paid_amount"))) : totalImportCost;
+  const debtAdded = Math.max(0, totalImportCost - (recordCashOut ? paidAmount : 0));
 
   if (!productId) back("/admin/inventory/?tab=import", "Vui lòng chọn sản phẩm cần nhập.");
   await recordInventoryMovement({
@@ -39,25 +52,68 @@ export async function importInventoryAction(formData: FormData) {
     updateCostPrice: unitCost > 0,
     reason: "import",
     refCode,
+    batchCode,
+    expDate,
     note,
     createdBy: admin.email,
   });
   if (supplierName) {
     await run("UPDATE products SET supplier = ? WHERE id = ?", supplierName, productId).catch(() => {});
+    if (debtAdded > 0) {
+      await run(
+        "UPDATE suppliers SET debt_balance = COALESCE(debt_balance, 0) + ? WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))",
+        debtAdded,
+        supplierName,
+      ).catch(() => {});
+    }
   }
-  if (recordCashOut && unitCost > 0) {
+  if (recordCashOut && paidAmount > 0) {
     await addCashbookEntry({
       entryType: "out",
       category: "Nhập hàng NCC",
-      amount: qty * unitCost,
+      amount: paidAmount,
       paymentMethod,
       refCode,
-      note: `${note} (SL: ${qty} × ${unitCost.toLocaleString("vi-VN")}đ)`,
+      note: `${note} (SL: ${qty} × ${unitCost.toLocaleString("vi-VN")}đ${debtAdded > 0 ? ` · Còn nợ NCC: ${debtAdded.toLocaleString("vi-VN")}đ` : ""})`,
       createdBy: admin.email,
     });
   }
   refresh();
   redirect("/admin/inventory/?tab=import&saved=1");
+}
+
+export async function settleSupplierDebtAction(formData: FormData) {
+  const admin = await requireRole(ADMIN_ACTION_ROLES.inventory_finance);
+  await ensureRetailOpsSchema();
+  const supplierId = num(formData, "supplier_id");
+  const payAmount = Math.max(1, num(formData, "pay_amount"));
+  const rawMethod = str(formData, "payment_method");
+  const paymentMethod: CashbookPaymentMethod =
+    rawMethod === "bank" || rawMethod === "kiotviet" ? rawMethod : "cash";
+  const note = str(formData, "note");
+
+  const sup = await one<{ id: number; code: string; name: string; debt_balance: number }>(
+    "SELECT id, code, name, COALESCE(debt_balance, 0) AS debt_balance FROM suppliers WHERE id = ?",
+    supplierId,
+  );
+  if (!sup) back("/admin/inventory/?tab=partners", "Không tìm thấy Nhà cung cấp.");
+
+  const nextDebt = Math.max(0, (sup?.debt_balance ?? 0) - payAmount);
+  await run("UPDATE suppliers SET debt_balance = ? WHERE id = ?", nextDebt, supplierId);
+
+  const refCode = `CN-${sup?.code || supplierId}-${Date.now().toString().slice(-4)}`;
+  await addCashbookEntry({
+    entryType: "out",
+    category: "Thanh toán công nợ NCC",
+    amount: payAmount,
+    paymentMethod,
+    refCode,
+    note: `Trả nợ NCC ${sup?.name} (${note || "Gạch nợ công nợ phải trả"}) · Dư nợ còn: ${nextDebt.toLocaleString("vi-VN")}đ`,
+    createdBy: admin.email,
+  });
+
+  refresh();
+  redirect("/admin/inventory/?tab=partners&saved=1");
 }
 
 export async function exportInventoryIssueAction(formData: FormData) {

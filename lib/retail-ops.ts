@@ -87,6 +87,15 @@ export async function ensureRetailOpsSchema(): Promise<void> {
         await run("ALTER TABLE cashbook_entries ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cash'");
       }
 
+      const movCols = await all<{ name: string }>("PRAGMA table_info(inventory_movements)");
+      const movSet = new Set(movCols.map((c) => c.name));
+      if (!movSet.has("batch_code")) {
+        await run("ALTER TABLE inventory_movements ADD COLUMN batch_code TEXT NOT NULL DEFAULT ''");
+      }
+      if (!movSet.has("exp_date")) {
+        await run("ALTER TABLE inventory_movements ADD COLUMN exp_date TEXT NOT NULL DEFAULT ''");
+      }
+
       await run(`
         CREATE TABLE IF NOT EXISTS suppliers (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -96,10 +105,17 @@ export async function ensureRetailOpsSchema(): Promise<void> {
           email TEXT NOT NULL DEFAULT '',
           address TEXT NOT NULL DEFAULT '',
           note TEXT NOT NULL DEFAULT '',
+          debt_balance INTEGER NOT NULL DEFAULT 0,
           is_active INTEGER NOT NULL DEFAULT 1,
           created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
       `);
+
+      const supCols = await all<{ name: string }>("PRAGMA table_info(suppliers)");
+      const supSet = new Set(supCols.map((c) => c.name));
+      if (!supSet.has("debt_balance")) {
+        await run("ALTER TABLE suppliers ADD COLUMN debt_balance INTEGER NOT NULL DEFAULT 0");
+      }
 
       await run(`
         CREATE TABLE IF NOT EXISTS delivery_partners (
@@ -181,6 +197,8 @@ export async function recordInventoryMovement(opts: {
   updateCostPrice?: boolean;
   reason: "import" | "stocktake" | "sale" | "cancel" | "kiotviet_sync" | "internal_use" | "damage";
   refCode?: string;
+  batchCode?: string;
+  expDate?: string;
   note?: string;
   createdBy?: string;
 }): Promise<number> {
@@ -202,14 +220,16 @@ export async function recordInventoryMovement(opts: {
     await run("UPDATE products SET stock = ? WHERE id = ?", nextStock, opts.productId);
   }
   await run(
-    `INSERT INTO inventory_movements (product_id, change_qty, stock_after, unit_cost, reason, ref_code, note, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO inventory_movements (product_id, change_qty, stock_after, unit_cost, reason, ref_code, batch_code, exp_date, note, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     opts.productId,
     opts.changeQty,
     nextStock,
     opts.unitCost ?? prod.cost_price ?? 0,
     opts.reason,
     opts.refCode ?? "",
+    opts.batchCode ?? "",
+    opts.expDate ?? "",
     opts.note ?? "",
     opts.createdBy ?? "",
   );
@@ -240,6 +260,8 @@ export type InventoryMovementRow = {
   unit_cost: number;
   reason: string;
   ref_code: string;
+  batch_code: string;
+  exp_date: string;
   note: string;
   created_by: string;
   created_at: string;
@@ -265,6 +287,7 @@ export type SupplierRow = {
   email: string;
   address: string;
   note: string;
+  debt_balance: number;
   is_active: number;
   created_at: string;
   product_count: number;
@@ -358,7 +381,9 @@ export async function listInventoryMovements(limit = 50) {
   await ensureRetailOpsSchema();
   return all<InventoryMovementRow>(
     `SELECT m.id, m.product_id, p.name AS product_name, COALESCE(p.sku, '') AS sku,
-            m.change_qty, m.stock_after, m.unit_cost, m.reason, m.ref_code, m.note, m.created_by, m.created_at
+            m.change_qty, m.stock_after, m.unit_cost, m.reason, m.ref_code,
+            COALESCE(m.batch_code, '') AS batch_code, COALESCE(m.exp_date, '') AS exp_date,
+            m.note, m.created_by, m.created_at
      FROM inventory_movements m
      JOIN products p ON p.id = m.product_id
      ORDER BY m.id DESC LIMIT ?`,
@@ -417,10 +442,11 @@ export async function addCashbookEntry(opts: {
 export async function listSuppliers(): Promise<SupplierRow[]> {
   await ensureRetailOpsSchema();
   return all<SupplierRow>(
-    `SELECT s.id, s.code, s.name, s.phone, s.email, s.address, s.note, s.is_active, s.created_at,
+    `SELECT s.id, s.code, s.name, s.phone, s.email, s.address, s.note,
+            COALESCE(s.debt_balance, 0) AS debt_balance, s.is_active, s.created_at,
             (SELECT COUNT(*) FROM products p WHERE LOWER(TRIM(COALESCE(p.supplier, ''))) = LOWER(TRIM(s.name))) AS product_count
      FROM suppliers s
-     ORDER BY s.is_active DESC, s.id ASC`,
+     ORDER BY COALESCE(s.debt_balance, 0) DESC, s.is_active DESC, s.id ASC`,
   );
 }
 

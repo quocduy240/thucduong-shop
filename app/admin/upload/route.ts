@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { currentAdminForPath } from "@/lib/auth";
+import { verifyFileMagicBytes } from "@/lib/media-security";
 import { assertSafePublicHttpUrl } from "@/lib/security";
 import { MAX_IMAGE_BYTES, saveGeneratedMedia, saveImage } from "@/lib/uploads";
 
@@ -10,6 +11,27 @@ const MIME_EXT: Record<string, string> = {
   "image/gif": ".gif",
   "image/svg+xml": ".svg",
 };
+
+async function fetchWithSafeRedirects(initialUrl: string, maxRedirects = 3): Promise<Response> {
+  let currentUrl = initialUrl;
+  for (let hop = 0; hop <= maxRedirects; hop++) {
+    assertSafePublicHttpUrl(currentUrl);
+    const res = await fetch(currentUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; ThucDuongPhucThoBot/1.0)" },
+      redirect: "manual",
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get("location");
+      if (!loc) throw new Error("Máy chủ trả về chuyển hướng nhưng thiếu địa chỉ đích.");
+      currentUrl = new URL(loc, currentUrl).toString();
+      continue;
+    }
+    if (res.url) assertSafePublicHttpUrl(res.url);
+    return res;
+  }
+  throw new Error("URL chuyển hướng quá nhiều lần (tối đa 3 bước).");
+}
 
 // POST /admin/upload — accepts multipart FormData { file } OR JSON { imageUrl } and returns { url }.
 export async function POST(req: Request) {
@@ -30,19 +52,20 @@ export async function POST(req: Request) {
       if (driveMatch) {
         fetchUrl = `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`;
       }
-      const res = await fetch(fetchUrl, {
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; ThucDuongPhucThoBot/1.0)" },
-        signal: AbortSignal.timeout(10000),
-      });
+      const res = await fetchWithSafeRedirects(fetchUrl);
       if (!res.ok) throw new Error(`Không tải được ảnh từ URL (HTTP ${res.status}).`);
       const mime = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
       const ext = MIME_EXT[mime] || ".jpg";
+      const effectiveMime = MIME_EXT[mime] ? mime : "image/jpeg";
       const buf = Buffer.from(await res.arrayBuffer());
       if (buf.byteLength === 0 || buf.byteLength > MAX_IMAGE_BYTES) {
-        throw new Error("Dung lượng ảnh không hợp lệ (tối đa 10MB).");
+        throw new Error("Dung lượng ảnh không hợp lệ (tối đa 1.5MB).");
+      }
+      if (!verifyFileMagicBytes(buf, effectiveMime)) {
+        throw new Error("Nội dung tải về từ URL không phải là định dạng ảnh hợp lệ.");
       }
       const name = `${Date.now().toString(36)}-${crypto.randomBytes(4).toString("hex")}${ext}`;
-      const savedUrl = await saveGeneratedMedia("posts", name, mime || "image/jpeg", buf);
+      const savedUrl = await saveGeneratedMedia("posts", name, effectiveMime, buf);
       return Response.json({ url: savedUrl });
     } catch (e) {
       return Response.json({ error: (e as Error).message }, { status: 400 });

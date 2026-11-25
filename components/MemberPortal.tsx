@@ -98,6 +98,9 @@ export default function MemberPortal({
   const [error, setError] = useState("");
   const [copiedCode, setCopiedCode] = useState("");
   const [referralCode, setReferralCode] = useState("");
+  const [selectedCreditTier, setSelectedCreditTier] = useState<number>(1000000);
+  const [customCreditAmount, setCustomCreditAmount] = useState<string>("");
+  const [isCustomCredit, setIsCustomCredit] = useState<boolean>(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -446,6 +449,177 @@ export default function MemberPortal({
 
       {/* Loyalty Rewards, Check-in, Referral & Ledger */}
       <LoyaltyRewardsSection />
+
+      {/* ClaudePayFlow Wellness Credits Wallet & Affiliate Referral Link (Pillars 1 & 4) */}
+      <section className="grid gap-5 lg:grid-cols-12">
+        <div className="lg:col-span-7 rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-bold text-gray-900">
+                💳 Nạp Ví Tín Dụng Thực Dưỡng &amp; Thẻ Quà Tặng Sức Khỏe (ClaudePayFlow)
+              </h2>
+              <p className="text-xs text-gray-500">
+                Nạp trước số dư hoặc mua Thẻ Quà Tặng biếu người thân — nhận ngay ưu đãi cộng thêm tới +10% giá trị.
+              </p>
+            </div>
+            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
+              Tặng thêm tới +10%
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {[
+              { amount: 500000, label: "500k", badge: "Khởi đầu", bonus: "" },
+              { amount: 1000000, label: "1.000k", badge: "Khuyên dùng", bonus: "+5%" },
+              { amount: 3000000, label: "3.000k", badge: "Gia đình VIP", bonus: "+10%" },
+            ].map((tier) => {
+              const active = !isCustomCredit && selectedCreditTier === tier.amount;
+              return (
+                <button
+                  key={tier.amount}
+                  type="button"
+                  onClick={() => {
+                    setIsCustomCredit(false);
+                    setSelectedCreditTier(tier.amount);
+                  }}
+                  className={`flex flex-col items-start justify-between rounded-xl border p-3 text-left transition cursor-pointer ${
+                    active
+                      ? "border-brand bg-emerald-50/80 ring-1 ring-brand"
+                      : "border-gray-200 bg-white hover:border-brand/50"
+                  }`}
+                >
+                  <div className="flex w-full items-center justify-between">
+                    <span className="text-sm font-extrabold text-gray-900">{tier.label}</span>
+                    {tier.bonus && (
+                      <span className="text-[11px] font-extrabold text-emerald-700">{tier.bonus}</span>
+                    )}
+                  </div>
+                  <span className="mt-2 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-bold text-brand">
+                    {tier.badge}
+                  </span>
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setIsCustomCredit(true)}
+              className={`flex flex-col items-start justify-between rounded-xl border p-3 text-left transition cursor-pointer ${
+                isCustomCredit
+                  ? "border-brand bg-emerald-50/80 ring-1 ring-brand"
+                  : "border-gray-200 bg-white hover:border-brand/50"
+              }`}
+            >
+              <span className="text-sm font-extrabold text-gray-900">Khác</span>
+              <span className="mt-2 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                Tùy chọn
+              </span>
+            </button>
+          </div>
+
+          {isCustomCredit && (
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-gray-700">
+                Nhập số tiền muốn nạp (Tối thiểu 100.000₫)
+              </label>
+              <input
+                type="number"
+                min={100000}
+                step={50000}
+                value={customCreditAmount}
+                onChange={(e) => setCustomCreditAmount(e.target.value)}
+                placeholder="VD: 1500000"
+                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand"
+              />
+            </div>
+          )}
+
+          {(() => {
+            const topupAmount = isCustomCredit
+              ? Math.max(100000, Number(customCreditAmount) || 500000)
+              : selectedCreditTier;
+            const memo = `NAPVI PT${String(initialMember.id).padStart(4, "0")} ${initialMember.phone || ""}`.trim();
+            const qr = `https://img.vietqr.io/image/970418-8610312888-compact2.png?amount=${topupAmount}&addInfo=${encodeURIComponent(
+              memo,
+            )}&accountName=${encodeURIComponent("HO KINH DOANH CUA HANG PHUC THO")}`;
+            return (
+              <div className="grid gap-3 rounded-xl border border-emerald-200 bg-emerald-50/40 p-3.5 text-xs sm:grid-cols-[110px_1fr]">
+                <div className="flex flex-col items-center justify-center rounded-lg border bg-white p-1.5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={qr} alt="VietQR Nạp Ví Thực Dưỡng" className="h-24 w-24 object-contain" />
+                </div>
+                <div className="space-y-1 text-gray-700">
+                  <div className="font-bold text-brand">
+                    Quét mã VietQR để nạp {vnd(topupAmount)} vào Ví Thành Viên
+                  </div>
+                  <div>
+                    <strong>Ngân hàng BIDV:</strong> <span className="font-mono font-bold text-accent">8610312888</span> (HO KINH DOANH CUA HANG PHUC THO)
+                  </div>
+                  <div>
+                    <strong>Nội dung tự động:</strong>{" "}
+                    <code className="rounded bg-white px-1.5 py-0.5 font-mono font-bold">{memo}</code>
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Ngay sau khi nhận chuyển khoản, hệ thống cộng số dư &amp; điểm thưởng tương ứng vào mã thành viên của bạn.
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+
+        <div className="lg:col-span-5 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50/80 via-white to-emerald-50/40 p-5 shadow-sm flex flex-col justify-between space-y-4">
+          <div className="space-y-2">
+            <span className="inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-extrabold text-amber-800">
+              🤝 Chương trình Đại sứ Thực Dưỡng
+            </span>
+            <h2 className="text-base font-bold text-gray-900">
+              Link Giới Thiệu Bạn Bè &amp; Cộng Tác Viên (Affiliate)
+            </h2>
+            <p className="text-xs leading-relaxed text-gray-600">
+              Chia sẻ đường link hoặc mã giới thiệu cá nhân của bạn cho người thân, bạn bè. Khi người được giới thiệu đặt hàng thành công, bạn nhận ngay <strong>+50 điểm thưởng VIP</strong> và chiết khấu ưu đãi cộng dồn!
+            </p>
+          </div>
+
+          {(() => {
+            const myRefCode = `PT-${String(initialMember.id).padStart(4, "0")}`;
+            const myRefLink = `https://thucduongshop.duyvo.win/checkout/?ref=${myRefCode}`;
+            return (
+              <div className="space-y-2.5">
+                <div className="rounded-xl border bg-white p-3 text-xs">
+                  <div className="text-[11px] text-gray-500">Mã giới thiệu của bạn:</div>
+                  <div className="mt-0.5 flex items-center justify-between">
+                    <span className="font-mono text-base font-extrabold text-brand">{myRefCode}</span>
+                    <button
+                      type="button"
+                      onClick={() => copyCode(myRefCode)}
+                      className="rounded-lg bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-brand hover:bg-brand hover:text-white cursor-pointer"
+                    >
+                      {copiedCode === myRefCode ? "✓ Đã chép mã" : "Chép mã"}
+                    </button>
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-white p-3 text-xs">
+                  <div className="text-[11px] text-gray-500">Link đặt hàng gắn mã CTV tự động:</div>
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      readOnly
+                      value={myRefLink}
+                      className="w-full rounded border bg-gray-50 px-2 py-1 font-mono text-[11px] text-gray-700"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => copyCode(myRefLink)}
+                      className="shrink-0 rounded-lg bg-brand px-3 py-1.5 text-[11px] font-bold text-white hover:bg-brand-dark cursor-pointer"
+                    >
+                      {copiedCode === myRefLink ? "✓ Đã chép link" : "Sao chép Link"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      </section>
 
       {/* Section 1: Member Voucher Wallet */}
       <section className="space-y-3">

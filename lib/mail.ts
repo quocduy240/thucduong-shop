@@ -233,4 +233,54 @@ export async function sendNewOrderEmail(order: OrderEmailPayload) {
   } catch (e) {
     console.error(`[Email error] Không gửi được email đơn hàng #${order.code}:`, (e as Error).message);
   }
+
+  // Also dispatch instant Telegram Bot & Webhook notification if configured in settings
+  try {
+    const [tgTokenRow, tgChatRow, webhookRow] = await Promise.all([
+      one<{ value: string }>("SELECT value FROM settings WHERE key = 'telegram_bot_token'"),
+      one<{ value: string }>("SELECT value FROM settings WHERE key = 'telegram_chat_id'"),
+      one<{ value: string }>("SELECT value FROM settings WHERE key = 'order_webhook_url'"),
+    ]);
+    const tgToken = (tgTokenRow?.value ?? "").trim();
+    const tgChatId = (tgChatRow?.value ?? "").trim();
+    const webhookUrl = (webhookRow?.value ?? "").trim();
+
+    const itemLines = order.items.map((it) => `• ${it.name} x${it.qty} (${vnd(it.subtotal)})`).join("\n");
+    const summaryText =
+      `🔔 ĐƠN HÀNG MỚI #${order.code}\n` +
+      `👤 Khách: ${order.name} (${order.phone})\n` +
+      `📍 Đ/c: ${fullAddress}\n` +
+      `💳 TT: ${order.payment === "bank" ? "Chuyển khoản VietQR" : "COD"}\n` +
+      `💰 Tổng: ${vnd(order.total)}\n` +
+      `${order.note ? `📝 Ghi chú: ${order.note}\n` : ""}` +
+      `📦 Sản phẩm:\n${itemLines}`;
+
+    if (tgToken && tgChatId) {
+      await fetch(`https://api.telegram.org/bot${encodeURIComponent(tgToken)}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: tgChatId,
+          text: summaryText,
+        }),
+        signal: AbortSignal.timeout(6000),
+      }).catch(() => {});
+    }
+
+    if (webhookUrl && /^https:\/\//i.test(webhookUrl)) {
+      await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "order.created",
+          order,
+          fullAddress,
+          text: summaryText,
+        }),
+        signal: AbortSignal.timeout(6000),
+      }).catch(() => {});
+    }
+  } catch {
+    /* non-blocking webhook alert */
+  }
 }

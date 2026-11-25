@@ -13,6 +13,7 @@ import {
   saveGeminiKeyAction,
   saveMailSettingsAction,
   saveSettingsAction,
+  saveTelegramWebhookSettingsAction,
   saveWidgetSettingsAction,
   testMailAction,
   updateConsultationStatusAction,
@@ -33,7 +34,7 @@ export default async function SettingsAdmin({ searchParams }: PageProps<"/admin/
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`);
 
-  const [site, mail, widget, admins, consultations, geminiRow] = await Promise.all([
+  const [site, mail, widget, admins, consultations, geminiRow, tgTokenRow, tgChatRow, webhookRow] = await Promise.all([
     getSite(),
     getMailSettings(),
     getWidgetSettings(),
@@ -48,6 +49,9 @@ export default async function SettingsAdmin({ searchParams }: PageProps<"/admin/
       created_at: string;
     }>("SELECT id, name, phone, question, page_url, status, created_at FROM consultation_requests ORDER BY id DESC LIMIT 30"),
     one<{ value: string }>("SELECT value FROM settings WHERE key = 'gemini_api_key'"),
+    one<{ value: string }>("SELECT value FROM settings WHERE key = 'telegram_bot_token'"),
+    one<{ value: string }>("SELECT value FROM settings WHERE key = 'telegram_chat_id'"),
+    one<{ value: string }>("SELECT value FROM settings WHERE key = 'order_webhook_url'"),
   ]);
   const savedGemini = (geminiRow?.value ?? "").trim() || (process.env.GEMINI_API_KEY ?? "").trim();
   const hasValidGemini = isLikelyValidGeminiKey(savedGemini);
@@ -171,6 +175,55 @@ export default async function SettingsAdmin({ searchParams }: PageProps<"/admin/
             ✉ Lưu &amp; Gửi email thử
           </button>
         </div>
+      </form>
+
+      {/* Telegram Bot & Webhook + 1-Click Full D1 Backup (Pillars 4 & 5) */}
+      <form action={saveTelegramWebhookSettingsAction} className={`${ui.card} space-y-4 border-blue-200 p-6`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="font-semibold text-blue-900">🔔 Thông báo Đơn hàng tức thời qua Telegram Bot &amp; Webhook Zalo</h2>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Bên cạnh Email, hệ thống tự động bắn tin nhắn chi tiết đơn hàng mới về nhóm Telegram hoặc Webhook Zalo/CRM trong 1 giây.
+            </p>
+          </div>
+          <a
+            href="/api/admin/backup/"
+            className="rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-extrabold text-white shadow-2xs hover:bg-emerald-800"
+          >
+            💾 Tải Bản Sao Lưu D1 Toàn Hệ Thống (.JSON)
+          </a>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className={ui.label}>Telegram Bot Token</label>
+            <input
+              name="telegram_bot_token"
+              type="password"
+              defaultValue={tgTokenRow?.value ?? ""}
+              placeholder="VD: 123456789:ABCdefGHIjklMNO..."
+              className={ui.input}
+            />
+          </div>
+          <div>
+            <label className={ui.label}>Telegram Chat ID (Cá nhân hoặc Nhóm)</label>
+            <input
+              name="telegram_chat_id"
+              defaultValue={tgChatRow?.value ?? ""}
+              placeholder="VD: -1001234567890"
+              className={ui.input}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={ui.label}>Webhook URL (Zalo ZNS / Make / n8n / Lark / Discord HTTPS)</label>
+            <input
+              name="order_webhook_url"
+              defaultValue={webhookRow?.value ?? ""}
+              placeholder="https://hooks.zapier.com/... hoặc https://n8n.domain.com/webhook/..."
+              className={ui.input}
+            />
+          </div>
+        </div>
+        <button className={ui.primary}>Lưu cấu hình Telegram &amp; Webhook</button>
       </form>
 
       <form action={saveSettingsAction} className={`${ui.card} space-y-4 p-6`}>

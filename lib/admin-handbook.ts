@@ -72,8 +72,12 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
         badge: "Mới",
         items: [
           {
-            heading: "Bán hàng nhanh tại quầy / Telesale (/admin/pos/)",
-            body: "Chọn nhanh sản phẩm theo tên hoặc mã SKU, chọn phương thức thanh toán (Tiền mặt, Chuyển khoản NH, Theo KiotViet hoặc COD) — hệ thống tự động trừ kho, ghi Thẻ kho và ghi Phiếu Thu vào đúng Quỹ tương ứng.",
+            heading: "Bán hàng nhanh tại quầy / Telesale đa hóa đơn chờ & Phím tắt F2/F4/F9 (/admin/pos/) (Mới)",
+            body: "Hỗ trợ mở nhiều tab Hóa đơn chờ cùng lúc (+ Thêm HĐ chờ), quét mã vạch / nhập mã SKU nhấn Enter để tự thêm vào giỏ, lọc nhanh theo nhóm hàng và dùng phím tắt bàn phím chuẩn KiotViet (F2: Quét mã/Tìm SP, F4: Nhập tên khách, F9: Thanh toán & mở bản in A5). Hệ thống tự động trừ kho, ghi Thẻ kho và ghi Phiếu Thu vào đúng Quỹ tương ứng.",
+          },
+          {
+            heading: "Quản lý Lô SX, Hạn sử dụng (FEFO) & Sổ Công nợ Nhà cung cấp (/admin/inventory/) (Mới)",
+            body: "Khi Tạo Phiếu Nhập Hàng (/admin/inventory/?tab=import), có thể nhập Mã lô SX (Batch), Hạn sử dụng (HSD) và Số tiền trả NCC ngay. Nếu trả một phần hoặc nhập 0 (mua công nợ), phần chênh lệch tự động cộng vào Dư nợ phải trả của Nhà cung cấp đó. Tại tab '🚚 Nhà cung cấp & ĐVVC', xem tổng nợ NCC và bấm 'Trả nợ' để gạch nợ trực tiếp từ 1 trong 3 Quỹ.",
           },
           {
             heading: "Sổ quỹ Thu – Chi 3 loại quỹ: Tiền mặt · Chuyển khoản NH · Theo KiotViet (/admin/inventory/?tab=cashbook)",
@@ -627,8 +631,12 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
             body: "Cài đặt cửa hàng, danh mục, video và tài liệu được bộ nhớ đệm theo Tag để tải nhanh trên Edge; mỗi khi bạn lưu thay đổi trong Admin, hệ thống tự động xoá Cache liên quan ngay lập tức.",
           },
           {
-            heading: "Bảo mật tải ảnh (Magic-Byte + R2/Image Resizing), Media Streaming & Backup D1",
-            body: "Mọi ảnh/tài liệu tải lên đều được kiểm tra chữ ký file thật (chống giả mạo định dạng), làm sạch mã độc SVG, ưu tiên lưu Cloudflare R2 khi gắn bucket MEDIA_BUCKET, phát ảnh trực tiếp tại /api/media/[...path] từ R2 (kể cả khi chưa bật CDN riêng) và fallback an toàn sang D1 media_files/media_assets. Cơ sở dữ liệu D1 được sao lưu tự động hằng ngày lúc 03:00 sáng (VN) và các tác vụ Cron được kích hoạt tự động qua GitHub Actions.",
+            heading: "Bảo mật tải ảnh (SSRF Redirect Guard + Magic-Byte + R2) & Sao lưu D1 1-Click (.JSON) (Mới)",
+            body: "Mọi ảnh tải lên từ file hoặc URL đều được kiểm tra chuỗi chuyển hướng HTTP 30x chống SSRF, kiểm tra chữ ký file thật (Magic Bytes), làm sạch mã độc SVG, ưu tiên lưu Cloudflare R2 khi gắn bucket MEDIA_BUCKET và phát ảnh trực tiếp tại /api/media/[...path]. Endpoint bình luận công khai được bảo vệ bằng Rate Limiting theo IP. Tại /admin/settings/, bấm '💾 Tải Bản Sao Lưu D1 Toàn Hệ Thống (.JSON)' để xuất toàn bộ 23 bảng dữ liệu (đã tự động ẩn khóa bí mật) về máy bất kỳ lúc nào, bên cạnh lịch sao lưu D1 tự động lúc 03:00 sáng (VN).",
+          },
+          {
+            heading: "Thông báo Đơn hàng tức thời qua Telegram Bot / Webhook & Thanh toán ClaudePayFlow (Mới)",
+            body: "Trong /admin/settings/, cấu hình Telegram Bot Token, Chat ID hoặc Webhook URL (Zalo ZNS/n8n/Make) để nhận tin nhắn báo đơn mới tức thì. Trang /checkout hỗ trợ mã VietQR động tự điền số tiền, Chỉ số Quân bình Âm – Dương giỏ hàng, công tắc Đặt lịch giao định kỳ (Auto-Refill 15/30/45 ngày), xuất hóa đơn VAT doanh nghiệp và mã CTV Affiliate; trang /thanh-vien tích hợp Nạp Ví Tín Dụng Thực Dưỡng 4 gói mệnh giá và Link giới thiệu CTV.",
           },
         ],
       },

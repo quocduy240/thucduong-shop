@@ -160,3 +160,25 @@ export async function saveInvoicePrintConfigAction(formData: FormData) {
   }
   redirect("/admin/orders/?saved=1");
 }
+
+export async function saveTelegramWebhookSettingsAction(formData: FormData) {
+  await requireRole(ADMIN_ACTION_ROLES.system_settings);
+  const tgToken = str(formData, "telegram_bot_token");
+  const tgChatId = str(formData, "telegram_chat_id");
+  const webhookUrl = str(formData, "order_webhook_url");
+
+  await run(
+    "INSERT INTO settings (key, value) VALUES ('telegram_bot_token', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    tgToken,
+  );
+  await run(
+    "INSERT INTO settings (key, value) VALUES ('telegram_chat_id', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    tgChatId,
+  );
+  await run(
+    "INSERT INTO settings (key, value) VALUES ('order_webhook_url', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    webhookUrl,
+  );
+  refresh();
+  redirect("/admin/settings/?saved=1");
+}

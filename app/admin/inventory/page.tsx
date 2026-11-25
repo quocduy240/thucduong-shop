@@ -7,6 +7,7 @@ import {
   importInventoryAction,
   saveDeliveryPartnerAction,
   saveSupplierAction,
+  settleSupplierDebtAction,
   stocktakeInventoryAction,
 } from "@/app/admin/actions";
 import ConfirmButton from "@/components/admin/ConfirmButton";
@@ -319,6 +320,14 @@ export default async function InventoryAdminPage({
                 <input name="ref_code" placeholder="Tự tạo nếu để trống" className={`${ui.input} font-mono`} />
               </div>
               <div>
+                <label className={ui.label}>Mã lô SX (Batch FEFO)</label>
+                <input name="batch_code" placeholder="VD: LO-202611" className={`${ui.input} font-mono`} />
+              </div>
+              <div>
+                <label className={ui.label}>Hạn sử dụng (HSD)</label>
+                <input name="exp_date" type="date" className={ui.input} />
+              </div>
+              <div>
                 <label className={ui.label}>Quỹ chi thanh toán NCC</label>
                 <select name="payment_method" defaultValue="cash" className={ui.input}>
                   <option value="cash">💵 Quỹ Tiền mặt</option>
@@ -327,14 +336,24 @@ export default async function InventoryAdminPage({
                 </select>
               </div>
               <div>
+                <label className={ui.label}>Số tiền trả NCC ngay (VNĐ)</label>
+                <input
+                  name="paid_amount"
+                  type="number"
+                  min={0}
+                  placeholder="Để trống = Trả đủ 100% (Nhập 0 = Ghi nợ)"
+                  className={ui.input}
+                />
+              </div>
+              <div className="sm:col-span-2">
                 <label className={ui.label}>Ghi chú lô hàng</label>
-                <input name="note" placeholder="VD: Lô mới hạn 2027..." className={ui.input} />
+                <input name="note" placeholder="VD: Lô mới hạn 2027, hàng hữu cơ loại 1..." className={ui.input} />
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
               <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
                 <input type="checkbox" name="record_cash_out" value="1" defaultChecked className="accent-brand" />
-                <span>Tự động ghi Phiếu Chi vào Sổ quỹ đã chọn (Số lượng × Giá vốn)</span>
+                <span>Tự động ghi Phiếu Chi vào Sổ quỹ (Phần chưa thanh toán sẽ tự cộng vào Công nợ Nhà cung cấp)</span>
               </label>
               <button className={ui.primary}>+ Nhập kho ngay</button>
             </div>
@@ -422,7 +441,21 @@ export default async function InventoryAdminPage({
                         {m.change_qty >= 0 ? `+${m.change_qty}` : m.change_qty}
                       </td>
                       <td className={`${ui.td} text-right font-semibold`}>{m.stock_after}</td>
-                      <td className={`${ui.td} text-xs text-gray-600`}>{m.note}</td>
+                      <td className={`${ui.td} text-xs text-gray-600`}>
+                        <div className="flex flex-wrap items-center gap-1">
+                          {m.batch_code && (
+                            <span className="rounded bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-800">
+                              Lô: {m.batch_code}
+                            </span>
+                          )}
+                          {m.exp_date && (
+                            <span className="rounded bg-amber-50 border border-amber-200 px-1.5 py-0.5 font-mono text-[10px] font-bold text-amber-800">
+                              HSD: {m.exp_date}
+                            </span>
+                          )}
+                          <span>{m.note}</span>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -652,8 +685,13 @@ export default async function InventoryAdminPage({
             </form>
 
             <div className={`${ui.card} overflow-x-auto`}>
-              <div className="border-b px-4 py-3 text-sm font-bold text-gray-900">
-                Danh sách Nhà cung cấp ({suppliers.length})
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+                <div className="text-sm font-bold text-gray-900">
+                  Danh sách Nhà cung cấp &amp; Sổ Công nợ phải trả ({suppliers.length})
+                </div>
+                <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-extrabold text-red-700">
+                  Tổng nợ NCC: {vnd(suppliers.reduce((s, r) => s + (r.debt_balance || 0), 0))}
+                </span>
               </div>
               <table className="w-full text-sm">
                 <thead className="bg-gray-50">
@@ -661,7 +699,8 @@ export default async function InventoryAdminPage({
                     <th className={ui.th}>Mã</th>
                     <th className={ui.th}>Nhà cung cấp</th>
                     <th className={`${ui.th} text-center`}>Số SP</th>
-                    <th className={ui.th}></th>
+                    <th className={`${ui.th} text-right`}>Dư nợ phải trả</th>
+                    <th className={ui.th}>Gạch nợ / Thao tác</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -675,16 +714,47 @@ export default async function InventoryAdminPage({
                         </div>
                       </td>
                       <td className={`${ui.td} text-center font-bold text-brand`}>{s.product_count}</td>
+                      <td className={`${ui.td} text-right font-mono font-bold ${s.debt_balance > 0 ? "text-red-600" : "text-gray-400"}`}>
+                        {s.debt_balance > 0 ? vnd(s.debt_balance) : "0 ₫"}
+                      </td>
                       <td className={`${ui.td} text-right`}>
-                        <form action={deleteSupplierAction}>
-                          <input type="hidden" name="id" value={s.id} />
-                          <ConfirmButton
-                            message={`Xoá nhà cung cấp "${s.name}"?`}
-                            className="text-xs text-red-600 hover:underline cursor-pointer"
-                          >
-                            Xoá
-                          </ConfirmButton>
-                        </form>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          {s.debt_balance > 0 && (
+                            <form action={settleSupplierDebtAction} className="inline-flex items-center gap-1">
+                              <input type="hidden" name="supplier_id" value={s.id} />
+                              <input
+                                name="pay_amount"
+                                type="number"
+                                min={1}
+                                max={s.debt_balance}
+                                defaultValue={s.debt_balance}
+                                className="w-24 rounded border border-emerald-300 px-2 py-0.5 text-right font-mono text-xs"
+                                title="Số tiền trả nợ NCC"
+                              />
+                              <select
+                                name="payment_method"
+                                defaultValue="bank"
+                                className="rounded border border-gray-300 px-1.5 py-0.5 text-[11px]"
+                              >
+                                <option value="cash">TM</option>
+                                <option value="bank">CK</option>
+                                <option value="kiotviet">KV</option>
+                              </select>
+                              <button className="rounded bg-emerald-700 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-emerald-800 cursor-pointer">
+                                Trả nợ
+                              </button>
+                            </form>
+                          )}
+                          <form action={deleteSupplierAction}>
+                            <input type="hidden" name="id" value={s.id} />
+                            <ConfirmButton
+                              message={`Xoá nhà cung cấp "${s.name}"?`}
+                              className="text-xs text-red-600 hover:underline cursor-pointer"
+                            >
+                              Xoá
+                            </ConfirmButton>
+                          </form>
+                        </div>
                       </td>
                     </tr>
                   ))}
