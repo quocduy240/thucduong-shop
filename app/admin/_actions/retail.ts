@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { recordAuditLog } from "@/lib/audit-log";
 import { requireRole } from "@/lib/auth";
 import { one, run } from "@/lib/db";
 import {
@@ -78,6 +79,16 @@ export async function importInventoryAction(formData: FormData) {
       createdBy: admin.email,
     });
   }
+  await recordAuditLog({
+    actor: admin,
+    module: "inventory",
+    action: "stock_import",
+    severity: debtAdded > 0 ? "warning" : "info",
+    entityType: "product",
+    entityId: productId,
+    entityLabel: `Phiếu nhập ${refCode} (SP #${productId})`,
+    diffSummary: `📥 Nhập kho +${qty} · Giá vốn: ${unitCost.toLocaleString("vi-VN")}₫ · ${note}${debtAdded > 0 ? ` · Ghi nợ NCC: ${debtAdded.toLocaleString("vi-VN")}₫` : ""}`,
+  });
   refresh();
   redirect("/admin/inventory/?tab=import&saved=1");
 }
@@ -138,6 +149,16 @@ export async function exportInventoryIssueAction(formData: FormData) {
     note: rawNote || defaultNote,
     createdBy: admin.email,
   });
+  await recordAuditLog({
+    actor: admin,
+    module: "inventory",
+    action: issueType,
+    severity: issueType === "damage" ? "critical" : "warning",
+    entityType: "product",
+    entityId: productId,
+    entityLabel: `Phiếu xuất ${refCode} (SP #${productId})`,
+    diffSummary: `📤 ${issueType === "damage" ? "Xuất hủy hàng hỏng" : "Xuất dùng nội bộ"}: -${qty} · ${rawNote || defaultNote}`,
+  });
   refresh();
   redirect("/admin/inventory/?tab=import&saved=1");
 }
@@ -147,9 +168,10 @@ export async function stocktakeInventoryAction(formData: FormData) {
   const productId = num(formData, "product_id");
   const actualStock = Math.max(0, num(formData, "actual_stock"));
   const costPrice = Math.max(0, num(formData, "cost_price"));
-  const prod = await one<{ stock: number }>("SELECT stock FROM products WHERE id = ?", productId);
+  const prod = await one<Record<string, unknown>>("SELECT id, name, sku, category_id, price, sale_price, cost_price, stock, is_published, contact_only, featured, summary FROM products WHERE id = ?", productId);
   if (!prod) back("/admin/inventory/", "Không tìm thấy sản phẩm.");
-  const diff = actualStock - prod!.stock;
+  const prevStock = Number(prod!.stock ?? 0);
+  const diff = actualStock - prevStock;
   await recordInventoryMovement({
     productId,
     changeQty: diff,
@@ -157,8 +179,19 @@ export async function stocktakeInventoryAction(formData: FormData) {
     updateCostPrice: costPrice > 0,
     reason: "stocktake",
     refCode: `KK-${Date.now().toString().slice(-6)}`,
-    note: `Kiểm kho thực tế (${prod!.stock} → ${actualStock})`,
+    note: `Kiểm kho thực tế (${prevStock} → ${actualStock})`,
     createdBy: admin.email,
+  });
+  await recordAuditLog({
+    actor: admin,
+    module: "inventory",
+    action: "stocktake",
+    severity: diff !== 0 ? "warning" : "info",
+    entityType: "product",
+    entityId: productId,
+    entityLabel: `${prod!.sku ? `[${prod!.sku}] ` : ""}${prod!.name}`,
+    beforeData: prod,
+    afterData: { ...prod, stock: actualStock, cost_price: costPrice > 0 ? costPrice : prod!.cost_price },
   });
   refresh();
   redirect("/admin/inventory/?tab=stock&saved=1");

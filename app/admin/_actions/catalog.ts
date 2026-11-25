@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { recordAuditLog } from "@/lib/audit-log";
 import { requireRole } from "@/lib/auth";
 import { batch, one, run } from "@/lib/db";
 import { logWarn } from "@/lib/logger";
@@ -75,7 +76,10 @@ export async function saveProductAction(formData: FormData) {
   try {
     await Promise.all([ensureSeoColumns(), ensureRetailOpsSchema()]);
     if (id) {
-      const prev = await one<{ stock: number }>("SELECT stock FROM products WHERE id = ?", id);
+      const prev = await one<Record<string, unknown>>(
+        "SELECT id, name, category_id, price, sale_price, cost_price, stock, is_published, contact_only, featured, sku, summary FROM products WHERE id = ?",
+        id,
+      );
       await run(
         `UPDATE products SET name=?, slug=?, category_id=?, price=?, cost_price=?, sale_price=?, stock=?, min_stock=?, max_stock=?,
          weight_grams=?, summary=?, description=?, image=?, featured=?, is_published=?, contact_only=?,
@@ -86,13 +90,43 @@ export async function saveProductAction(formData: FormData) {
         sku, kvCode, barcode, brand, origin, unit, location, supplier,
         gallery, videoUrl, seoTitle, seoDescription, seoKeywords, id,
       );
-      if (prev && prev.stock !== stock) {
+      const prevStock = Number(prev?.stock ?? stock);
+      if (prev && prevStock !== stock) {
         await run(
           `INSERT INTO inventory_movements (product_id, change_qty, stock_after, unit_cost, reason, ref_code, note, created_by)
            VALUES (?, ?, ?, ?, 'stocktake', ?, ?, ?)`,
-          id, stock - prev.stock, stock, costPrice, sku || kvCode, "Cập nhật từ chi tiết sản phẩm", admin.email,
+          id, stock - prevStock, stock, costPrice, sku || kvCode, "Cập nhật từ chi tiết sản phẩm", admin.email,
         );
       }
+      const afterSnap = {
+        id,
+        name,
+        category_id: categoryId,
+        price,
+        sale_price: salePrice,
+        cost_price: costPrice,
+        stock,
+        is_published: isPublished,
+        contact_only: contactOnly,
+        featured,
+        sku,
+        summary: str(formData, "summary"),
+      };
+      const priceOrStockChanged =
+        Number(prev?.price ?? price) !== price ||
+        Number(prev?.cost_price ?? costPrice) !== costPrice ||
+        prevStock !== stock;
+      await recordAuditLog({
+        actor: admin,
+        module: "products",
+        action: priceOrStockChanged ? "price_or_stock_update" : "update",
+        severity: priceOrStockChanged ? "warning" : "info",
+        entityType: "product",
+        entityId: id,
+        entityLabel: `${sku ? `[${sku}] ` : ""}${name}`,
+        beforeData: prev ?? null,
+        afterData: afterSnap,
+      });
     } else {
       const ins = await run(
         `INSERT INTO products (name, slug, category_id, price, cost_price, sale_price, stock, min_stock, max_stock, weight_grams, summary, description, image, featured, is_published, contact_only, sku, kv_code, barcode, brand, origin, unit, location, supplier, gallery, video_url, seo_title, seo_description, seo_keywords)
@@ -107,6 +141,17 @@ export async function saveProductAction(formData: FormData) {
           ins.lastInsertRowid, stock, stock, costPrice, sku || kvCode, "Khởi tạo tồn kho ban đầu", admin.email,
         );
       }
+      await recordAuditLog({
+        actor: admin,
+        module: "products",
+        action: "create",
+        severity: "info",
+        entityType: "product",
+        entityId: ins.lastInsertRowid,
+        entityLabel: `${sku ? `[${sku}] ` : ""}${name}`,
+        diffSummary: `Tạo mới sản phẩm · Giá bán: ${price.toLocaleString("vi-VN")}₫ · Tồn đầu: ${stock}`,
+        afterData: { id: ins.lastInsertRowid, name, category_id: categoryId, price, cost_price: costPrice, stock },
+      });
     }
   } catch (e) {
     if (String(e).includes("UNIQUE")) back(here, "Đường dẫn (slug) đã được dùng cho sản phẩm khác.");
@@ -248,7 +293,7 @@ export async function cloneProductAction(formData: FormData) {
 }
 
 export async function quickUpdateProductPricingAction(formData: FormData) {
-  await requireRole(ADMIN_ACTION_ROLES.catalog_write);
+  const admin = await requireRole(ADMIN_ACTION_ROLES.catalog_write);
   await ensureRetailOpsSchema();
   const id = num(formData, "id");
   const price = Math.max(0, num(formData, "price"));
@@ -257,14 +302,33 @@ export async function quickUpdateProductPricingAction(formData: FormData) {
   const salePrice = rawSale ? Math.max(0, num(formData, "sale_price")) : null;
   const contactOnly = str(formData, "contact_only") === "1" ? 1 : 0;
 
+  const prev = await one<Record<string, unknown>>(
+    "SELECT id, name, sku, category_id, price, sale_price, cost_price, stock, is_published, contact_only, featured, summary FROM products WHERE id = ?",
+    id,
+  );
+  const validSale = salePrice !== null && salePrice > 0 && salePrice < price ? salePrice : null;
+
   await run(
     "UPDATE products SET price = ?, cost_price = ?, sale_price = ?, contact_only = ? WHERE id = ?",
     price,
     costPrice,
-    salePrice !== null && salePrice > 0 && salePrice < price ? salePrice : null,
+    validSale,
     contactOnly,
     id,
   );
+  if (prev) {
+    await recordAuditLog({
+      actor: admin,
+      module: "products",
+      action: "pricebook_update",
+      severity: "warning",
+      entityType: "product",
+      entityId: id,
+      entityLabel: `${prev.sku ? `[${prev.sku}] ` : ""}${prev.name}`,
+      beforeData: prev,
+      afterData: { ...prev, price, cost_price: costPrice, sale_price: validSale, contact_only: contactOnly },
+    });
+  }
   refresh();
   const returnTo = str(formData, "return_to");
   redirect(returnTo && returnTo.startsWith("/admin/products") ? returnTo : "/admin/products/?view=pricebook&saved=1");
@@ -299,11 +363,23 @@ export async function bulkProductsAction(formData: FormData) {
 export async function deleteProductAction(formData: FormData) {
   const admin = await requireRole(ADMIN_ACTION_ROLES.catalog_delete);
   const id = num(formData, "id");
+  const prev = await one<Record<string, unknown>>("SELECT id, name, sku, price, cost_price, stock FROM products WHERE id = ?", id);
   await batch([
     { sql: "DELETE FROM comments WHERE product_id = ?", params: [id] },
     { sql: "DELETE FROM products WHERE id = ?", params: [id] },
   ]);
   logWarn("admin.product_deleted", { productId: id, actor: admin.email });
+  await recordAuditLog({
+    actor: admin,
+    module: "products",
+    action: "delete",
+    severity: "critical",
+    entityType: "product",
+    entityId: id,
+    entityLabel: prev ? `${prev.sku ? `[${prev.sku}] ` : ""}${prev.name}` : `Sản phẩm #${id}`,
+    diffSummary: `🗑️ Đã xóa vĩnh viễn sản phẩm khỏi hệ thống`,
+    beforeData: prev ?? null,
+  });
   refresh();
   redirect("/admin/products/?saved=1");
 }

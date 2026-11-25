@@ -90,7 +90,9 @@ export {
 
 export {
   deleteConsultationAction,
+  rollbackAuditLogAction,
   saveGeminiKeyAction,
+  saveHandbookCustomNoteAction,
   saveInvoicePrintConfigAction,
   saveMailSettingsAction,
   saveSettingsAction,

@@ -13,6 +13,124 @@ export type HandbookSection = {
   topics: HandbookTopic[];
 };
 
+export type RoleSopChecklist = {
+  role: "sales" | "editor" | "admin" | "super_admin";
+  title: string;
+  subtitle: string;
+  badge: string;
+  steps: { step: string; detail: string; href: string }[];
+};
+
+export const ROLE_SOP_CHECKLISTS: RoleSopChecklist[] = [
+  {
+    role: "sales",
+    title: "🛒 Quy trình Chuẩn Ca Trực Bán Hàng & CSKH (Sales SOP)",
+    subtitle: "5 bước xử lý đơn hàng, tư vấn khách & chốt sổ tiền mặt hàng ngày",
+    badge: "Bán hàng & CSKH",
+    steps: [
+      {
+        step: "Bước 1: Kiểm tra Cảnh báo Đỏ P1 tại Bảng điều khiển (/admin/)",
+        detail: "Xem ngay số đơn hàng mới (status = new) và số khách gửi câu hỏi Tư vấn nhanh đang chờ gọi lại.",
+        href: "/admin/",
+      },
+      {
+        step: "Bước 2: Bán hàng tại quầy / Lên đơn Telesale nhanh (/admin/pos/)",
+        detail: "Nhấn F2 để quét mã vạch hoặc gõ tên SP không dấu, nhấn F4 điền tên/SĐT khách, nhấn F9 để thanh toán & in phiếu Khổ A5.",
+        href: "/admin/pos/",
+      },
+      {
+        step: "Bước 3: Xác nhận Đơn Web, Chọn ĐVVC & In Hóa đơn A5 (/admin/orders/)",
+        detail: "Chuyển đơn sang 'Đã xác nhận' hoặc 'Đang giao', điền mã vận đơn và bấm In Hóa đơn Khổ A5 dán lên kiện hàng.",
+        href: "/admin/orders/",
+      },
+      {
+        step: "Bước 4: Gọi chăm sóc khách đến hạn CRM (/admin/crm/)",
+        detail: "Gọi hỏi thăm khách sau 3 ngày nhận hàng (hướng dẫn cách nấu/pha) và sau 25 ngày (nhắc tái đặt hàng định kỳ Auto-Refill).",
+        href: "/admin/crm/",
+      },
+      {
+        step: "Bước 5: Đối soát Tiền mặt & Chuyển khoản cuối ca (/admin/inventory/?tab=eod)",
+        detail: "Mở Báo cáo cuối ngày (EOD) kiểm tra tổng thu Tiền mặt và Chuyển khoản khớp với số đơn đã bán trong ca.",
+        href: "/admin/inventory/?tab=eod",
+      },
+    ],
+  },
+  {
+    role: "admin",
+    title: "📦 Quy trình Quản lý Kho vận, Lô FEFO & Tài chính (Admin SOP)",
+    subtitle: "Kiểm soát tồn kho, hạn sử dụng thực dưỡng, bảng giá và công nợ Nhà cung cấp",
+    badge: "Quản lý Kho & Quỹ",
+    steps: [
+      {
+        step: "Bước 1: Kiểm tra Hàng sắp hết & Lô sắp hết hạn FEFO (/admin/inventory/)",
+        detail: "Lọc các sản phẩm chạm định mức tồn tối thiểu hoặc có lô HSD ≤ 45 ngày để lập kế hoạch nhập hàng hoặc đẩy vào Flash Sale.",
+        href: "/admin/inventory/?tab=stock&stock=low",
+      },
+      {
+        step: "Bước 2: Nhập hàng gắn Mã lô SX, Hạn sử dụng & Công nợ NCC (/admin/inventory/?tab=import)",
+        detail: "Khi hàng về, tạo Phiếu Nhập Hàng ghi rõ Mã lô, HSD và số tiền trả ngay. Phần chưa trả tự động ghi vào Công nợ NCC.",
+        href: "/admin/inventory/?tab=import",
+      },
+      {
+        step: "Bước 3: Cập nhật Giá vốn, Giá bán & Chế độ 'Liên hệ' (/admin/products/?view=pricebook)",
+        detail: "Dùng Bảng Thiết lập giá (#/PriceBook) để điều chỉnh giá nhanh hoặc bật chế độ 'Hiện Liên hệ ngoài Web' cho mặt hàng tạm đứt nguồn.",
+        href: "/admin/products/?view=pricebook",
+      },
+      {
+        step: "Bước 4: Đối soát Sổ quỹ 3 Quỹ & Gạch nợ Nhà cung cấp (/admin/inventory/?tab=cashbook)",
+        detail: "Kiểm tra số dư Quỹ Tiền mặt, Quỹ Ngân hàng, Quỹ KiotViet và lập phiếu trả nợ cho các Nhà cung cấp đến hạn.",
+        href: "/admin/inventory/?tab=cashbook",
+      },
+    ],
+  },
+  {
+    role: "editor",
+    title: "📝 Quy trình Biên tập Nội dung, Sửa Trực tiếp Ngoài Web & SEO (Editor SOP)",
+    subtitle: "Cập nhật bài viết, sản phẩm, sắp xếp vị trí module chuẩn Y tế & Google YMYL",
+    badge: "Biên tập & SEO",
+    steps: [
+      {
+        step: "Bước 1: Sửa trực tiếp ngoài trang khách bằng Ngăn kéo Phải 2 mức",
+        detail: "Ra ngoài trang chủ/sản phẩm, bấm nút '✏️ Sửa' để mở ngăn kéo phải (kéo rộng Mức 2 hoặc thu gọn sang phải), sửa giá/vị trí/bài viết và xem thay đổi ngay lập tức.",
+        href: "/",
+      },
+      {
+        step: "Bước 2: Làm sạch sản phẩm nhập từ Link bằng AI Idle Worker (/admin/products/import/)",
+        detail: "Kiểm tra mục 'Sản phẩm đã lấy nhưng CHƯA làm sạch', bấm Làm sạch tuần tự để xóa dấu vết SĐT/logo trang nguồn.",
+        href: "/admin/products/import/",
+      },
+      {
+        step: "Bước 3: Tối ưu Điểm SEO Google ≥ 80/100 & Tuân thủ YMYL (/admin/posts/)",
+        detail: "Bổ sung ảnh bìa, đoạn tóm tắt, bấm '⚡ Tự điền SEO gợi ý' và đảm bảo nội dung có khung miễn trừ trách nhiệm Y khoa.",
+        href: "/admin/posts/",
+      },
+    ],
+  },
+  {
+    role: "super_admin",
+    title: "🛡️ Quy trình Kiểm toán Nội bộ, Quy trách nhiệm & An toàn Hệ thống (Super Admin SOP)",
+    subtitle: "Giám sát mọi biến động dữ liệu qua Log Audit, hoàn tác lỗi và sao lưu D1",
+    badge: "Chủ cửa hàng",
+    steps: [
+      {
+        step: "Bước 1: Rà soát Nhật ký Kiểm toán & Biến động Giá/Tồn/Quỹ (/admin/audit-logs/)",
+        detail: "Lọc các bản ghi mức độ '🟠 Quan trọng' và '🔴 Nghiêm trọng' trong ngày để biết rõ nhân viên nào đã sửa giá, chỉnh tồn kho hay xóa dữ liệu.",
+        href: "/admin/audit-logs/",
+      },
+      {
+        step: "Bước 2: Hoàn tác 1 chạm (1-Click Rollback) khi phát hiện nhân viên nhập sai",
+        detail: "Xem bảng so sánh JSON Trước/Sau ngay trên dòng nhật ký và bấm '⏪ Hoàn tác 1 chạm' để khôi phục dữ liệu về trạng thái đúng.",
+        href: "/admin/audit-logs/",
+      },
+      {
+        step: "Bước 3: Ghi chú Quy định Nội bộ (Custom SOP) cho từng trang & Sao lưu D1 (/admin/settings/)",
+        detail: "Viết lưu ý quy trình riêng của cửa hàng ngay trên đầu Cẩm nang từng trang và tải bản sao lưu D1 (.JSON) định kỳ.",
+        href: "/admin/settings/",
+      },
+    ],
+  },
+];
+
 export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
   {
     id: "dashboard",
@@ -611,6 +729,10 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
             heading: "Chuyển đổi qua lại: Chế độ Quản trị ↔ Xem như User thường",
             body: "Trên thanh công cụ Quản trị trên cùng của Frontend, bấm nút '👁️ Đang bật nút Sửa · Chuyển sang Xem như User' để ẩn toàn bộ nút sửa và kiểm tra giao diện y hệt khách hàng; bấm pill 'Bật lại Quản trị' ở góc dưới trái để khôi phục bất kỳ lúc nào.",
           },
+          {
+            heading: "Ngăn kéo Chỉnh sửa Trực tiếp Ngoài Frontend (Kéo giãn 2 mức sang trái & Ẩn sang phải) (Mới)",
+            body: "Khi bấm bất kỳ nút '✏️ Sửa' nào ngoài trang chủ, trang sản phẩm, bài viết hoặc nút '🗂️ Sắp xếp Menu & Nhóm hàng' / '🧩 Vị trí Block & Module' trên thanh Quản trị, hệ thống sẽ mở Ngăn kéo Phải ngay trên trang mà không cần chuyển trang. Bạn có thể chọn '‹ Mức 1 (Gọn 540px)' để vừa sửa vừa nhìn trang web bên trái, bấm '« Mức 2 (Rộng 82%)' để mở rộng sang trái khi soạn thảo sâu, hoặc bấm 'Ẩn sang phải »' để thu gọn sát mép phải màn hình mà vẫn giữ nguyên nội dung đang gõ dở.",
+          },
         ],
       },
       {
@@ -642,11 +764,57 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
       },
     ],
   },
+  {
+    id: "audit-logs",
+    routePrefix: "/admin/audit-logs/",
+    icon: "🛡️",
+    label: "Nhật ký Kiểm toán (Log Audit) & Điều phối Thông báo",
+    topics: [
+      {
+        id: "audit-log-overview",
+        title: "1. Tra cứu Lịch sử Thao tác, Quy trách nhiệm & Hoàn tác 1 chạm (Log Audit)",
+        badge: "Mới",
+        items: [
+          {
+            heading: "Lưu vết tự động Ai làm · Làm gì · Thay đổi Trước/Sau thế nào",
+            body: "Mọi thao tác sửa Giá bán, Giá vốn, Tồn kho, Kiểm kho, Nhập/Xuất hàng, Sổ quỹ, Đổi trạng thái đơn, Xóa dữ liệu hoặc Sửa trực tiếp ngoài Frontend đều được tự động ghi vào bảng audit_logs kèm tên nhân viên, vai trò và thời gian chính xác.",
+          },
+          {
+            heading: "Xem dữ liệu gốc Trước / Sau (JSON Snapshot) & Hoàn tác 1 chạm (⏪ Rollback)",
+            body: "Tại /admin/audit-logs/, bấm '🔍 Xem dữ liệu gốc Trước / Sau' để đối chiếu chi tiết từng con số trước và sau khi sửa. Nếu phát hiện nhân viên thao tác nhầm (sửa sai giá, sai tồn kho, sai nhóm hàng hoặc bài viết), bấm nút '⏪ Hoàn tác 1 chạm' để khôi phục ngay lập tức về trạng thái chuẩn trước đó.",
+          },
+        ],
+      },
+      {
+        id: "actionable-notifications",
+        title: "2. Trung tâm Thông báo Phân cấp (P1 → P3) & Định hướng Đúng người Đúng việc",
+        badge: "Mới",
+        items: [
+          {
+            heading: "3 Cấp độ ưu tiên rõ ràng: 🔴 P1 Khẩn cấp · 🟠 P2 Trong ca · 🔵 P3 Đối soát",
+            body: "Hệ thống tự động quét toàn bộ kho và đơn hàng theo thời gian thực: P1 (Đơn mới chờ xác nhận, Khách hỏi tư vấn nhanh chờ gọi lại, Sản phẩm hết hàng), P2 (Lịch gọi CRM đến hạn, Hàng chạm tồn tối thiểu, Lô hàng Thực dưỡng sắp hết hạn FEFO ≤ 45 ngày, Công nợ Nhà cung cấp), P3 (Thao tác nhạy cảm cần chủ shop đối soát, Bài viết thiếu SEO).",
+          },
+          {
+            heading: "Định tuyến tự động theo Vai trò (Target Role Routing)",
+            body: "Mỗi thông báo đều gắn nhãn bộ phận chịu trách nhiệm (Bán hàng Sales, Kho vận Admin, Biên tập Editor, Chủ cửa hàng Super Admin) kèm nút hành động 1 chạm dẫn thẳng tới màn hình xử lý.",
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 export function findMatchingSectionId(pathname: string): string {
   const path = pathname.replace(/\/?$/, "/");
   if (path === "/admin/") return "dashboard";
+  if (path.startsWith("/admin/audit-logs/")) return "audit-logs";
+  if (
+    path.startsWith("/admin/pos/") ||
+    path.startsWith("/admin/inventory/") ||
+    path.startsWith("/admin/kiotviet/")
+  ) {
+    return "orders";
+  }
   // Match specific prefixes first
   const matches = ADMIN_HANDBOOK_SECTIONS.filter(
     (s) => s.routePrefix !== "/admin/" && path.startsWith(s.routePrefix),

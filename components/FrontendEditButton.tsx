@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import type { FrontendEditResource } from "@/lib/frontend-edit";
 import { useFrontendAdmin } from "./FrontendAdminProvider";
 
@@ -19,8 +18,7 @@ export default function FrontendEditButton({
   variant?: "pill" | "badge" | "inline";
   className?: string;
 }) {
-  const router = useRouter();
-  const { canEdit } = useFrontendAdmin();
+  const { canEdit, openLiveEditor } = useFrontendAdmin();
 
   if (!canEdit(resource)) return null;
 
@@ -34,11 +32,11 @@ export default function FrontendEditButton({
   return (
     <button
       type="button"
-      title={title || `${label} trong trang Quản trị`}
+      title={title || `${label} trực tiếp ngay trên trang (Ngăn kéo phải)`}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        router.push(href);
+        openLiveEditor({ resource, href, label });
       }}
       className={`cursor-pointer ${baseCls} ${className}`}
     >

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { recordAuditLog, rollbackAuditLog, saveHandbookCustomNote } from "@/lib/audit-log";
 import { requireRole } from "@/lib/auth";
 import { run } from "@/lib/db";
 import { logInfo } from "@/lib/logger";
@@ -181,4 +182,35 @@ export async function saveTelegramWebhookSettingsAction(formData: FormData) {
   );
   refresh();
   redirect("/admin/settings/?saved=1");
+}
+
+export async function rollbackAuditLogAction(formData: FormData) {
+  const admin = await requireRole(["super_admin", "admin"]);
+  const logId = num(formData, "log_id");
+  const res = await rollbackAuditLog(logId, admin);
+  refresh();
+  if (!res.ok) {
+    redirect(`/admin/audit-logs/?error=${encodeURIComponent(res.message)}`);
+  }
+  redirect(`/admin/audit-logs/?saved=1&msg=${encodeURIComponent(res.message)}`);
+}
+
+export async function saveHandbookCustomNoteAction(formData: FormData) {
+  const admin = await requireRole(["super_admin", "admin"]);
+  const sectionId = str(formData, "section_id") || "dashboard";
+  const noteText = str(formData, "note_text");
+  const returnTo = str(formData, "return_to") || "/admin/";
+  await saveHandbookCustomNote(sectionId, noteText, admin.email);
+  await recordAuditLog({
+    actor: admin,
+    module: "settings",
+    action: "update_sop_note",
+    severity: "info",
+    entityType: "handbook_note",
+    entityId: sectionId,
+    entityLabel: `Quy định nội bộ (${sectionId})`,
+    diffSummary: noteText ? `Cập nhật quy định SOP nội bộ: "${noteText.slice(0, 120)}"` : "Đã xóa ghi chú quy định nội bộ",
+  });
+  refresh();
+  redirect(returnTo.startsWith("/admin") ? returnTo : "/admin/");
 }

@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { isOrderStatus } from "@/lib/admin-data";
+import { recordAuditLog } from "@/lib/audit-log";
 import { requireRole } from "@/lib/auth";
 import { all, batch, one, run } from "@/lib/db";
 import { pushOrderToKiotViet } from "@/lib/kiotviet";
@@ -69,6 +70,18 @@ export async function updateOrderStatusAction(formData: FormData) {
       from: current.status,
       to: status,
       actor: admin.email,
+    });
+    await recordAuditLog({
+      actor: admin,
+      module: "orders",
+      action: "status_change",
+      severity: status === "cancelled" || status === "returned" ? "critical" : "info",
+      entityType: "order",
+      entityId: id,
+      entityLabel: `Đơn hàng #${current.code}`,
+      diffSummary: `Chuyển trạng thái đơn #${current.code}: ${current.status} → ${status}`,
+      beforeData: { status: current.status },
+      afterData: { status },
     });
   }
   refresh();
