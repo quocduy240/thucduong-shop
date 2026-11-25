@@ -144,10 +144,14 @@ export default function FloatingConsultWidget({ config }: { config: FloatingWidg
 
   const zaloUrl = normalizeZaloUrl(config.widget_zalo);
   const messengerUrl = normalizeMessengerUrl(config.widget_messenger);
-  const { current: hotlineDisplay, tel: hotlineTel } = useRotatingHotline(
+  const { list: hotlineList } = useRotatingHotline(
     [config.widget_hotline, config.widget_hotline_2].filter(Boolean),
     5000,
   );
+  const primaryHotlineDisplay = hotlineList[0] || config.widget_hotline || "";
+  const primaryHotlineTel = normalizeTel(primaryHotlineDisplay);
+  const secondaryHotlineDisplay = hotlineList[1] || config.widget_hotline_2 || "";
+  const secondaryHotlineTel = normalizeTel(secondaryHotlineDisplay);
 
   async function handleQuickAskSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -303,21 +307,23 @@ export default function FloatingConsultWidget({ config }: { config: FloatingWidg
               {busy ? "⏳ Đang gửi thông tin..." : "📩 Gửi câu hỏi & Yêu cầu gọi lại"}
             </button>
 
-            {(hotlineDisplay || config.widget_hotline_2) && (
+            {(primaryHotlineDisplay || secondaryHotlineDisplay) && (
               <div className="border-t pt-2 text-center text-[11px] text-gray-500">
                 Hoặc gọi ngay:{" "}
-                <a href={`tel:${hotlineTel}`} className="font-bold text-accent hover:underline">
-                  {hotlineDisplay}
-                </a>
-                {config.widget_hotline_2 && (
+                {primaryHotlineDisplay && (
+                  <a href={`tel:${primaryHotlineTel}`} className="font-bold text-accent hover:underline">
+                    {primaryHotlineDisplay}
+                  </a>
+                )}
+                {secondaryHotlineDisplay && secondaryHotlineDisplay !== primaryHotlineDisplay && (
                   <>
                     {" "}
                     -{" "}
                     <a
-                      href={`tel:${normalizeTel(config.widget_hotline_2)}`}
+                      href={`tel:${secondaryHotlineTel}`}
                       className="font-bold text-accent hover:underline"
                     >
-                      {config.widget_hotline_2}
+                      {secondaryHotlineDisplay}
                     </a>
                   </>
                 )}
@@ -384,18 +390,32 @@ export default function FloatingConsultWidget({ config }: { config: FloatingWidg
             </a>
           )}
 
-          {/* 4. Hotline */}
-          {hotlineTel && (
-            <a
-              href={`tel:${hotlineTel}`}
-              className="group flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#dc2626] to-[#b91c1c] p-1 pr-3 text-white shadow-md transition hover:scale-105"
-              title={`Gọi Hotline ${hotlineDisplay}`}
-            >
-              <span className="grid h-7 w-7 animate-pulse place-items-center rounded-full bg-white text-sm text-[#dc2626] shadow-2xs md:h-8 md:w-8">
-                📞
-              </span>
-              <span className="text-[11px] font-bold md:text-xs">{hotlineDisplay}</span>
-            </a>
+          {/* 4. Hotline (Hiển thị đồng thời cả 2 số Hotline) */}
+          {primaryHotlineTel && (
+            <div className="flex flex-col items-end gap-1.5">
+              <a
+                href={`tel:${primaryHotlineTel}`}
+                className="group flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#dc2626] to-[#b91c1c] p-1 pr-3 text-white shadow-md transition hover:scale-105"
+                title={`Gọi Hotline 1: ${primaryHotlineDisplay}`}
+              >
+                <span className="grid h-7 w-7 animate-pulse place-items-center rounded-full bg-white text-sm text-[#dc2626] shadow-2xs md:h-8 md:w-8">
+                  📞
+                </span>
+                <span className="text-[11px] font-bold md:text-xs">{primaryHotlineDisplay}</span>
+              </a>
+              {secondaryHotlineTel && secondaryHotlineDisplay !== primaryHotlineDisplay && (
+                <a
+                  href={`tel:${secondaryHotlineTel}`}
+                  className="group flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#dc2626] to-[#b91c1c] p-1 pr-3 text-white shadow-md transition hover:scale-105"
+                  title={`Gọi Hotline 2: ${secondaryHotlineDisplay}`}
+                >
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-white text-sm text-[#dc2626] shadow-2xs md:h-8 md:w-8">
+                    📞
+                  </span>
+                  <span className="text-[11px] font-bold md:text-xs">{secondaryHotlineDisplay}</span>
+                </a>
+              )}
+            </div>
           )}
         </div>
       )}

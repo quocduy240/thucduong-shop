@@ -13,7 +13,7 @@ export default async function AdminPosPage({
 }) {
   await requireRole(["super_admin", "admin", "sales"]);
   const sp = await searchParams;
-  const products = await listInventoryProducts({ limit: 300 });
+  const products = await listInventoryProducts({ limit: 5000 });
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 pb-12">
@@ -32,6 +32,8 @@ export default async function AdminPosPage({
           id: p.id,
           name: p.name,
           sku: p.sku,
+          kv_code: p.kv_code,
+          barcode: p.barcode,
           price: p.price,
           sale_price: p.sale_price,
           stock: p.stock,

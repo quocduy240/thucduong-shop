@@ -8,11 +8,23 @@ export type PosProduct = {
   id: number;
   name: string;
   sku: string;
+  kv_code?: string;
+  barcode?: string;
   price: number;
   sale_price: number | null;
   stock: number;
   category_name: string;
 };
+
+function normalizeVnSearch(str: string): string {
+  return (str || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "d")
+    .toLowerCase()
+    .trim();
+}
 
 type PosBillTab = {
   id: string;
@@ -60,19 +72,34 @@ export default function AdminPosClient({ products }: { products: PosProduct[] })
   }, [products]);
 
   const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    return products
-      .filter((p) => {
-        if (categoryFilter && p.category_name !== categoryFilter) return false;
-        if (!s) return true;
-        return (
-          p.name.toLowerCase().includes(s) ||
-          p.sku.toLowerCase().includes(s) ||
-          String(p.id) === s ||
-          p.category_name.toLowerCase().includes(s)
-        );
-      })
-      .slice(0, 40);
+    const rawQuery = q.trim().toLowerCase();
+    const normQuery = normalizeVnSearch(rawQuery);
+    const tokens = normQuery.split(/\s+/).filter(Boolean);
+
+    const matched = products.filter((p) => {
+      if (categoryFilter && p.category_name !== categoryFilter) return false;
+      if (!rawQuery) return true;
+
+      const haystackRaw = `${p.name} ${p.sku} ${p.kv_code || ""} ${p.barcode || ""} ${p.category_name} #${p.id}`.toLowerCase();
+      if (haystackRaw.includes(rawQuery)) return true;
+
+      const haystackNorm = normalizeVnSearch(haystackRaw);
+      return tokens.every((tk) => haystackNorm.includes(tk));
+    });
+
+    // Prioritize in-stock products first, and exact SKU/name prefix matches when searching
+    if (rawQuery) {
+      matched.sort((a, b) => {
+        const aExact = a.sku.toLowerCase() === rawQuery || (a.kv_code || "").toLowerCase() === rawQuery ? 0 : 1;
+        const bExact = b.sku.toLowerCase() === rawQuery || (b.kv_code || "").toLowerCase() === rawQuery ? 0 : 1;
+        if (aExact !== bExact) return aExact - bExact;
+        const aInStock = a.stock > 0 ? 0 : 1;
+        const bInStock = b.stock > 0 ? 0 : 1;
+        return aInStock - bInStock;
+      });
+    }
+
+    return matched.slice(0, rawQuery ? 80 : 48);
   }, [products, q, categoryFilter]);
 
   function updateCurrentTab(updater: (tab: PosBillTab) => PosBillTab) {

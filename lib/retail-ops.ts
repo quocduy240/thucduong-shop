@@ -240,6 +240,8 @@ export type InventoryProductRow = {
   id: number;
   name: string;
   sku: string;
+  kv_code: string;
+  barcode: string;
   price: number;
   sale_price: number | null;
   cost_price: number;
@@ -358,22 +360,27 @@ export async function listInventoryProducts(opts: { q?: string; stockFilter?: st
   const params: unknown[] = [];
   const q = opts.q?.trim();
   if (q) {
-    where.push("(p.name LIKE ? OR p.sku LIKE ? OR COALESCE(p.kv_code, '') LIKE ?)");
-    params.push(`%${q}%`, `%${q}%`, `%${q}%`);
+    where.push("(p.name LIKE ? OR p.sku LIKE ? OR COALESCE(p.kv_code, '') LIKE ? OR COALESCE(p.barcode, '') LIKE ?)");
+    params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
   }
   if (opts.stockFilter === "low") where.push("p.stock > 0 AND p.stock <= 5");
   if (opts.stockFilter === "out") where.push("p.stock <= 0");
   const w = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const orderBy =
+    opts.stockFilter === "low" || opts.stockFilter === "out"
+      ? "p.stock ASC, p.id DESC"
+      : "CASE WHEN p.stock > 0 THEN 0 ELSE 1 END, p.sku ASC, p.id DESC";
   return all<InventoryProductRow>(
-    `SELECT p.id, p.name, COALESCE(p.sku, '') AS sku, p.price, p.sale_price,
+    `SELECT p.id, p.name, COALESCE(p.sku, '') AS sku, COALESCE(p.kv_code, '') AS kv_code, COALESCE(p.barcode, '') AS barcode,
+            p.price, p.sale_price,
             COALESCE(p.cost_price, 0) AS cost_price, COALESCE(p.contact_only, 0) AS contact_only,
             p.stock, COALESCE(p.unit, '') AS unit, COALESCE(p.supplier, '') AS supplier,
             c.name AS category_name
      FROM products p JOIN product_categories c ON c.id = p.category_id
      ${w}
-     ORDER BY p.stock ASC, p.id DESC LIMIT ?`,
+     ORDER BY ${orderBy} LIMIT ?`,
     ...params,
-    opts.limit ?? 80,
+    opts.limit ?? 2000,
   );
 }
 

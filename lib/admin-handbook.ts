@@ -72,8 +72,8 @@ export const ADMIN_HANDBOOK_SECTIONS: HandbookSection[] = [
         badge: "Mới",
         items: [
           {
-            heading: "Bán hàng nhanh tại quầy / Telesale đa hóa đơn chờ & Phím tắt F2/F4/F9 (/admin/pos/) (Mới)",
-            body: "Hỗ trợ mở nhiều tab Hóa đơn chờ cùng lúc (+ Thêm HĐ chờ), quét mã vạch / nhập mã SKU nhấn Enter để tự thêm vào giỏ, lọc nhanh theo nhóm hàng và dùng phím tắt bàn phím chuẩn KiotViet (F2: Quét mã/Tìm SP, F4: Nhập tên khách, F9: Thanh toán & mở bản in A5). Hệ thống tự động trừ kho, ghi Thẻ kho và ghi Phiếu Thu vào đúng Quỹ tương ứng.",
+            heading: "Bán hàng nhanh tại quầy / Telesale đa hóa đơn chờ & Tìm kiếm 100% kho không dấu (/admin/pos/) (Mới)",
+            body: "Nạp toàn bộ 100% danh mục sản phẩm (574+ mã hàng) vào POS, ưu tiên hiển thị hàng còn tồn kho lên trước và hỗ trợ tìm kiếm thông minh cả tiếng Việt có dấu lẫn không dấu (VD: gõ 'chiet xuat' hay 'chiết xuất'), mã SKU, mã KiotViet, mã vạch. Hỗ trợ mở nhiều tab Hóa đơn chờ cùng lúc (+ Thêm HĐ chờ), quét mã vạch nhấn Enter để tự thêm vào giỏ và dùng phím tắt bàn phím chuẩn KiotViet (F2: Quét mã/Tìm SP, F4: Nhập tên khách, F9: Thanh toán & mở bản in A5).",
           },
           {
             heading: "Quản lý Lô SX, Hạn sử dụng (FEFO) & Sổ Công nợ Nhà cung cấp (/admin/inventory/) (Mới)",

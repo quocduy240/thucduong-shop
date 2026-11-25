@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 export function parseHotlineNumbers(raw: string | string[]): string[] {
   const parts = Array.isArray(raw) ? raw : String(raw || "").split(/[-/|,\n]+/);
@@ -14,21 +14,12 @@ export function parseHotlineNumbers(raw: string | string[]): string[] {
   return cleaned;
 }
 
-export function useRotatingHotline(raw: string | string[], intervalMs = 5000) {
+export function useRotatingHotline(raw: string | string[], _intervalMs = 5000) {
   const list = useMemo(() => parseHotlineNumbers(raw), [raw]);
-  const [idx, setIdx] = useState(0);
-
-  useEffect(() => {
-    if (list.length <= 1) return;
-    const timer = setInterval(() => {
-      setIdx((prev) => (prev + 1) % list.length);
-    }, intervalMs);
-    return () => clearInterval(timer);
-  }, [list.length, intervalMs]);
-
-  const current = list[idx % Math.max(1, list.length)] ?? (typeof raw === "string" ? raw.trim() : "");
-  const tel = current.replace(/[^\d+]/g, "");
-  return { current, tel, count: list.length };
+  const current = list.join(" - ") || (typeof raw === "string" ? raw.trim() : "");
+  const first = list[0] ?? current;
+  const tel = first.replace(/[^\d+]/g, "");
+  return { current, tel, count: list.length, list };
 }
 
 export default function RotatingHotline({
@@ -36,7 +27,6 @@ export default function RotatingHotline({
   prefix = "",
   suffix = "",
   className = "",
-  intervalMs = 5000,
   onClick,
 }: {
   raw: string | string[];
@@ -46,19 +36,46 @@ export default function RotatingHotline({
   intervalMs?: number;
   onClick?: () => void;
 }) {
-  const { current, tel } = useRotatingHotline(raw, intervalMs);
-  if (!current) return null;
+  const list = useMemo(() => parseHotlineNumbers(raw), [raw]);
+  if (list.length === 0) return null;
+
+  if (list.length === 1) {
+    const only = list[0];
+    const tel = only.replace(/[^\d+]/g, "");
+    return (
+      <a
+        href={`tel:${tel}`}
+        onClick={onClick}
+        className={className}
+        title={`Gọi Hotline ${only}`}
+      >
+        {prefix}
+        <span>{only}</span>
+        {suffix}
+      </a>
+    );
+  }
 
   return (
-    <a
-      href={`tel:${tel}`}
-      onClick={onClick}
-      className={className}
-      title={`Gọi Hotline ${current}`}
-    >
+    <span className={className}>
       {prefix}
-      <span className="transition-opacity duration-300">{current}</span>
+      {list.map((phone, idx) => {
+        const tel = phone.replace(/[^\d+]/g, "");
+        return (
+          <span key={phone}>
+            {idx > 0 && <span className="mx-1.5 opacity-75">-</span>}
+            <a
+              href={`tel:${tel}`}
+              onClick={onClick}
+              className="hover:underline"
+              title={`Gọi Hotline ${phone}`}
+            >
+              {phone}
+            </a>
+          </span>
+        );
+      })}
       {suffix}
-    </a>
+    </span>
   );
 }

@@ -8,8 +8,8 @@ import ProductEditTabs from "@/components/admin/ProductEditTabs";
 import ProductGalleryStudio from "@/components/admin/ProductGalleryStudio";
 import ProductSourceNoteBanner from "@/components/admin/ProductSourceNoteBanner";
 import SeoPanel from "@/components/admin/SeoPanel";
-import { getAdminProductExtra, listProductMovements } from "@/lib/admin-data";
-import { getProductById, getProductCategories, url } from "@/lib/data";
+import { getAdminProductExtra, listProductCategoriesWithCount, listProductMovements } from "@/lib/admin-data";
+import { getProductById, url } from "@/lib/data";
 import { listSuppliers } from "@/lib/retail-ops";
 import { getSeoFields } from "@/lib/seo";
 import { vnd } from "@/lib/site";
@@ -42,7 +42,7 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
 
   const [p, categories, extra, movements, seo, suppliers] = await Promise.all([
     id ? getProductById(id) : Promise.resolve(undefined),
-    getProductCategories(),
+    listProductCategoriesWithCount(),
     id ? getAdminProductExtra(id) : Promise.resolve(undefined),
     id ? listProductMovements(id, 50) : Promise.resolve([]),
     id ? getSeoFields("products", id) : Promise.resolve({ seo_title: "", seo_description: "", seo_keywords: "" }),
@@ -230,13 +230,21 @@ export default async function ProductEditPage({ params, searchParams }: PageProp
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div>
-                    <label className={label}>
-                      Danh mục <span className="text-red-600">*</span>
-                    </label>
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <label className="block text-xs font-bold uppercase tracking-wide text-gray-700">
+                        Danh mục <span className="text-red-600">*</span>
+                      </label>
+                      <Link
+                        href="/admin/categories/"
+                        className="text-[11px] font-bold text-brand hover:underline"
+                      >
+                        + Quản lý nhóm hàng →
+                      </Link>
+                    </div>
                     <select name="category_id" required defaultValue={p?.category_id} className={`${input} font-semibold`}>
                       {categories.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.name}
+                          {c.name} ({c.n} SP){c.is_active === 0 ? " [Đang ẩn Web]" : ""}
                         </option>
                       ))}
                     </select>
